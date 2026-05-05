@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="data:,">
+    <title>Water System SCADA</title>
+    <script src="libs/cytoscape.min.js"></script>
+    <script src="scada-core.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; background: #f0f4f8; }
+
+        .header {
+            background: #1a252f;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            flex-wrap: wrap;
+        }
+        .header h1 { font-size: 0.95rem; letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0; }
+
+        #zone-select {
+            padding: 5px 10px;
+            border-radius: 6px;
+            border: 1px solid #4a6278;
+            background: #2c3e50;
+            color: white;
+            font-size: 0.85rem;
+            cursor: pointer;
+            min-width: 220px;
+        }
+        #zone-select option { background: #2c3e50; }
+
+        #sync-status {
+            margin-left: auto;
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 12px;
+            background: #34495e;
+            transition: background 0.4s;
+            flex-shrink: 0;
+        }
+
+        #cy-container {
+            position: relative;
+            width: 100vw;
+            height: calc(100vh - 50px);
+        }
+        #cy { width: 100%; height: 100%; display: block; }
+
+        /* Loading overlay */
+        #loading {
+            position: absolute;
+            inset: 0;
+            background: rgba(240,244,248,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: #2c3e50;
+            z-index: 20;
+        }
+        #loading.hidden { display: none; }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 12px 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-size: 0.8rem;
+            z-index: 10;
+        }
+        .legend h4 { margin-bottom: 8px; color: #333; font-size: 0.85rem; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+
+        /* Shape swatches — mirror Cytoscape native shapes exactly */
+        .lg-diamond {
+            width: 14px; height: 14px; flex-shrink: 0;
+            transform: rotate(45deg);
+            border-radius: 2px;
+        }
+        .lg-circle {
+            width: 14px; height: 14px; flex-shrink: 0;
+            border-radius: 50%;
+        }
+        .lg-roundrect {
+            width: 18px; height: 13px; flex-shrink: 0;
+            border-radius: 3px;
+        }
+        .lg-pipe {
+            width: 26px; height: 4px; flex-shrink: 0;
+            border-radius: 2px;
+        }
+        .lg-fault {
+            width: 26px; height: 4px; flex-shrink: 0;
+            border-radius: 2px;
+        }
+
+        /* Fault blink legend pulse */
+        @keyframes legendFaultBlink {
+            0%, 100% { background: #e74c3c; }
+            50%       { background: #ff8c00; }
+        }
+        .lg-fault { animation: legendFaultBlink 1s infinite; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🌊 My Project SCADA</h1>
+    <select id="zone-select"><option>Loading zones...</option></select>
+    <div id="sync-status">Initializing...</div>
+</div>
+
+<div id="cy-container">
+    <div id="cy"></div>
+    <div id="loading">Loading zone...</div>
+
+    <div class="legend">
+        <h4>Legend</h4>
+
+        <div class="legend-item">
+            <div class="lg-diamond" style="background:#2ecc71; border: 2px solid #27ae60;"></div>
+            Valve OPEN
+        </div>
+        <div class="legend-item">
+            <div class="lg-diamond" style="background:#e74c3c; border: 2px solid #c0392b;"></div>
+            Valve CLOSED
+        </div>
+
+        <div class="legend-item">
+            <div class="lg-circle" style="background:#8e44ad; border: 3px solid #2ecc71;"></div>
+            Pump RUNNING
+        </div>
+        <div class="legend-item">
+            <div class="lg-circle" style="background:#95a5a6; border: 2px solid #7f8c8d;"></div>
+            Pump STOPPED
+        </div>
+
+        <div class="legend-item">
+            <div class="lg-roundrect" style="background:#3498db; border: 2px solid #2980b9;"></div>
+            Zone ACTIVE
+        </div>
+        <div class="legend-item">
+            <div class="lg-roundrect" style="background:#bdc3c7; border: 2px solid #95a5a6;"></div>
+            Zone INACTIVE
+        </div>
+
+        <div class="legend-item">
+            <div class="lg-pipe" style="background:#2ecc71;"></div>
+            Active Flow
+        </div>
+        <div class="legend-item">
+            <div class="lg-fault"></div>
+            Fault
+        </div>
+    </div>
+</div>
+
+<script>
+    // ─── CONFIG ───────────────────────────────────────────────────────────────
+    const GITHUB_USERNAME     = 'bluebeardtitan';
+    const GIST_ID             = 'a6ff5a8f656b7736aa2ac6b3eef9907f';
+    const REFRESH_INTERVAL_MS = 20000;
+    // ─────────────────────────────────────────────────────────────────────────
+
+    let cy            = null;
+    let refreshTimer  = null;
+    let currentZone   = null;
+    let stopAnims     = null;   // teardown handle returned by startAnimations()
+
+    // ─── LOAD MANIFEST → POPULATE DROPDOWN ───────────────────────────────────
+    async function loadManifest() {
+        const select = document.getElementById('zone-select');
+        try {
+            const res = await fetch('manifest.json?t=' + Date.now());
+            if (!res.ok) throw new Error('manifest.json not found');
+            const zones = await res.json();
+
+            select.innerHTML = '<option value="">— Select a zone —</option>';
+            zones.forEach(z => {
+                const opt = document.createElement('option');
+                opt.value       = JSON.stringify(z);   // store full zone object
+                opt.textContent = z.name;
+                select.appendChild(opt);
+            });
+
+            // Auto-load first zone
+            if (zones.length > 0) {
+                select.selectedIndex = 1;
+                loadZone(zones[0]);
+            }
+        } catch (err) {
+            select.innerHTML = '<option>Error loading manifest</option>';
+            console.error(err);
+        }
+    }
+
+    // ─── LOAD ZONE DIAGRAM ────────────────────────────────────────────────────
+    async function loadZone(zone) {
+        if (currentZone && currentZone.id === zone.id) return;
+        currentZone = zone;
+
+        // Stop existing refresh + animation loops
+        if (refreshTimer) clearInterval(refreshTimer);
+        if (stopAnims)    stopAnims();
+
+        showLoading(true);
+        setStatus('Loading ' + zone.name + '...', '#34495e');
+
+        try {
+            const res = await fetch(`zones/${zone.id}.json?t=` + Date.now());
+            if (!res.ok) throw new Error(`zones/${zone.id}.json not found`);
+            const diagram = await res.json();
+
+            initCytoscape(diagram);
+
+            // ── Start all visual animations ────────────────────────────────
+            stopAnims = startAnimations(cy);
+
+            showLoading(false);
+
+            // Start live refresh for this zone
+            await refreshStatus(zone);
+            refreshTimer = setInterval(() => refreshStatus(zone), REFRESH_INTERVAL_MS);
+
+        } catch (err) {
+            showLoading(false);
+            setStatus('⚠ ' + err.message, '#c0392b');
+            console.error(err);
+        }
+    }
+
+    // ─── INIT / REINIT CYTOSCAPE ──────────────────────────────────────────────
+    function initCytoscape(diagram) {
+        if (cy) cy.destroy();   // tear down previous instance
+
+        cy = cytoscape({
+            container: document.getElementById('cy'),
+            style: CY_STYLE,
+            elements: {
+                nodes: diagram.nodes,
+                edges: diagram.edges
+            },
+            layout: { name: 'preset' },
+            userZoomingEnabled: true,
+            userPanningEnabled: true
+        });
+
+        cy.on('tap', 'node', function(evt) {
+            const n = evt.target;
+            console.log(`[TAP] id=${n.id()} type=${n.data('type')} state=${n.data('state')}`);
+        });
+    }
+
+    // ─── FETCH LIVE STATUS FROM GIST ─────────────────────────────────────────
+    async function refreshStatus(zone) {
+        if (!cy || !zone) return;
+        setStatus('Syncing...', '#34495e');
+        try {
+            const url = `https://gist.githubusercontent.com/${GITHUB_USERNAME}/${GIST_ID}/raw/${zone.gistFile}?t=${Date.now()}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            const updated = applyStatus(cy, data);
+            setStatus(`✓ Synced ${new Date().toLocaleTimeString()} (${updated} elements)`, '#27ae60');
+        } catch (err) {
+            setStatus('⚠ ' + err.message, '#c0392b');
+            console.error('Refresh error:', err);
+        }
+    }
+
+    // ─── UI HELPERS ───────────────────────────────────────────────────────────
+    function setStatus(msg, bg) {
+        const el = document.getElementById('sync-status');
+        el.innerText = msg;
+        el.style.background = bg;
+    }
+
+    function showLoading(visible) {
+        document.getElementById('loading').classList.toggle('hidden', !visible);
+    }
+
+    // ─── ZONE SELECT HANDLER ──────────────────────────────────────────────────
+    document.getElementById('zone-select').addEventListener('change', function() {
+        if (!this.value) return;
+        loadZone(JSON.parse(this.value));
+    });
+
+    // ─── BOOT ─────────────────────────────────────────────────────────────────
+    loadManifest();
+</script>
+</body>
+</html>

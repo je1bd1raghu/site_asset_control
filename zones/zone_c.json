@@ -1,0 +1,27 @@
+{
+  "nodes": [
+    { "data": { "id": "SRC_C",  "type": "zone",  "state": "ON",  "label": "Source\nReservoir"   }, "position": { "x": 300, "y": 80  } },
+    { "data": { "id": "V_C1",   "type": "valve", "state": "OFF", "label": "VC1\nNorth Entry"    }, "position": { "x": 150, "y": 200 } },
+    { "data": { "id": "V_C2",   "type": "valve", "state": "OFF", "label": "VC2\nEast Entry"     }, "position": { "x": 450, "y": 200 } },
+    { "data": { "id": "V_C3",   "type": "valve", "state": "OFF", "label": "VC3\nIndustrial A"   }, "position": { "x": 150, "y": 370 } },
+    { "data": { "id": "V_C4",   "type": "valve", "state": "OFF", "label": "VC4\nIndustrial B"   }, "position": { "x": 450, "y": 370 } },
+    { "data": { "id": "V_C5",   "type": "valve", "state": "OFF", "label": "VC5\nRing Isolator"  }, "position": { "x": 300, "y": 280 } },
+    { "data": { "id": "T_C1",   "type": "zone",  "state": "OFF", "label": "Tank C1\nFactory A"  }, "position": { "x": 100, "y": 500 } },
+    { "data": { "id": "T_C2",   "type": "zone",  "state": "OFF", "label": "Tank C2\nFactory B"  }, "position": { "x": 500, "y": 500 } },
+    { "data": { "id": "DR_C1",  "type": "valve", "state": "OFF", "label": "DR1\nDrain"          }, "position": { "x": 300, "y": 500 } }
+  ],
+  "edges": [
+    { "data": { "id": "PC1",  "source": "SRC_C", "target": "V_C1",  "label": "North Feed", "flow": "" } },
+    { "data": { "id": "PC2",  "source": "SRC_C", "target": "V_C2",  "label": "East Feed",  "flow": "" } },
+    { "data": { "id": "PC3",  "source": "V_C1",  "target": "V_C5",  "label": "Ring W",     "flow": "" } },
+    { "data": { "id": "PC4",  "source": "V_C2",  "target": "V_C5",  "label": "Ring E",     "flow": "" } },
+    { "data": { "id": "PC5",  "source": "V_C1",  "target": "V_C3",  "label": "",           "flow": "" } },
+    { "data": { "id": "PC6",  "source": "V_C2",  "target": "V_C4",  "label": "",           "flow": "" } },
+    { "data": { "id": "PC7",  "source": "V_C5",  "target": "V_C3",  "label": "",           "flow": "" } },
+    { "data": { "id": "PC8",  "source": "V_C5",  "target": "V_C4",  "label": "",           "flow": "" } },
+    { "data": { "id": "PC9",  "source": "V_C3",  "target": "T_C1",  "label": "To Factory A","flow": "" } },
+    { "data": { "id": "PC10", "source": "V_C4",  "target": "T_C2",  "label": "To Factory B","flow": "" } },
+    { "data": { "id": "PC11", "source": "T_C1",  "target": "DR_C1", "label": "Drain A",    "flow": "" } },
+    { "data": { "id": "PC12", "source": "T_C2",  "target": "DR_C1", "label": "Drain B",    "flow": "" } }
+  ]
+}

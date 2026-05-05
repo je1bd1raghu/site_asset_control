@@ -1,0 +1,5 @@
+[
+  { "id": "zone_a", "name": "CENTRAL SECTOR-I LALBAG (28MLD)", "gistFile": "zone_a_status.json" },
+  { "id": "zone_b", "name": "SAMPLE: Zone B — South Distribution", "gistFile": "zone_b_status.json" },
+  { "id": "zone_c", "name": "SAMPLE: Zone C — Industrial Block",   "gistFile": "zone_c_status.json" }
+]

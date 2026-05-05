@@ -1,0 +1,20 @@
+{
+  "nodes": [
+    { "data": { "id": "PS1",    "type": "valve", "state": "OFF", "label": "PS1\nPump Station"  }, "position": { "x": 100, "y": 200 } },
+    { "data": { "id": "V_B1",   "type": "valve", "state": "OFF", "label": "VB1\nMain Gate"     }, "position": { "x": 250, "y": 200 } },
+    { "data": { "id": "V_B2",   "type": "valve", "state": "OFF", "label": "VB2\nBranch North"  }, "position": { "x": 400, "y": 100 } },
+    { "data": { "id": "V_B3",   "type": "valve", "state": "OFF", "label": "VB3\nBranch South"  }, "position": { "x": 400, "y": 300 } },
+    { "data": { "id": "T_B1",   "type": "zone",  "state": "OFF", "label": "Tank B1\nNorth End"  }, "position": { "x": 580, "y": 100 } },
+    { "data": { "id": "T_B2",   "type": "zone",  "state": "OFF", "label": "Tank B2\nSouth End"  }, "position": { "x": 580, "y": 300 } },
+    { "data": { "id": "OV_B1",  "type": "valve", "state": "OFF", "label": "OVB1\nOverflow"      }, "position": { "x": 720, "y": 200 } }
+  ],
+  "edges": [
+    { "data": { "id": "PB1", "source": "PS1",   "target": "V_B1",  "label": "Inlet Main", "flow": "" } },
+    { "data": { "id": "PB2", "source": "V_B1",  "target": "V_B2",  "label": "North Leg",  "flow": "" } },
+    { "data": { "id": "PB3", "source": "V_B1",  "target": "V_B3",  "label": "South Leg",  "flow": "" } },
+    { "data": { "id": "PB4", "source": "V_B2",  "target": "T_B1",  "label": "",           "flow": "" } },
+    { "data": { "id": "PB5", "source": "V_B3",  "target": "T_B2",  "label": "",           "flow": "" } },
+    { "data": { "id": "PB6", "source": "T_B1",  "target": "OV_B1", "label": "Overflow",   "flow": "" } },
+    { "data": { "id": "PB7", "source": "T_B2",  "target": "OV_B1", "label": "Overflow",   "flow": "" } }
+  ]
+}
