@@ -22,6 +22,54 @@
         }
         .header h1 { font-size: 0.95rem; letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0; }
 
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 6px;
+            color: white;
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            text-decoration: none;
+            letter-spacing: 0.3px;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .back-link:hover { background: rgba(255,255,255,0.22); }
+
+        /* Compass rose */
+        #compass {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 64px;
+            height: 64px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0.82;
+            display: none;
+        }
+
+        /* GPS layout mode badge */
+        #layout-badge {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26,37,47,0.78);
+            color: #7fdbca;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            padding: 3px 10px;
+            border-radius: 10px;
+            z-index: 10;
+            pointer-events: none;
+            display: none;
+        }
         #zone-select {
             padding: 5px 10px;
             border-radius: 6px;
@@ -113,6 +161,7 @@
 <body>
 
 <div class="header">
+    <a href="index.html" class="back-link">← Asset Control</a>
     <h1>🌊 My Project SCADA</h1>
     <select id="zone-select"><option>Loading zones...</option></select>
     <div id="sync-status">Initializing...</div>
@@ -121,6 +170,26 @@
 <div id="cy-container">
     <div id="cy"></div>
     <div id="loading">Loading zone...</div>
+
+    <!-- Compass rose — shown only when GPS layout is active -->
+    <svg id="compass" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="32" r="30" fill="rgba(26,37,47,0.72)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+        <!-- N arrow (red) -->
+        <polygon points="32,6 28,32 32,28 36,32" fill="#e74c3c"/>
+        <!-- S arrow (white) -->
+        <polygon points="32,58 36,32 32,36 28,32" fill="rgba(255,255,255,0.7)"/>
+        <!-- E / W ticks -->
+        <line x1="56" y1="32" x2="50" y2="32" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <line x1="8"  y1="32" x2="14" y2="32" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <!-- Cardinal labels -->
+        <text x="32" y="20" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="sans-serif">N</text>
+        <text x="32" y="55" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="sans-serif">S</text>
+        <text x="54" y="36" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="sans-serif">E</text>
+        <text x="10" y="36" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="sans-serif">W</text>
+    </svg>
+
+    <!-- Shown when GPS polar layout is active -->
+    <div id="layout-badge">📡 GPS DIRECTION LAYOUT</div>
 
     <div class="legend">
         <h4>Legend</h4>
@@ -165,8 +234,8 @@
 
 <script>
     // ─── CONFIG ───────────────────────────────────────────────────────────────
-    const GITHUB_USERNAME     = 'je1bd1raghu';
-    const GIST_ID             = 'b92c304c7c56c5a76916600d35b55d67';
+    const GITHUB_USERNAME     = 'bluebeardtitan';
+    const GIST_ID             = 'a6ff5a8f656b7736aa2ac6b3eef9907f';
     const REFRESH_INTERVAL_MS = 20000;
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -174,6 +243,72 @@
     let refreshTimer  = null;
     let currentZone   = null;
     let stopAnims     = null;   // teardown handle returned by startAnimations()
+
+    // ─── GPS POLAR PROJECTION ─────────────────────────────────────────────────
+    // Converts node lat/lng into canvas positions using bearing + normalised
+    // distance from the diagram's "origin" node (first pump, or first node).
+    //
+    // Rules:
+    //   - Bearing from origin → each node gives the angle (N=up, E=right).
+    //   - Distance is normalised 0–1 across the set, then mapped to maxRadius.
+    //   - Origin node itself is placed at the canvas centre.
+    //   - Nodes without lat/lng keep their existing manual position unchanged.
+    //
+    // Returns true if projection was applied (≥2 nodes had GPS coords).
+
+    function applyGpsLayout(nodes, canvasW, canvasH) {
+        const PADDING   = 80;   // px margin from canvas edge
+        const maxRadius = Math.min(canvasW, canvasH) / 2 - PADDING;
+        const cx        = canvasW / 2;
+        const cy        = canvasH / 2;
+        const DEG2RAD   = Math.PI / 180;
+
+        // Collect nodes that carry GPS data
+        const gpsNodes = nodes.filter(n => {
+            const d = n.data || n;
+            return typeof d.lat === 'number' && typeof d.lng === 'number';
+        });
+
+        if (gpsNodes.length < 2) return false;   // not enough data — skip
+
+        // Pick origin: first pump node with GPS, else first GPS node
+        const origin = gpsNodes.find(n => (n.data || n).type === 'pump') || gpsNodes[0];
+        const oLat   = (origin.data || origin).lat;
+        const oLng   = (origin.data || origin).lng;
+
+        // Latitude correction factor for longitude distances at this latitude
+        const cosLat = Math.cos(oLat * DEG2RAD);
+
+        // Compute polar coords (bearing, raw distance) for every GPS node
+        const polars = gpsNodes.map(n => {
+            const d    = n.data || n;
+            const dLat = d.lat - oLat;
+            const dLng = (d.lng - oLng) * cosLat;   // corrected for latitude
+            const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+            // atan2 bearing: 0 = north, clockwise positive
+            const bearing = Math.atan2(dLng, dLat);  // radians
+            return { node: n, dist, bearing };
+        });
+
+        // Normalise distances to 0–1  (origin stays at 0)
+        const maxDist = Math.max(...polars.map(p => p.dist));
+
+        polars.forEach(({ node, dist, bearing }) => {
+            const r  = maxDist > 0 ? (dist / maxDist) * maxRadius : 0;
+            const px = cx + r * Math.sin(bearing);   // sin for x (east)
+            const py = cy - r * Math.cos(bearing);   // -cos for y (north=up)
+
+            // Write back into the node's position field
+            if (node.position) {
+                node.position.x = px;
+                node.position.y = py;
+            } else {
+                node.position = { x: px, y: py };
+            }
+        });
+
+        return true;
+    }
 
     // ─── LOAD MANIFEST → POPULATE DROPDOWN ───────────────────────────────────
     async function loadManifest() {
@@ -219,6 +354,18 @@
             if (!res.ok) throw new Error(`zones/${zone.id}.json not found`);
             const diagram = await res.json();
 
+            // Attempt GPS polar projection before handing to Cytoscape
+            const container  = document.getElementById('cy');
+            const gpsApplied = applyGpsLayout(
+                diagram.nodes,
+                container.offsetWidth  || window.innerWidth,
+                container.offsetHeight || window.innerHeight - 50
+            );
+
+            // Show/hide GPS indicators
+            document.getElementById('compass').style.display      = gpsApplied ? 'block' : 'none';
+            document.getElementById('layout-badge').style.display = gpsApplied ? 'block' : 'none';
+
             initCytoscape(diagram);
 
             // ── Start all visual animations ────────────────────────────────
@@ -253,9 +400,11 @@
             userPanningEnabled: true
         });
 
+        cy.fit(undefined, 40);   // auto-fit after layout with 40px padding
+
         cy.on('tap', 'node', function(evt) {
             const n = evt.target;
-            console.log(`[TAP] id=${n.id()} type=${n.data('type')} state=${n.data('state')}`);
+            console.log(`[TAP] id=${n.id()} type=${n.data('type')} state=${n.data('state')} lat=${n.data('lat')} lng=${n.data('lng')}`);
         });
     }
 
