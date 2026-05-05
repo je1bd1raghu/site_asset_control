@@ -572,7 +572,10 @@ function resetLoc() {
 
 // ── ASSETS RENDER ─────────────────────────────────────────────────────────────
 function renderAssets(person) {
-  const myAssets = assets.filter(a => !a.assignedTo || !a.assignedTo.length || a.assignedTo.includes(person.id));
+  // Assignment lives on the person record (person.assets = [assetId, ...]).
+  // Empty or missing array = assigned to all assets (supervisor / catch-all).
+  const assigned = person.assets && person.assets.length ? person.assets : null;
+  const myAssets = assigned ? assets.filter(a => assigned.includes(a.id)) : assets;
   const list = document.getElementById('assetsList');
 
   if (!myAssets.length) {
