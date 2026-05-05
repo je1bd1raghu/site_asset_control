@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Graph Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #F4F6FA;
+      --surface: #FFFFFF;
+      --surface2: #F0F4FF;
+      --primary: #2563EB;
+      --primary-dark: #1D4ED8;
+      --primary-light: #EFF6FF;
+      --success: #16A34A;
+      --danger: #DC2626;
+      --warning: #D97706;
+      --text: #1E293B;
+      --text2: #475569;
+      --text3: #94A3B8;
+      --border: #E2E8F0;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.07);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+    }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── HEADER (matches index.html) ── */
+    .header {
+      background: var(--primary);
+      color: white;
+      padding: 20px 20px 60px;
+      text-align: center;
+      position: relative;
+    }
+    .header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
+    .header p  { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+    .header-right {
+      position: absolute; right: 16px; top: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .scada-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.15);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      border-radius: 10px; color: white;
+      padding: 6px 12px; font-size: 12px; font-weight: 800;
+      font-family: 'Nunito', sans-serif; text-decoration: none;
+      letter-spacing: 0.4px;
+      transition: background 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .scada-link:hover { background: rgba(255,255,255,0.28); border-color: rgba(255,255,255,0.6); }
+
+    /* ── CARD WRAPPER (matches index.html) ── */
+    .card-wrapper { padding: 0 16px; margin-top: -40px; position: relative; z-index: 10; }
+    .card {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-lg); padding: 24px; margin-bottom: 16px;
+    }
+
+    /* ── CONTROLS ── */
+    select, textarea, input[type="text"] {
+      width: 100%;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border);
+      padding: 11px 14px;
+      margin-bottom: 14px;
+      font-size: 15px;
+      font-family: 'Nunito', sans-serif;
+      color: var(--text);
+      background: var(--surface);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    select:focus, textarea:focus, input[type="text"]:focus { border-color: var(--primary); }
+
+    textarea { height: 150px; resize: vertical; }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 11px 18px;
+      margin-bottom: 14px;
+      font-size: 15px;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      width: 100%;
+    }
+    button:hover { background: var(--primary-dark); }
+
+    #graph {
+      width: 100%; height: 100%; flex: 1;
+      border: 2px solid #333; border-radius: var(--radius-sm);
+      background-color: #111;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+
+    .analysis-container {
+      display: flex; gap: 20px; height: 800px;
+      width: 100%; border-top: 2px solid var(--border);
+      padding-top: 20px; margin-top: 20px;
+    }
+    .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+    .sidebar {
+      width: 350px; flex-shrink: 0;
+      background: var(--surface); border-radius: var(--radius-sm);
+      box-shadow: var(--shadow);
+      padding: 20px; overflow-y: auto; max-height: 800px;
+    }
+
+    .report-section {
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 15px;
+    }
+    .report-section:last-child { border-bottom: none; margin-bottom: 0; }
+    .report-section h3 { margin-bottom: 10px; color: var(--warning); font-weight: 700; font-size: 14px; }
+
+    pre {
+      background: var(--surface2); color: var(--text);
+      padding: 10px; border-radius: var(--radius-sm);
+      overflow-x: auto; font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+    }
+
+    #control-panel { display: flex; flex-wrap: wrap; gap: 10px; max-width: 600px; }
+    #control-panel button { flex: 1 1 auto; min-width: 150px; width: auto; margin-bottom: 0; }
+
+    .report-section a { color: var(--primary); text-decoration: underline; cursor: pointer; }
+    .report-section a:hover { color: var(--primary-dark); }
+
+    /* ── TABS ── */
+    .tabs {
+      overflow: hidden; border: 2px solid var(--border);
+      background: var(--surface2); margin-bottom: 20px;
+      border-radius: var(--radius-sm);
+    }
+    .tabs button {
+      background: var(--surface2); float: left; border: none; outline: none;
+      cursor: pointer; padding: 14px 16px; transition: 0.2s;
+      font-size: 15px; font-weight: 700; width: 50%;
+      border-radius: 0; margin-bottom: 0; color: var(--text2);
+    }
+    .tabs button:hover { background: var(--primary-light); color: var(--primary); }
+    .tabs button.active { background: var(--primary); color: white; }
+
+    .tabcontent {
+      display: none; padding: 16px;
+      border: 2px solid var(--border); border-top: none;
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      background: var(--surface);
+    }
+    .tabcontent h2 { color: var(--text); margin-top: 10px; margin-bottom: 20px; text-align: center; font-size: 18px; font-weight: 800; }
+
+    .compare-container {
+      display: flex; gap: 20px; align-items: flex-start;
+      border-top: 2px solid var(--border); padding-top: 20px; margin-top: 20px;
+    }
+    .compare-section { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+    .compare-section span { font-weight: 800; color: var(--text); }
+    .compare-section textarea { height: 150px; margin-bottom: 0; resize: vertical; min-height: 150px; }
+
+    .compare-button-wrapper { display: flex; align-items: flex-end; margin-bottom: 0; }
+    .compare-button-wrapper button { width: auto; padding: 11px 20px; margin-bottom: 0; margin-top: 0; }
+
+    #compareGraphsTab { background: #FFF5F5 !important; }
+
+    /* ── TOAST (matches index.html) ── */
+    #copyToast {
+      display: none; position: fixed; bottom: 28px;
+      left: 50%; transform: translateX(-50%);
+      background: var(--success); color: white;
+      padding: 14px 24px; border-radius: 50px;
+      font-size: 14px; font-weight: 700; z-index: 9999;
+      box-shadow: var(--shadow-lg); white-space: nowrap;
+    }
+  </style>
+
+  <script src="libs/cytoscape.min.js"></script>
+  <script src="graph-analyzer.js" defer></script>
+  <script>
+    function openTab(evt, tabName) {
+      var i, tabcontent, tablinks;
+      tabcontent = document.getElementsByClassName("tabcontent");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+      tablinks = document.getElementsByClassName("tablinks");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.className += " active";
+    }
+  </script>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <p>Pipeline Network Tool</p>
+  <h1>Graph Analyzer</h1>
+  <div class="header-right">
+    <a href="scada-visualizer.html" class="scada-link" title="Open SCADA Visualizer">
+      🌊 SCADA View
+    </a>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="card-wrapper">
+<div class="card">
+
+  <div class="tabs">
+    <button class="tablinks active" onclick="openTab(event, 'analyzeGraphTab')">Analyze Graph</button>
+    <button class="tablinks" onclick="openTab(event, 'compareGraphsTab')">Compare Graphs</button>
+  </div>
+
+  <div id="analyzeGraphTab" class="tabcontent" style="display: block;">
+    <select id="preprocessMode">
+      <option value="none">Do Not Alter Input Names</option>
+      <option value="ignore_prefix_and_symbols">Ignore Prefix and Non-Alphanumerics</option>
+      <option value="ignore_symbols_only">Ignore Symbols Only</option>
+    </select>
+
+    <textarea id="inputData" placeholder="Paste your node pairs here... Example:
+A B
+B C
+C A
+A D
+B A
+E E
+A A"></textarea>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const inputData = document.getElementById('inputData');
+        const inputData1 = document.getElementById('inputData1');
+        const inputData2 = document.getElementById('inputData2');
+
+        function enableTabIndent(textarea) {
+          textarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+              e.preventDefault();
+              const start = this.selectionStart;
+              const end = this.selectionEnd;
+
+              // set textarea value to: text before caret + tab + text after caret
+              this.value = this.value.substring(0, start) + "\t" + this.value.substring(end);
+
+              // put caret at right position again
+              this.selectionStart = this.selectionEnd = start + 1;
+            }
+          });
+        }
+
+        enableTabIndent(inputData);
+        enableTabIndent(inputData1);
+        enableTabIndent(inputData2);
+      });
+    </script>
+    <input type="text" id="searchBox" placeholder="🔍 Search node..." oninput="searchNode()">
+
+    <div id="control-panel">
+      <button onclick="analyzeGraph()">🚀 Analyze & Render Graph</button>
+      <button onclick="downloadCSV()">📥 Download CSV Report</button>
+      <button onclick="copyCytoscapeJSON()" id="copyJsonBtn">📋 Copy Cytoscape JSON</button>
+    </div>
+
+    <div class="analysis-container">
+      <div class="main-content">
+        <div id="graph"></div>
+      </div>
+
+      <div class="sidebar">
+        <div class="report-section">
+          <h3>🔁 Repeated or Bidirectional Detected</h3>
+          <div id="duplicates"></div>
+          <small><strong>Example:</strong><br>
+            A <-> B [Repeated] — A→B appears more than once<br>
+            A <-> B [Bidirectional] — A→B and B→A both exist
+          </small>
+        </div>
+
+        <div class="report-section">
+          <h3>🔀 Triangles Detected</h3>
+          <div id="midpoints"></div>
+          <small><strong>Example:</strong><br>
+            A - B - C — all 3 nodes are interconnected forming triangle
+          </small>
+        </div>
+
+        <div class="report-section">
+          <h3>🔄 Self-Loops Detected</h3>
+          <div id="loops"></div>
+          <small><strong>Example:</strong><br>
+            A → A — a node pointing to itself
+          </small>
+        </div>
+
+        <div class="report-section">
+          <h3>⚠️ Nodes with 4+ Branches</h3>
+          <div id="branches"></div>
+          <small><strong>Example:</strong><br>
+            A connects to B, C, D, E (4+ edges)
+          </small>
+        </div>
+
+        <div class="report-section">
+          <h3>❗ Malformed Input Lines</h3>
+          <div id="orphans"></div>
+          <small><strong>Example:</strong><br>
+            Incomplete input like: "A", or "A B C"
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="compareGraphsTab" class="tabcontent">
+    <h2>Compare Two Graphs</h2>
+    <h6>Note: The graphs will be rendered with the same layout for comparison. Similar Nodes and Links will be Rendered in <span style="color: #0074D9;">Blue</span> Colour while Assimilar ones will be in <span style="color: #ff0000;">Red</span> Colour.</h6>
+    <div class="compare-container">
+      <div class="compare-section">
+        <span contenteditable="true" id="graph1Label">Graph 1</span>
+        <textarea id="inputData1" placeholder="Paste Graph 1 node pairs here..."></textarea>
+      </div>
+      <div class="compare-button-wrapper">
+        <button onclick="compareAndRenderGraphs()">Compare Graphs</button>
+      </div>
+      <div class="compare-section">
+        <span contenteditable="true" id="graph2Label">Graph 2</span>
+        <textarea id="inputData2" placeholder="Paste Graph 2 node pairs here..."></textarea>
+      </div>
+    </div>
+    <div style="border-top: 2px solid #ddd; margin-top: 20px; padding-top: 20px;"></div>
+    <div id="compareGraph" style="width: 100%; height: 500px; border: 2px solid #333; border-radius: 8px; margin-bottom: 25px; background-color: #111; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);"></div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="copyToast">✅ Cytoscape JSON copied to clipboard!</div>
+
+  <script>
+    /**
+     * Exports the current Cytoscape graph as a zone_a.json-style object
+     * and copies it to the clipboard.
+     *
+     * Expected format:
+     * {
+     *   "nodes": [ { "data": { "id": "...", ... }, "position": { "x": 0, "y": 0 } } ],
+     *   "edges": [ { "data": { "id": "...", "source": "...", "target": "...", "label": "", "flow": "" } } ]
+     * }
+     */
+    function copyCytoscapeJSON() {
+      // `cy` is the global Cytoscape instance created by graph-analyzer.js
+      if (typeof cy === 'undefined' || !cy) {
+        alert('⚠️ No graph rendered yet. Please analyze a graph first.');
+        return;
+      }
+
+      const nodes = cy.nodes().map(function(node) {
+        const pos = node.position();
+        const data = node.data();
+        return {
+          data: {
+            id:    data.id,
+            type:  data.type  || '',
+            state: data.state || '',
+            label: data.label || data.id,
+            lat:   typeof data.lat === 'number' ? data.lat : null,
+            lng:   typeof data.lng === 'number' ? data.lng : null
+          },
+          position: {
+            x: Math.round(pos.x),
+            y: Math.round(pos.y)
+          }
+        };
+      });
+
+      const edges = cy.edges().map(function(edge) {
+        const data = edge.data();
+        return {
+          data: {
+            id:     data.id     || (data.source + '_' + data.target),
+            source: data.source,
+            target: data.target,
+            label:  data.label  || '',
+            flow:   data.flow   || ''
+          }
+        };
+      });
+
+      const output = JSON.stringify({ nodes: nodes, edges: edges }, null, 2);
+
+      // Copy to clipboard
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(output).then(showCopyToast).catch(function() {
+          fallbackCopy(output);
+        });
+      } else {
+        fallbackCopy(output);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity  = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showCopyToast();
+      } catch (e) {
+        alert('Could not copy automatically. Please copy manually:\n\n' + text);
+      }
+      document.body.removeChild(ta);
+    }
+
+    function showCopyToast() {
+      const toast = document.getElementById('copyToast');
+      toast.style.display = 'block';
+      toast.style.opacity = '1';
+      setTimeout(function() {
+        toast.style.opacity = '0';
+        setTimeout(function() { toast.style.display = 'none'; }, 400);
+      }, 2500);
+    }
+  </script>
+
+</div><!-- /.card -->
+</div><!-- /.card-wrapper -->
+</body>
+</html>
