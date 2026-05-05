@@ -263,8 +263,9 @@ const WORKER = 'https://scada-visualizer.je1-bd1-raghu.workers.dev';
 // cfg only keeps the filenames — IDs and token live in the Worker env vars
 const cfg = Object.freeze({
   configFile:  'config.json',
-  recordsFile: 'records.csv',
-  statusFile:  'status.json'
+  recordsFile: 'records.csv'
+  // status.json removed — current asset state is derived from records.csv
+  // (latest record per asset = current ON/OFF). Cooldown is localStorage-only.
 });
 
 const COOLDOWN_MS = 5 * 60 * 1000;   // 5 minutes
@@ -367,12 +368,24 @@ async function fetchStatusAndRecords() {
   try {
     const files = await gistGetAll('output');
 
-    // Parse status
-    try { assetStatus = JSON.parse(files[cfg.statusFile] || '{}'); } catch { assetStatus = {}; }
-
     // Parse CSV records
     const allRecs = csvParse(files[cfg.recordsFile] || '');
     todayRecs = allRecs.filter(r => r.date === todayStr());
+
+    // Derive current asset status from records — latest record per asset wins.
+    // This replaces status.json entirely: no extra gist file needed.
+    assetStatus = {};
+    allRecs.forEach(r => {
+      const existing = assetStatus[r.assetId];
+      if (!existing || r.timestamp > existing.lastChangedAt) {
+        assetStatus[r.assetId] = {
+          status:         r.action,
+          lastPersonId:   r.personId,
+          lastPersonName: r.personName,
+          lastChangedAt:  r.timestamp
+        };
+      }
+    });
 
     // Initialise cooldowns from server records (survives localStorage clear)
     todayRecs.forEach(r => {
@@ -704,9 +717,8 @@ async function doToggle(assetId) {
     const allRecords = csvParse(outFiles[cfg.recordsFile] || '');
     allRecords.push(rec);
 
-    // Write both status.json and records.csv in a single PATCH
+    // Write only records.csv — status is derived from records, no status.json needed
     await gistPatch({
-      [cfg.statusFile]:  JSON.stringify(assetStatus, null, 2),
       [cfg.recordsFile]: csvStringify(allRecords)
     });
 
