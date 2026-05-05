@@ -1,3 +1,33 @@
+// ── SHARED HELPERS (parity with index.html) ───────────────────────────────────
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+function updateClock() {
+  const now    = new Date();
+  const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const hd = document.getElementById('headerDate');
+  if (hd) hd.textContent = DAYS[now.getDay()] + ', ' + MONTHS[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+}
+
+function esc(s) {
+  return String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+}
+
+let _toastTmr;
+function showToast(msg, type) {
+  type = type || '';
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type;
+  void el.offsetWidth;                    // force reflow to restart transition
+  el.classList.add('show');
+  clearTimeout(_toastTmr);
+  _toastTmr = setTimeout(function() { el.classList.remove('show'); }, 3400);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 let cy = null;
 let latestReport = {};
 const nodeNameMap = new Map();
