@@ -44,10 +44,10 @@
     },
     {
       "data": {
-        "id": "V-E1-300",
+        "id": "V-E1-BP-300",
         "type": "",
         "state": "",
-        "label": "V-E1-300",
+        "label": "V-E1-BP-300",
         "lat": null,
         "lng": null
       },
@@ -442,9 +442,9 @@
     },
     {
       "data": {
-        "id": "WTP-V-E1-300",
+        "id": "WTP-V-E1-BP-300",
         "source": "WTP",
-        "target": "V-E1-300",
+        "target": "V-E1-BP-300",
         "label": "",
         "flow": ""
       }
@@ -469,8 +469,8 @@
     },
     {
       "data": {
-        "id": "V-E1-300-E1-AYESHBAG-EXISTING",
-        "source": "V-E1-300",
+        "id": "V-E1-BP-300-E1-AYESHBAG-EXISTING",
+        "source": "V-E1-BP-300",
         "target": "E1-AYESHBAG-EXISTING",
         "label": "",
         "flow": ""
@@ -595,9 +595,9 @@
     },
     {
       "data": {
-        "id": "V-FG-500-V-C1-250",
+        "id": "V-FG-500-V-C1-BP-250",
         "source": "V-FG-500",
-        "target": "V-C1-250",
+        "target": "V-C1-BP-250",
         "label": "",
         "flow": ""
       }
@@ -631,8 +631,8 @@
     },
     {
       "data": {
-        "id": "V-C1-250-C1-RAMPUR-EXISTING",
-        "source": "V-C1-250",
+        "id": "V-C1-BP-250-C1-RAMPUR-EXISTING",
+        "source": "V-C1-BP-250",
         "target": "C1-RAMPUR-EXISTING",
         "label": "",
         "flow": ""
