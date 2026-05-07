@@ -3,9 +3,6 @@
     {
       "data": {
         "id": "WTP",
-        "type": "",
-        "state": "",
-        "label": "WTP",
         "lat": null,
         "lng": null
       },
@@ -17,9 +14,6 @@
     {
       "data": {
         "id": "V-E2E3-150",
-        "type": "",
-        "state": "",
-        "label": "V-E2E3-150",
         "lat": null,
         "lng": null
       },
@@ -31,9 +25,6 @@
     {
       "data": {
         "id": "V-MSD-MUNCY-BULK_SUPPLY-100",
-        "type": "",
-        "state": "",
-        "label": "V-MSD-MUNCY-BULK_SUPPLY-100",
         "lat": null,
         "lng": null
       },
@@ -45,9 +36,6 @@
     {
       "data": {
         "id": "V-E1-BP-300",
-        "type": "",
-        "state": "",
-        "label": "V-E1-BP-300",
         "lat": null,
         "lng": null
       },
@@ -59,9 +47,6 @@
     {
       "data": {
         "id": "V-CDFG-500",
-        "type": "",
-        "state": "",
-        "label": "V-CDFG-500",
         "lat": null,
         "lng": null
       },
@@ -73,9 +58,6 @@
     {
       "data": {
         "id": "V-AB-350",
-        "type": "",
-        "state": "",
-        "label": "V-AB-350",
         "lat": null,
         "lng": null
       },
@@ -87,9 +69,6 @@
     {
       "data": {
         "id": "E1-AYESHBAG-EXISTING",
-        "type": "",
-        "state": "",
-        "label": "E1-AYESHBAG-EXISTING",
         "lat": null,
         "lng": null
       },
@@ -101,11 +80,8 @@
     {
       "data": {
         "id": "V-A1A2-350",
-        "type": "",
-        "state": "",
-        "label": "V-A1A2-350",
-        "lat": null,
-        "lng": null
+        "lat": 24.242283,
+        "lng": 88.287626
       },
       "position": {
         "x": 127,
@@ -115,11 +91,8 @@
     {
       "data": {
         "id": "V-B1B2-200",
-        "type": "",
-        "state": "",
-        "label": "V-B1B2-200",
-        "lat": null,
-        "lng": null
+        "lat": 24.194059,
+        "lng": 88.294915
       },
       "position": {
         "x": 258,
@@ -129,9 +102,6 @@
     {
       "data": {
         "id": "V-C2-250",
-        "type": "",
-        "state": "",
-        "label": "V-C2-250",
         "lat": null,
         "lng": null
       },
@@ -143,9 +113,6 @@
     {
       "data": {
         "id": "D1-BEGAMNAGAR-EXISTING",
-        "type": "",
-        "state": "",
-        "label": "D1-BEGAMNAGAR-EXISTING",
         "lat": null,
         "lng": null
       },
@@ -157,9 +124,6 @@
     {
       "data": {
         "id": "E3-TALGACHI-NEW",
-        "type": "",
-        "state": "",
-        "label": "E3-TALGACHI-NEW",
         "lat": null,
         "lng": null
       },
@@ -171,9 +135,6 @@
     {
       "data": {
         "id": "V-MOTIJHEEL-BULK_SUPPLY-100",
-        "type": "",
-        "state": "",
-        "label": "V-MOTIJHEEL-BULK_SUPPLY-100",
         "lat": null,
         "lng": null
       },
@@ -185,9 +146,6 @@
     {
       "data": {
         "id": "A1-AMAIPARA-EXISTING",
-        "type": "",
-        "state": "",
-        "label": "A1-AMAIPARA-EXISTING",
         "lat": null,
         "lng": null
       },
@@ -199,9 +157,6 @@
     {
       "data": {
         "id": "JIAGANJ-MUNCY-BULK_SUPPLY-200",
-        "type": "",
-        "state": "",
-        "label": "JIAGANJ-MUNCY-BULK_SUPPLY-200",
         "lat": null,
         "lng": null
       },
@@ -213,9 +168,6 @@
     {
       "data": {
         "id": "C2-TENTULIA-NEW",
-        "type": "",
-        "state": "",
-        "label": "C2-TENTULIA-NEW",
         "lat": null,
         "lng": null
       },
@@ -227,9 +179,6 @@
     {
       "data": {
         "id": "B1-SASHIDHARPUR-EXISTING",
-        "type": "",
-        "state": "",
-        "label": "B1-SASHIDHARPUR-EXISTING",
         "lat": null,
         "lng": null
       },
@@ -241,9 +190,6 @@
     {
       "data": {
         "id": "B2-KAPASDANGA-NEW",
-        "type": "",
-        "state": "",
-        "label": "B2-KAPASDANGA-NEW",
         "lat": null,
         "lng": null
       },
@@ -255,9 +201,6 @@
     {
       "data": {
         "id": "V-FG-500",
-        "type": "",
-        "state": "",
-        "label": "V-FG-500",
         "lat": null,
         "lng": null
       },
@@ -269,9 +212,6 @@
     {
       "data": {
         "id": "A2-DAKSHIN-GANESHPUR-NEW",
-        "type": "",
-        "state": "",
-        "label": "A2-DAKSHIN-GANESHPUR-NEW",
         "lat": null,
         "lng": null
       },
@@ -283,9 +223,6 @@
     {
       "data": {
         "id": "V-C1-BP-250",
-        "type": "",
-        "state": "",
-        "label": "Bypass Valve,\nRising Main to Distribution Main",
         "lat": 24.192446,
         "lng": 88.383311
       },
@@ -297,9 +234,6 @@
     {
       "data": {
         "id": "D2-BIRAMPUR-NEW",
-        "type": "",
-        "state": "",
-        "label": "D2-BIRAMPUR-NEW",
         "lat": null,
         "lng": null
       },
@@ -311,9 +245,6 @@
     {
       "data": {
         "id": "V-F1F2-250",
-        "type": "",
-        "state": "",
-        "label": "V-F1F2-250",
         "lat": null,
         "lng": null
       },
@@ -325,9 +256,6 @@
     {
       "data": {
         "id": "V-G1G2-250",
-        "type": "",
-        "state": "",
-        "label": "V-G1G2-250",
         "lat": null,
         "lng": null
       },
@@ -339,9 +267,6 @@
     {
       "data": {
         "id": "C1-RAMPUR-EXISTING",
-        "type": "",
-        "state": "",
-        "label": "C1-RAMPUR-EXISTING",
         "lat": null,
         "lng": null
       },
@@ -353,9 +278,6 @@
     {
       "data": {
         "id": "G2-CHHAIGHARI-NEW",
-        "type": "",
-        "state": "",
-        "label": "G2-CHHAIGHARI-NEW",
         "lat": null,
         "lng": null
       },
@@ -367,9 +289,6 @@
     {
       "data": {
         "id": "F1-DAULATABAD-EXISTING",
-        "type": "",
-        "state": "",
-        "label": "F1-DAULATABAD-EXISTING",
         "lat": null,
         "lng": null
       },
@@ -381,9 +300,6 @@
     {
       "data": {
         "id": "G1-HABIPUR-EXISTING",
-        "type": "",
-        "state": "",
-        "label": "G1-HABIPUR-EXISTING",
         "lat": null,
         "lng": null
       },
@@ -395,9 +311,6 @@
     {
       "data": {
         "id": "F2-SALAMATPUR-NEW",
-        "type": "",
-        "state": "",
-        "label": "F2-SALAMATPUR-NEW",
         "lat": null,
         "lng": null
       },
@@ -409,9 +322,6 @@
     {
       "data": {
         "id": "E2-SANYASHIDANGA-NEW",
-        "type": "",
-        "state": "",
-        "label": "E2-SANYASHIDANGA-NEW",
         "lat": null,
         "lng": null
       },
@@ -426,261 +336,203 @@
       "data": {
         "id": "WTP-V-E2E3-150",
         "source": "WTP",
-        "target": "V-E2E3-150",
-        "label": "",
-        "flow": ""
+        "target": "V-E2E3-150"
       }
     },
     {
       "data": {
         "id": "WTP-V-MSD-MUNCY-BULK_SUPPLY-100",
         "source": "WTP",
-        "target": "V-MSD-MUNCY-BULK_SUPPLY-100",
-        "label": "",
-        "flow": ""
+        "target": "V-MSD-MUNCY-BULK_SUPPLY-100"
       }
     },
     {
       "data": {
         "id": "WTP-V-E1-BP-300",
         "source": "WTP",
-        "target": "V-E1-BP-300",
-        "label": "",
-        "flow": ""
+        "target": "V-E1-BP-300"
       }
     },
     {
       "data": {
         "id": "WTP-V-CDFG-500",
         "source": "WTP",
-        "target": "V-CDFG-500",
-        "label": "",
-        "flow": ""
+        "target": "V-CDFG-500"
       }
     },
     {
       "data": {
         "id": "WTP-V-AB-350",
         "source": "WTP",
-        "target": "V-AB-350",
-        "label": "",
-        "flow": ""
+        "target": "V-AB-350"
       }
     },
     {
       "data": {
         "id": "V-E1-BP-300-E1-AYESHBAG-EXISTING",
         "source": "V-E1-BP-300",
-        "target": "E1-AYESHBAG-EXISTING",
-        "label": "",
-        "flow": ""
+        "target": "E1-AYESHBAG-EXISTING"
       }
     },
     {
       "data": {
         "id": "V-AB-350-V-A1A2-350",
         "source": "V-AB-350",
-        "target": "V-A1A2-350",
-        "label": "",
-        "flow": ""
+        "target": "V-A1A2-350"
       }
     },
     {
       "data": {
         "id": "V-AB-350-V-B1B2-200",
         "source": "V-AB-350",
-        "target": "V-B1B2-200",
-        "label": "",
-        "flow": ""
+        "target": "V-B1B2-200"
       }
     },
     {
       "data": {
         "id": "V-CDFG-500-V-C2-250",
         "source": "V-CDFG-500",
-        "target": "V-C2-250",
-        "label": "",
-        "flow": ""
+        "target": "V-C2-250"
       }
     },
     {
       "data": {
         "id": "V-CDFG-500-D1-BEGAMNAGAR-EXISTING",
         "source": "V-CDFG-500",
-        "target": "D1-BEGAMNAGAR-EXISTING",
-        "label": "",
-        "flow": ""
+        "target": "D1-BEGAMNAGAR-EXISTING"
       }
     },
     {
       "data": {
         "id": "V-E2E3-150-E3-TALGACHI-NEW",
         "source": "V-E2E3-150",
-        "target": "E3-TALGACHI-NEW",
-        "label": "",
-        "flow": ""
+        "target": "E3-TALGACHI-NEW"
       }
     },
     {
       "data": {
         "id": "V-E2E3-150-V-MOTIJHEEL-BULK_SUPPLY-100",
         "source": "V-E2E3-150",
-        "target": "V-MOTIJHEEL-BULK_SUPPLY-100",
-        "label": "",
-        "flow": ""
+        "target": "V-MOTIJHEEL-BULK_SUPPLY-100"
       }
     },
     {
       "data": {
         "id": "V-A1A2-350-A1-AMAIPARA-EXISTING",
         "source": "V-A1A2-350",
-        "target": "A1-AMAIPARA-EXISTING",
-        "label": "",
-        "flow": ""
+        "target": "A1-AMAIPARA-EXISTING"
       }
     },
     {
       "data": {
         "id": "V-A1A2-350-JIAGANJ-MUNCY-BULK_SUPPLY-200",
         "source": "V-A1A2-350",
-        "target": "JIAGANJ-MUNCY-BULK_SUPPLY-200",
-        "label": "",
-        "flow": ""
+        "target": "JIAGANJ-MUNCY-BULK_SUPPLY-200"
       }
     },
     {
       "data": {
         "id": "V-C2-250-C2-TENTULIA-NEW",
         "source": "V-C2-250",
-        "target": "C2-TENTULIA-NEW",
-        "label": "",
-        "flow": ""
+        "target": "C2-TENTULIA-NEW"
       }
     },
     {
       "data": {
         "id": "V-B1B2-200-B1-SASHIDHARPUR-EXISTING",
         "source": "V-B1B2-200",
-        "target": "B1-SASHIDHARPUR-EXISTING",
-        "label": "",
-        "flow": ""
+        "target": "B1-SASHIDHARPUR-EXISTING"
       }
     },
     {
       "data": {
         "id": "V-B1B2-200-B2-KAPASDANGA-NEW",
         "source": "V-B1B2-200",
-        "target": "B2-KAPASDANGA-NEW",
-        "label": "",
-        "flow": ""
+        "target": "B2-KAPASDANGA-NEW"
       }
     },
     {
       "data": {
         "id": "D1-BEGAMNAGAR-EXISTING-V-FG-500",
         "source": "D1-BEGAMNAGAR-EXISTING",
-        "target": "V-FG-500",
-        "label": "",
-        "flow": ""
+        "target": "V-FG-500"
       }
     },
     {
       "data": {
         "id": "A1-AMAIPARA-EXISTING-A2-DAKSHIN-GANESHPUR-NEW",
         "source": "A1-AMAIPARA-EXISTING",
-        "target": "A2-DAKSHIN-GANESHPUR-NEW",
-        "label": "",
-        "flow": ""
+        "target": "A2-DAKSHIN-GANESHPUR-NEW"
       }
     },
     {
       "data": {
         "id": "V-FG-500-V-C1-BP-250",
         "source": "V-FG-500",
-        "target": "V-C1-BP-250",
-        "label": "",
-        "flow": ""
+        "target": "V-C1-BP-250"
       }
     },
     {
       "data": {
         "id": "V-FG-500-D2-BIRAMPUR-NEW",
         "source": "V-FG-500",
-        "target": "D2-BIRAMPUR-NEW",
-        "label": "",
-        "flow": ""
+        "target": "D2-BIRAMPUR-NEW"
       }
     },
     {
       "data": {
         "id": "V-FG-500-V-F1F2-250",
         "source": "V-FG-500",
-        "target": "V-F1F2-250",
-        "label": "",
-        "flow": ""
+        "target": "V-F1F2-250"
       }
     },
     {
       "data": {
         "id": "V-FG-500-V-G1G2-250",
         "source": "V-FG-500",
-        "target": "V-G1G2-250",
-        "label": "",
-        "flow": ""
+        "target": "V-G1G2-250"
       }
     },
     {
       "data": {
         "id": "V-C1-BP-250-C1-RAMPUR-EXISTING",
         "source": "V-C1-BP-250",
-        "target": "C1-RAMPUR-EXISTING",
-        "label": "",
-        "flow": ""
+        "target": "C1-RAMPUR-EXISTING"
       }
     },
     {
       "data": {
         "id": "V-G1G2-250-G2-CHHAIGHARI-NEW",
         "source": "V-G1G2-250",
-        "target": "G2-CHHAIGHARI-NEW",
-        "label": "",
-        "flow": ""
+        "target": "G2-CHHAIGHARI-NEW"
       }
     },
     {
       "data": {
         "id": "V-F1F2-250-F1-DAULATABAD-EXISTING",
         "source": "V-F1F2-250",
-        "target": "F1-DAULATABAD-EXISTING",
-        "label": "",
-        "flow": ""
+        "target": "F1-DAULATABAD-EXISTING"
       }
     },
     {
       "data": {
         "id": "G2-CHHAIGHARI-NEW-G1-HABIPUR-EXISTING",
         "source": "G2-CHHAIGHARI-NEW",
-        "target": "G1-HABIPUR-EXISTING",
-        "label": "",
-        "flow": ""
+        "target": "G1-HABIPUR-EXISTING"
       }
     },
     {
       "data": {
         "id": "F1-DAULATABAD-EXISTING-F2-SALAMATPUR-NEW",
         "source": "F1-DAULATABAD-EXISTING",
-        "target": "F2-SALAMATPUR-NEW",
-        "label": "",
-        "flow": ""
+        "target": "F2-SALAMATPUR-NEW"
       }
     },
     {
       "data": {
         "id": "E3-TALGACHI-NEW-E2-SANYASHIDANGA-NEW",
         "source": "E3-TALGACHI-NEW",
-        "target": "E2-SANYASHIDANGA-NEW",
-        "label": "",
-        "flow": ""
+        "target": "E2-SANYASHIDANGA-NEW"
       }
     }
   ]

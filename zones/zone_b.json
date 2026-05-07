@@ -3,9 +3,6 @@
     {
       "data": {
         "id": "PS1",
-        "type": "valve",
-        "state": "OFF",
-        "label": "PS1\nPump Station",
         "lat": null,
         "lng": null
       },
@@ -17,9 +14,6 @@
     {
       "data": {
         "id": "V_B1",
-        "type": "valve",
-        "state": "OFF",
-        "label": "VB1\nMain Gate",
         "lat": null,
         "lng": null
       },
@@ -31,9 +25,6 @@
     {
       "data": {
         "id": "V_B2",
-        "type": "valve",
-        "state": "OFF",
-        "label": "VB2\nBranch North",
         "lat": null,
         "lng": null
       },
@@ -45,9 +36,6 @@
     {
       "data": {
         "id": "V_B3",
-        "type": "valve",
-        "state": "OFF",
-        "label": "VB3\nBranch South",
         "lat": null,
         "lng": null
       },
@@ -59,9 +47,6 @@
     {
       "data": {
         "id": "T_B1",
-        "type": "zone",
-        "state": "OFF",
-        "label": "Tank B1\nNorth End",
         "lat": null,
         "lng": null
       },
@@ -73,9 +58,6 @@
     {
       "data": {
         "id": "T_B2",
-        "type": "zone",
-        "state": "OFF",
-        "label": "Tank B2\nSouth End",
         "lat": null,
         "lng": null
       },
@@ -87,9 +69,6 @@
     {
       "data": {
         "id": "OV_B1",
-        "type": "valve",
-        "state": "OFF",
-        "label": "OVB1\nOverflow",
         "lat": null,
         "lng": null
       },
@@ -104,63 +83,49 @@
       "data": {
         "id": "PB1",
         "source": "PS1",
-        "target": "V_B1",
-        "label": "Inlet Main",
-        "flow": ""
+        "target": "V_B1"
       }
     },
     {
       "data": {
         "id": "PB2",
         "source": "V_B1",
-        "target": "V_B2",
-        "label": "North Leg",
-        "flow": ""
+        "target": "V_B2"
       }
     },
     {
       "data": {
         "id": "PB3",
         "source": "V_B1",
-        "target": "V_B3",
-        "label": "South Leg",
-        "flow": ""
+        "target": "V_B3"
       }
     },
     {
       "data": {
         "id": "PB4",
         "source": "V_B2",
-        "target": "T_B1",
-        "label": "",
-        "flow": ""
+        "target": "T_B1"
       }
     },
     {
       "data": {
         "id": "PB5",
         "source": "V_B3",
-        "target": "T_B2",
-        "label": "",
-        "flow": ""
+        "target": "T_B2"
       }
     },
     {
       "data": {
         "id": "PB6",
         "source": "T_B1",
-        "target": "OV_B1",
-        "label": "Overflow",
-        "flow": ""
+        "target": "OV_B1"
       }
     },
     {
       "data": {
         "id": "PB7",
         "source": "T_B2",
-        "target": "OV_B1",
-        "label": "Overflow",
-        "flow": ""
+        "target": "OV_B1"
       }
     }
   ]

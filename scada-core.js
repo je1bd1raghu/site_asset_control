@@ -243,39 +243,49 @@ function applyStatus(cy, data) {
 }
 
 // ─── FLOW PROPAGATION ────────────────────────────────────────────────────────
-// Walks the directed graph from every running pump (type=pump, state=ON).
-// An edge is "reachable" if there is a continuous upstream path that is NOT
-// blocked by a closed valve (type=valve, state=OFF).
+// Computes edge flow states by walking the directed graph from every running
+// pump (type=pump, state=ON).
 //
-// Rules:
-//   reachable  + flow="fault"  → keep "fault"  (explicit faults always win)
+// IMPORTANT — single responsibility:
+//   This function sets edge `flow` values ONLY.
+//   Node `state` (valve ON/OFF, zone ON/OFF) is authoritative data owned by
+//   the gist status file and written by applyStatus(). propagateFlow() never
+//   reads or writes node state — doing so would cause the gist and the
+//   propagation logic to overwrite each other on every sync.
+//
+// Edge flow rules:
+//   reachable  + flow="fault"  → keep "fault"   (explicit faults always win)
 //   reachable  + anything else → set  "active"
-//   unreachable                → clear flow    (empty string = idle pipe colour)
+//   unreachable                → set  ""         (idle pipe colour)
 //
-// If the diagram has no pump nodes at all, the function is a no-op so that
-// simple layouts without pumps still work as before.
+// Traversal rules:
+//   - BFS starts from all pump nodes with state=ON.
+//   - A closed valve (state=OFF) stops traversal: water reaches it but does
+//     not pass through. Its incoming edges are still marked active.
+//   - Zone nodes (type=zone) and open valves are transparent — traversal
+//     continues through them regardless of their state.
+//
+// If the diagram has no pump nodes the function is a no-op so layouts without
+// pumps (e.g. gravity-fed or source-zone diagrams) still render correctly.
 
 function propagateFlow(cy) {
 
     const hasPumps = cy.nodes('[type="pump"]').length > 0;
     if (!hasPumps) return;
 
-    // ── First pass: determine which zones are reachable ──────────────────────
+    // BFS — collect every edge reachable from a running pump
     const reachableEdges = new Set();
     const visitedNodes   = new Set();
-
-    const queue = cy.nodes('[type="pump"][state="ON"]').toArray();
+    const queue          = cy.nodes('[type="pump"][state="ON"]').toArray();
 
     while (queue.length > 0) {
 
         const node = queue.shift();
         const nid  = node.id();
-
         if (visitedNodes.has(nid)) continue;
         visitedNodes.add(nid);
 
-        // Closed valve: water reaches the valve body but does NOT pass through.
-        // Mark incoming edge reachable (water is there), stop outgoing traversal.
+        // Closed valve: mark incoming edges active, do not traverse outgoing.
         if (node.data('type') === 'valve' && node.data('state') === 'OFF') continue;
 
         node.outgoers('edge').forEach(edge => {
@@ -284,38 +294,11 @@ function propagateFlow(cy) {
         });
     }
 
-    // ── Update zone states based on reachable pipes ─────────────────────────
-    cy.batch(() => {
-        cy.nodes('[type="zone"]').forEach(zone => {
-            const currentState = zone.data('state');
-            
-            // If zone is already manually OFF, keep it OFF
-            if (currentState === 'OFF') return;
-            
-            // Otherwise, set based on reachability
-            const incoming = zone.incomers('edge');
-            let reachable = false;
-
-            incoming.forEach(edge => {
-                if (reachableEdges.has(edge.id()))
-                    reachable = true;
-            });
-
-            zone.data('state', reachable ? 'ON' : 'OFF');
-        });
-    });
-
-    // ── Second pass: update pipe flow states ───────────────────────────────
-    // Pipes carry flow only if they are reachable from a pump (faults excluded)
+    // Update edge flow — node states are never touched here
     cy.batch(() => {
         cy.edges().forEach(edge => {
-            const current = edge.data('flow');
-
-            if (reachableEdges.has(edge.id())) {
-                if (current !== 'fault') edge.data('flow', 'active');
-            } else {
-                if (current !== 'fault') edge.data('flow', '');
-            }
+            if (edge.data('flow') === 'fault') return;   // faults always win
+            edge.data('flow', reachableEdges.has(edge.id()) ? 'active' : '');
         });
     });
 }

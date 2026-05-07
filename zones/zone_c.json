@@ -3,9 +3,6 @@
     {
       "data": {
         "id": "SRC_C",
-        "type": "zone",
-        "state": "ON",
-        "label": "Source\nReservoir",
         "lat": null,
         "lng": null
       },
@@ -17,9 +14,6 @@
     {
       "data": {
         "id": "V_C1",
-        "type": "valve",
-        "state": "OFF",
-        "label": "VC1\nNorth Entry",
         "lat": null,
         "lng": null
       },
@@ -31,9 +25,6 @@
     {
       "data": {
         "id": "V_C2",
-        "type": "valve",
-        "state": "OFF",
-        "label": "VC2\nEast Entry",
         "lat": null,
         "lng": null
       },
@@ -45,9 +36,6 @@
     {
       "data": {
         "id": "V_C3",
-        "type": "valve",
-        "state": "OFF",
-        "label": "VC3\nIndustrial A",
         "lat": null,
         "lng": null
       },
@@ -59,9 +47,6 @@
     {
       "data": {
         "id": "V_C4",
-        "type": "valve",
-        "state": "OFF",
-        "label": "VC4\nIndustrial B",
         "lat": null,
         "lng": null
       },
@@ -73,9 +58,6 @@
     {
       "data": {
         "id": "V_C5",
-        "type": "valve",
-        "state": "OFF",
-        "label": "VC5\nRing Isolator",
         "lat": null,
         "lng": null
       },
@@ -87,9 +69,6 @@
     {
       "data": {
         "id": "T_C1",
-        "type": "zone",
-        "state": "OFF",
-        "label": "Tank C1\nFactory A",
         "lat": null,
         "lng": null
       },
@@ -101,9 +80,6 @@
     {
       "data": {
         "id": "T_C2",
-        "type": "zone",
-        "state": "OFF",
-        "label": "Tank C2\nFactory B",
         "lat": null,
         "lng": null
       },
@@ -115,9 +91,6 @@
     {
       "data": {
         "id": "DR_C1",
-        "type": "valve",
-        "state": "OFF",
-        "label": "DR1\nDrain",
         "lat": null,
         "lng": null
       },
@@ -132,108 +105,84 @@
       "data": {
         "id": "PC1",
         "source": "SRC_C",
-        "target": "V_C1",
-        "label": "North Feed",
-        "flow": ""
+        "target": "V_C1"
       }
     },
     {
       "data": {
         "id": "PC2",
         "source": "SRC_C",
-        "target": "V_C2",
-        "label": "East Feed",
-        "flow": ""
+        "target": "V_C2"
       }
     },
     {
       "data": {
         "id": "PC3",
         "source": "V_C1",
-        "target": "V_C5",
-        "label": "Ring W",
-        "flow": ""
+        "target": "V_C5"
       }
     },
     {
       "data": {
         "id": "PC4",
         "source": "V_C2",
-        "target": "V_C5",
-        "label": "Ring E",
-        "flow": ""
+        "target": "V_C5"
       }
     },
     {
       "data": {
         "id": "PC5",
         "source": "V_C1",
-        "target": "V_C3",
-        "label": "",
-        "flow": ""
+        "target": "V_C3"
       }
     },
     {
       "data": {
         "id": "PC6",
         "source": "V_C2",
-        "target": "V_C4",
-        "label": "",
-        "flow": ""
+        "target": "V_C4"
       }
     },
     {
       "data": {
         "id": "PC7",
         "source": "V_C5",
-        "target": "V_C3",
-        "label": "",
-        "flow": ""
+        "target": "V_C3"
       }
     },
     {
       "data": {
         "id": "PC8",
         "source": "V_C5",
-        "target": "V_C4",
-        "label": "",
-        "flow": ""
+        "target": "V_C4"
       }
     },
     {
       "data": {
         "id": "PC9",
         "source": "V_C3",
-        "target": "T_C1",
-        "label": "To Factory A",
-        "flow": ""
+        "target": "T_C1"
       }
     },
     {
       "data": {
         "id": "PC10",
         "source": "V_C4",
-        "target": "T_C2",
-        "label": "To Factory B",
-        "flow": ""
+        "target": "T_C2"
       }
     },
     {
       "data": {
         "id": "PC11",
         "source": "T_C1",
-        "target": "DR_C1",
-        "label": "Drain A",
-        "flow": ""
+        "target": "DR_C1"
       }
     },
     {
       "data": {
         "id": "PC12",
         "source": "T_C2",
-        "target": "DR_C1",
-        "label": "Drain B",
-        "flow": ""
+        "target": "DR_C1"
       }
     }
   ]
