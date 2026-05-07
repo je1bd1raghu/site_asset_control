@@ -282,12 +282,12 @@
     },
     {
       "data": {
-        "id": "V-C1-250",
+        "id": "V-C1-BP-250",
         "type": "",
         "state": "",
-        "label": "V-C1-250",
-        "lat": null,
-        "lng": null
+        "label": "Bypass Valve,\nRising Main to Distribution Main",
+        "lat": 24.192446,
+        "lng": 88.383311
       },
       "position": {
         "x": 389,
