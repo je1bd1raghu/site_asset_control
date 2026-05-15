@@ -308,6 +308,44 @@
             }
         });
 
+        // ── Minimum-distance enforcement ──────────────────────────────────────
+        // Single pass per outer iteration: compute midpoint between any pair
+        // closer than MIN_DIST and place both exactly MIN_DIST/2 from it along
+        // their original bearing.  Wrap in up to 4 outer passes to resolve
+        // cascades (A–B fix pushing A into C) without convergence complexity.
+        const MIN_DIST = 80;   // pixels — matches label/icon clearance
+
+        for (let pass = 0; pass < 4; pass++) {
+            let anyViolation = false;
+            for (let i = 0; i < gpsNodes.length; i++) {
+                for (let j = i + 1; j < gpsNodes.length; j++) {
+                    const a  = gpsNodes[i].position;
+                    const b  = gpsNodes[j].position;
+                    if (!a || !b) continue;
+
+                    const dx   = b.x - a.x;
+                    const dy   = b.y - a.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < MIN_DIST && dist > 0.01) {
+                        anyViolation = true;
+                        // Unit vector along a→b
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        // Midpoint
+                        const mx = (a.x + b.x) / 2;
+                        const my = (a.y + b.y) / 2;
+                        // Place both exactly MIN_DIST/2 from midpoint
+                        a.x = mx - nx * MIN_DIST / 2;
+                        a.y = my - ny * MIN_DIST / 2;
+                        b.x = mx + nx * MIN_DIST / 2;
+                        b.y = my + ny * MIN_DIST / 2;
+                    }
+                }
+            }
+            if (!anyViolation) break;   // all pairs already clear — done early
+        }
+
         return true;
     }
 
