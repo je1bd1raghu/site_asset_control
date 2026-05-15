@@ -401,7 +401,10 @@
             userPanningEnabled: true
         });
 
-        cy.fit(undefined, 40);   // auto-fit after layout with 40px padding
+        cy.fit(undefined, 40);
+		if (cy.zoom() < 0.9) {
+		    cy.zoom({ level: 0.9, renderedPosition: { x: cy.width()/2, y: cy.height()/2 } });
+		}			//This is useful when GPS layout spreads nodes far apart (large geographic area) — it prevents the auto-fit from shrinking everything down to match the full extent.
 
         cy.on('tap', 'node', function(evt) {
             const n = evt.target;
