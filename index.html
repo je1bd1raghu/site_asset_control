@@ -722,11 +722,15 @@ function buildAssetCard(asset, personId) {
   const disabled = (!near || inCd) ? 'disabled' : '';
   const title    = !near ? `Move within ${tol}m to toggle` : (inCd ? `Cooldown: ${formatCooldown(cdLeft)}` : '');
 
+  const typeIcon = asset.type === 'pump' ? '⚙️' : asset.type === 'valve' ? '🔧' : asset.type === 'zone' ? '🗺️' : '🏭';
+  const typeLabel = asset.type ? asset.type.charAt(0).toUpperCase() + asset.type.slice(1) : 'Asset';
+
   return `
 <div class="asset-card ${isOn ? 'status-on' : 'status-off'}" id="asset-card-${esc(asset.id)}">
   <div class="asset-top">
     <div>
       <div class="asset-name">${esc(asset.name)}</div>
+      <div style="font-size:12px;color:var(--text3);font-weight:600;margin-top:2px;">${typeIcon} ${esc(typeLabel)}</div>
       <div class="asset-dist">${dist !== null ? `${dist}m away · must be within ${tol}m` : 'Distance unknown'}</div>
     </div>
     <div class="toggle-wrap">
