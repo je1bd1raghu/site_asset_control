@@ -425,19 +425,36 @@ async function fetchStatusAndRecords() {
 
     // ── Merge label + type from zone status JSONs into assetMap ──────────────
     // Zone status files (e.g. zone_a_status.json) are the authoritative source
-    // for label and type — those fields are absent from the static zone JSONs.
-    // Any file in the output gist whose name ends in _status.json is parsed and
-    // its entries merged into assetMap so asset cards show correct names/types.
+    // for label, type, and initial state — those fields are absent from static
+    // zone JSONs. Any file in the output gist whose name ends in _status.json
+    // is parsed and its entries merged (or created) in assetMap so asset cards
+    // show correct names/types even when zone JSON loading was skipped/failed.
+    // statusSeeds holds the state field per asset-id; CSV records override it.
+    const statusSeeds = {};
     Object.entries(files).forEach(([filename, raw]) => {
       if (!filename.endsWith('_status.json')) return;
       try {
         const entries = JSON.parse(raw || '[]');
         entries.forEach(entry => {
           if (!entry.id) return;
-          const asset = assetMap[entry.id];
-          if (!asset) return;
+          let asset = assetMap[entry.id];
+          if (!asset) {
+            // Asset not yet in map (zone JSON missing/failed) — create it now
+            // so that label, type, and state from the status file are not lost.
+            asset = {
+              id:        entry.id,
+              name:      entry.id,
+              lat:       typeof entry.lat === 'number' ? entry.lat : null,
+              lng:       typeof entry.lng === 'number' ? entry.lng : null,
+              tolerance: 50
+            };
+            assetMap[entry.id] = asset;
+            assets.push(asset);
+          }
           if (entry.label) asset.name = entry.label.replace(/\n/g, ' ');
           if (entry.type)  asset.type = entry.type;
+          // Collect state seeds; applied after CSV so CSV records always win.
+          if (entry.state) statusSeeds[entry.id] = entry.state;
         });
       } catch { /* skip malformed status file */ }
     });
@@ -448,7 +465,11 @@ async function fetchStatusAndRecords() {
 
     // Derive current asset status from records — latest record per asset wins.
     // This replaces status.json entirely: no extra gist file needed.
+    // Seed from status file first, then let CSV records overwrite.
     assetStatus = {};
+    Object.entries(statusSeeds).forEach(([id, state]) => {
+      assetStatus[id] = { status: state, lastPersonId: null, lastPersonName: null, lastChangedAt: null };
+    });
     allRecs.forEach(r => {
       const existing = assetStatus[r.assetId];
       if (!existing || r.timestamp > existing.lastChangedAt) {
