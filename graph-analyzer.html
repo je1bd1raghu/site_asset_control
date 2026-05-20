@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Graph Analyzer</title>
+  <title>Graphical Network Analyzer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -252,6 +252,7 @@
 
   <script src="libs/cytoscape.min.js"></script>
   <script src="graph-analyzer.js" defer></script>
+  <script src="gps-layout.js"></script>
 </head>
 <body>
 
@@ -269,7 +270,7 @@
 <div class="modal-overlay" id="helpModal">
   <div class="modal">
     <button class="modal-close" onclick="closeHelp()" title="Close">✕</button>
-    <h2>❓ Graph Analyzer — Help</h2>
+    <h2>❓ Graphical Network Analyzer — Help</h2>
 
     <h3>Input Format</h3>
     <p>Paste one directed edge per line as two node names separated by a space or tab:</p>
@@ -359,7 +360,7 @@ WTP       WTP</pre>
 <!-- HEADER -->
 <div class="header">
   <p id="headerDate">Loading…</p>
-  <h1>Graph Analyzer</h1>
+  <h1>Graphical Network Analyzer</h1>
   <div class="header-right">
     <a href="index.html" class="scada-link" title="Back to Asset Control">← Asset Control</a>
     <a href="scada-visualizer.html" class="scada-link" title="Open SCADA Visualizer">🌊 SCADA View</a>

@@ -55,8 +55,9 @@ function onPreprocessModeChange() {
 
 // ─── ZONE.JSON REVERSE IMPORT ─────────────────────────────────────────────────
 // Called by analyzeGraph() when mode is from_zone_json.
-// Parses the textarea content as zone.json, renders the graph, then stamps
-// lat/lng back onto cy nodes so exportZoneJSON() round-trips coordinates.
+// Parses the zone.json from the textarea, applies GPS layout via gps-layout.js
+// if ≥2 nodes carry coordinates, then renders directly — bypassing the edge-pair
+// pipeline so canonical IDs, positions, and lat/lng all round-trip correctly.
 
 function loadFromZoneJSON() {
     const raw = document.getElementById('inputData').value.trim();
@@ -73,37 +74,126 @@ function loadFromZoneJSON() {
         showToast('❌ Expected { nodes, edges } at top level.', 'error'); return false;
     }
 
-    // Convert edges to "source  target" pairs and write into the same textarea
+    if (!diagram.edges.length) {
+        showToast('⚠️ No edges found in zone.json.', 'warning'); return false;
+    }
+
+    // ── Apply GPS layout if coordinates are present ───────────────────────────
+    // applyGpsLayout() is provided by gps-layout.js (shared with scada-visualizer).
+    // It mutates node.position.x/y in-place and returns true when applied.
+    const container  = document.getElementById('graph');
+    const canvasW    = container.offsetWidth  || 800;
+    const canvasH    = container.offsetHeight || 600;
+    const gpsApplied = applyGpsLayout(diagram.nodes, canvasW, canvasH);
+
+    // ── Build Cytoscape elements directly from zone.json ──────────────────────
+    // Nodes: carry id, label, lat, lng so exports round-trip faithfully.
+    // Edges: carry source + target directly — no name-cleaning needed.
+    const elements = [];
+
+    diagram.nodes.forEach(n => {
+        const d = n.data || n;
+        const pos = n.position || {};
+        elements.push({
+            data: {
+                id:       d.id,
+                label:    d.label ? d.label.replace(/\n/g, '\n') : d.id,
+                nameCount: 1,
+                lat:      typeof d.lat === 'number' ? d.lat : null,
+                lng:      typeof d.lng === 'number' ? d.lng : null
+            },
+            ...(gpsApplied && pos.x !== undefined
+                ? { position: { x: pos.x, y: pos.y } }
+                : {})
+        });
+    });
+
+    diagram.edges.forEach(e => {
+        const d = e.data || e;
+        elements.push({
+            data: {
+                id:     d.id || (d.source + '-' + d.target),
+                source: d.source,
+                target: d.target
+            }
+        });
+    });
+
+    // ── Init / reinit Cytoscape ───────────────────────────────────────────────
+    if (cy) cy.destroy();
+
+    cy = cytoscape({
+        container,
+        elements,
+        // Use preset (GPS positions) when available, cose otherwise
+        layout: gpsApplied ? { name: 'preset' } : { name: 'cose' },
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'background-color': '#0074D9',
+                    'label': 'data(label)',
+                    'color': '#ffffff',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'text-wrap': 'wrap',
+                    'shape': 'ellipse',
+                    'width':  'mapData(nameCount, 1, 5, 40, 100)',
+                    'height': 'mapData(nameCount, 1, 5, 40, 100)',
+                    'font-size': '10px'
+                }
+            },
+            { selector: 'node.overbranched', style: { 'background-color': 'red' } },
+            {
+                selector: 'node.search-highlight',
+                style: {
+                    'border-color': '#FFD700', 'border-width': '8px', 'border-style': 'double',
+                    'background-color': '#FFA500', 'background-opacity': 0.7
+                }
+            },
+            {
+                selector: 'edge',
+                style: { 'line-color': '#888', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier' }
+            },
+            { selector: 'edge.duplicate', style: { 'line-color': 'orange', 'width': 3, 'line-style': 'dashed' } }
+        ]
+    });
+
+    if (gpsApplied) {
+        cy.fit(undefined, 40);
+        if (cy.zoom() < 0.9) cy.zoom({ level: 0.9, renderedPosition: { x: canvasW / 2, y: canvasH / 2 } });
+    }
+
+    // ── Also run the text-based analysis pipeline for the sidebar report ──────
+    // Populate inputData so parseInput() can derive the graph structure.
     const lines = diagram.edges.map(e => {
         const d = e.data || e;
         return (d.source || '') + '\t' + (d.target || '');
-    }).filter(l => l.trim());
-
-    if (!lines.length) { showToast('⚠️ No edges found in zone.json.', 'warning'); return false; }
-
-    // Temporarily switch mode to 'none' so parseInput() reads canonical IDs as-is
+    });
     document.getElementById('preprocessMode').value = 'none';
     document.getElementById('inputData').value = lines.join('\n');
 
-    // Run standard pipeline
-    analyzeGraph();
+    // Re-run analysis only (skip drawGraph — cy is already initialised above)
+    const { graph, rawPairs, orphans, selfLoops } = parseInput();
+    const duplicates   = findDuplicates(rawPairs);
+    const midpoints    = findMidpoints(graph);
+    const cycles       = findCycles(graph);
+    const overbranches = findOverbranched(graph);
+    latestReport = { duplicates, midpoints, cycles, overbranches, orphans, selfLoops };
+    renderReport(duplicates, midpoints, selfLoops, overbranches, orphans);
 
-    // Stamp lat/lng onto cy nodes for faithful exportZoneJSON() round-trip
-    const latLngMap = {};
-    (diagram.nodes || []).forEach(n => {
-        const d = n.data || n;
-        if (d.id && typeof d.lat === 'number' && typeof d.lng === 'number') {
-            latLngMap[d.id] = { lat: d.lat, lng: d.lng };
-        }
+    // Mark overbranched nodes on the already-rendered cy instance
+    overbranches.forEach(id => {
+        const n = cy.getElementById(id);
+        if (n && n.length) n.addClass('overbranched');
     });
-    if (cy) {
-        cy.nodes().forEach(n => {
-            const coords = latLngMap[n.data('id')];
-            if (coords) { n.data('lat', coords.lat); n.data('lng', coords.lng); }
-        });
-    }
 
-    showToast(`✅ Loaded ${diagram.nodes.length} nodes, ${diagram.edges.length} edges`, 'success');
+    const gpsCount = diagram.nodes.filter(n => {
+        const d = n.data || n;
+        return typeof d.lat === 'number' && typeof d.lng === 'number';
+    }).length;
+    const layoutMsg = gpsApplied ? ` · 📡 GPS layout (${gpsCount} nodes)` : ' · 🔀 Auto layout';
+    showToast(`✅ ${diagram.nodes.length} nodes, ${diagram.edges.length} edges${layoutMsg}`, 'success');
     return true;
 }
 
@@ -359,7 +449,15 @@ function analyzeGraph() {
     const overbranches  = findOverbranched(graph);
 
     latestReport = { duplicates, midpoints, cycles, overbranches, orphans, selfLoops };
+    renderReport(duplicates, midpoints, selfLoops, overbranches, orphans);
+    drawGraph(rawPairs, duplicates, new Set(overbranches));
+}
 
+// ─── SIDEBAR REPORT RENDERER ──────────────────────────────────────────────────
+// Shared by analyzeGraph() and loadFromZoneJSON() so the sidebar is always
+// populated regardless of which pipeline produced the graph.
+
+function renderReport(duplicates, midpoints, selfLoops, overbranches, orphans) {
     const repeated      = duplicates.filter(d => d.type === 'Repeated');
     const bidirectional = duplicates.filter(d => d.type === 'Bidirectional');
 
@@ -405,8 +503,6 @@ function analyzeGraph() {
     document.getElementById('orphans').innerHTML = orphans.length
         ? orphans.map((line, i) => `${i+1}. ${esc(line)}`).join(', ')
         : 'None';
-
-    drawGraph(rawPairs, duplicates, new Set(overbranches));
 }
 
 // ─── SEARCH & HIGHLIGHT ───────────────────────────────────────────────────────

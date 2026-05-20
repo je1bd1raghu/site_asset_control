@@ -6,6 +6,7 @@
     <title>SCADA View</title>
     <script src="libs/cytoscape.min.js"></script>
     <script src="scada-core.js"></script>
+    <script src="gps-layout.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: sans-serif; background: #f0f4f8; }
@@ -162,7 +163,7 @@
 
 <div class="header">
     <a href="index.html" class="back-link">← Asset Control</a>
-    <a href="graph-analyzer.html" class="back-link" title="Open Graph Analyzer">⬡ Graph Analyzer</a>
+    <a href="graph-analyzer.html" class="back-link" title="Open Graphical Network Analyzer">⬡ Graphical Network Analyzer</a>
     <h1>🌊 SCADA View</h1>
     <select id="zone-select"><option>Loading zones...</option></select>
     <div id="sync-status">Initializing...</div>
@@ -190,7 +191,7 @@
     </svg>
 
     <!-- Shown when GPS polar layout is active -->
-    <div id="layout-badge">📡 GPS DIRECTION LAYOUT</div>
+    <div id="layout-badge">📡 GPS DIRECTIONAL LAYOUT</div>
 
     <div class="legend">
         <h4>Legend</h4>
@@ -244,107 +245,6 @@
     let refreshTimer  = null;
     let currentZone   = null;
     let stopAnims     = null;   // teardown handle returned by startAnimations()
-
-    // ─── GPS POLAR PROJECTION ─────────────────────────────────────────────────
-    // Converts node lat/lng into canvas positions using bearing + normalised
-    // distance from the diagram's "origin" node (first pump, or first node).
-    //
-    // Rules:
-    //   - Bearing from origin → each node gives the angle (N=up, E=right).
-    //   - Distance is normalised 0–1 across the set, then mapped to maxRadius.
-    //   - Origin node itself is placed at the canvas centre.
-    //   - Nodes without lat/lng keep their existing manual position unchanged.
-    //
-    // Returns true if projection was applied (≥2 nodes had GPS coords).
-
-    function applyGpsLayout(nodes, canvasW, canvasH) {
-        const PADDING   = 80;   // px margin from canvas edge
-        const maxRadius = Math.min(canvasW, canvasH) / 2 - PADDING;
-        const cx        = canvasW / 2;
-        const cy        = canvasH / 2;
-        const DEG2RAD   = Math.PI / 180;
-
-        // Collect nodes that carry GPS data
-        const gpsNodes = nodes.filter(n => {
-            const d = n.data || n;
-            return typeof d.lat === 'number' && typeof d.lng === 'number';
-        });
-
-        if (gpsNodes.length < 2) return false;   // not enough data — skip
-
-        // Pick origin: first pump node with GPS, else first GPS node
-        const origin = gpsNodes.find(n => (n.data || n).type === 'pump') || gpsNodes[0];
-        const oLat   = (origin.data || origin).lat;
-        const oLng   = (origin.data || origin).lng;
-
-        // Latitude correction factor for longitude distances at this latitude
-        const cosLat = Math.cos(oLat * DEG2RAD);
-
-        // Compute polar coords (bearing, raw distance) for every GPS node
-        const polars = gpsNodes.map(n => {
-            const d    = n.data || n;
-            const dLat = d.lat - oLat;
-            const dLng = (d.lng - oLng) * cosLat;   // corrected for latitude
-            const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-            // atan2 bearing: 0 = north, clockwise positive
-            const bearing = Math.atan2(dLng, dLat);  // radians
-            return { node: n, dist, bearing };
-        });
-
-        // Normalise distances to 0–1  (origin stays at 0)
-        const maxDist = Math.max(...polars.map(p => p.dist));
-
-        polars.forEach(({ node, dist, bearing }) => {
-            const r  = maxDist > 0 ? (dist / maxDist) * maxRadius : 0;
-            const px = cx + r * Math.sin(bearing);   // sin for x (east)
-            const py = cy - r * Math.cos(bearing);   // -cos for y (north=up)
-
-            // Write back into the node's position field
-            if (node.position) {
-                node.position.x = px;
-                node.position.y = py;
-            } else {
-                node.position = { x: px, y: py };
-            }
-        });
-
-        // ── Minimum-distance enforcement ──────────────────────────────────────
-        // After GPS projection, any pair of nodes closer than MIN_NODE_DIST px
-        // is pushed apart along their existing bearing to exactly MIN_NODE_DIST.
-        // Direction is fully preserved — only the magnitude is scaled up.
-        // A second outer pass (max 4) resolves cascades where fixing one pair
-        // disturbs a previously-fixed neighbour.
-        const MIN_NODE_DIST = 80;   // pixels — tune here
-
-        for (let pass = 0; pass < 4; pass++) {
-            let anyFixed = false;
-            for (let i = 0; i < gpsNodes.length; i++) {
-                for (let j = i + 1; j < gpsNodes.length; j++) {
-                    const a  = gpsNodes[i].position;
-                    const b  = gpsNodes[j].position;
-                    const dx = b.x - a.x;
-                    const dy = b.y - a.y;
-                    const d  = Math.sqrt(dx * dx + dy * dy);
-
-                    if (d < MIN_NODE_DIST && d > 0.01) {
-                        // Anchor at midpoint, place both exactly MIN_NODE_DIST/2 away
-                        const mx = (a.x + b.x) / 2;
-                        const my = (a.y + b.y) / 2;
-                        const nx = dx / d;
-                        const ny = dy / d;
-                        gpsNodes[i].position.x = mx - nx * MIN_NODE_DIST / 2;
-                        gpsNodes[i].position.y = my - ny * MIN_NODE_DIST / 2;
-                        gpsNodes[j].position.x = mx + nx * MIN_NODE_DIST / 2;
-                        gpsNodes[j].position.y = my + ny * MIN_NODE_DIST / 2;
-                        anyFixed = true;
-                    }
-                }
-            }
-            if (!anyFixed) break;   // fully resolved — no need for more passes
-        }
-
-        return true;
-    }
 
     // ─── LOAD MANIFEST → POPULATE DROPDOWN ───────────────────────────────────
     async function loadManifest() {
