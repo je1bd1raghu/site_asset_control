@@ -288,8 +288,9 @@ async function fetchConfig() {
 }
 
 // ── ASSETS FROM GIST ──────────────────────────────────────────────────────────
-// Fetches each zone's _status.json from the public gist (via manifest gistFile).
-// label, type, and state are read directly — single source of truth.
+// Two sources, combined:
+//   Gist status files → id, label, type, state  (one entry per asset)
+//   Zone JSON files   → lat, lng                (repo-hosted, per node)
 async function loadAssetsFromGist() {
   try {
     const mRes = await fetch('manifest.json?t=' + Date.now());
@@ -299,6 +300,7 @@ async function loadAssetsFromGist() {
     const seen = new Set();
     const raw  = [];
 
+    // 1. Build asset list from gist status files (label / type / state)
     for (const zone of zones) {
       if (!zone.gistFile) continue;
       try {
@@ -312,16 +314,30 @@ async function loadAssetsFromGist() {
             name:      (entry.label || entry.id).replace(/\n/g, ' '),
             type:      entry.type  || '',
             state:     entry.state || 'OFF',
-            lat:       typeof entry.lat === 'number' ? entry.lat : null,
-            lng:       typeof entry.lng === 'number' ? entry.lng : null,
+            lat:       null,
+            lng:       null,
             tolerance: 50
           });
         }
-      } catch { /* skip unreadable zone */ }
+      } catch { /* skip unreadable gist file */ }
     }
 
     assets   = raw;
     assetMap = Object.fromEntries(assets.map(a => [a.id, a]));
+
+    // 2. Overlay lat/lng from zone JSON files (zones/zone_a.json etc.)
+    for (const zone of zones) {
+      if (!zone.id) continue;
+      try {
+        const res = await fetch(`zones/${zone.id}.json?t=${Date.now()}`);
+        if (!res.ok) continue;
+        for (const node of (await res.json()).nodes || []) {
+          const d = node.data || {};
+          const a = assetMap[d.id];
+          if (a && typeof d.lat === 'number') { a.lat = d.lat; a.lng = d.lng; }
+        }
+      } catch { /* skip unreadable zone JSON */ }
+    }
 
     // Seed ON/OFF from gist state; CSV records will override per-asset below
     assets.forEach(a => {
