@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Site Asset Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -94,6 +95,7 @@
   .btn-refresh { background: var(--surface2); border: 2px solid var(--border); border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 700; color: var(--text2); cursor: pointer; font-family: 'Nunito', sans-serif; transition: background 0.15s; }
   .btn-refresh:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
 
+  /* ── ASSET CARD ── */
   .asset-card { border-radius: var(--radius-sm); border: 2px solid var(--border); padding: 16px; margin-bottom: 12px; transition: border-color 0.25s, background 0.25s; }
   .asset-card:last-child { margin-bottom: 0; }
   .asset-card.status-on  { border-color: #BBF7D0; background: var(--success-light); }
@@ -102,13 +104,6 @@
   .asset-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .asset-name { font-size: 16px; font-weight: 800; color: var(--text); }
   .asset-dist { font-size: 12px; font-weight: 600; color: var(--text3); margin-top: 3px; }
-  .asset-meta-row { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
-  .asset-id   { font-size: 10px; font-weight: 700; color: var(--text3); background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; font-family: monospace; letter-spacing: 0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
-  .asset-type { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 5px; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
-  .type-valve { background: #EEF2FF; color: #4F46E5; }
-  .type-pump  { background: #F5F3FF; color: #7C3AED; }
-  .type-zone  { background: #EFF6FF; color: #2563EB; }
-  .type-other { background: var(--surface2); color: var(--text3); }
 
   /* ── TOGGLE SWITCH ── */
   .toggle-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; }
@@ -402,11 +397,10 @@ async function enrichAssetsFromZones() {
           if (!d.id || seen.has(d.id)) return;
           seen.add(d.id);
           raw.push({
-            id:        d.id,
-            name:      d.label ? d.label.replace(/\n/g, ' ') : d.id,
-            type:      d.type  || null,
-            lat:       typeof d.lat === 'number' ? d.lat : null,
-            lng:       typeof d.lng === 'number' ? d.lng : null,
+            id:       d.id,
+            name:     d.label ? d.label.replace(/\n/g, ' ') : d.id,
+            lat:      typeof d.lat === 'number' ? d.lat : null,
+            lng:      typeof d.lng === 'number' ? d.lng : null,
             tolerance: 50   // default — overridden per-person below
           });
         });
@@ -428,6 +422,25 @@ async function enrichAssetsFromZones() {
 async function fetchStatusAndRecords() {
   try {
     const files = await gistGetAll('output');
+
+    // ── Merge label + type from zone status JSONs into assetMap ──────────────
+    // Zone status files (e.g. zone_a_status.json) are the authoritative source
+    // for label and type — those fields are absent from the static zone JSONs.
+    // Any file in the output gist whose name ends in _status.json is parsed and
+    // its entries merged into assetMap so asset cards show correct names/types.
+    Object.entries(files).forEach(([filename, raw]) => {
+      if (!filename.endsWith('_status.json')) return;
+      try {
+        const entries = JSON.parse(raw || '[]');
+        entries.forEach(entry => {
+          if (!entry.id) return;
+          const asset = assetMap[entry.id];
+          if (!asset) return;
+          if (entry.label) asset.name = entry.label.replace(/\n/g, ' ');
+          if (entry.type)  asset.type = entry.type;
+        });
+      } catch { /* skip malformed status file */ }
+    });
 
     // Parse CSV records
     const allRecs = csvParse(files[cfg.recordsFile] || '');
@@ -688,27 +701,11 @@ function buildAssetCard(asset, personId) {
   const disabled = (!near || inCd) ? 'disabled' : '';
   const title    = !near ? `Move within ${tol}m to toggle` : (inCd ? `Cooldown: ${formatCooldown(cdLeft)}` : '');
 
-  // Type badge — icon + label, colour-coded by type
-  const TYPE_META = {
-    valve: { cls: 'type-valve', icon: '◇', label: 'Valve' },
-    pump:  { cls: 'type-pump',  icon: '◎', label: 'Pump'  },
-    zone:  { cls: 'type-zone',  icon: '▭', label: 'Zone'  }
-  };
-  const tm = (asset.type && TYPE_META[asset.type.toLowerCase()]) || { cls: 'type-other', icon: '·', label: asset.type || 'Node' };
-  const typeBadge = `<span class="asset-type ${tm.cls}">${tm.icon} ${tm.label}</span>`;
-
-  // Show label (human-readable name) only when it differs from the raw ID
-  const hasLabel = asset.name && asset.name !== asset.id;
-  const labelLine = hasLabel ? `<div class="asset-name">${esc(asset.name)}</div>` : '';
-  // Always show the ID prominently — it's the canonical SCADA identifier
-  const idLine = `<div class="asset-meta-row">${typeBadge}<span class="asset-id">${esc(asset.id)}</span></div>`;
-
   return `
 <div class="asset-card ${isOn ? 'status-on' : 'status-off'}" id="asset-card-${esc(asset.id)}">
   <div class="asset-top">
-    <div style="min-width:0;flex:1">
-      ${labelLine || `<div class="asset-name">${esc(asset.id)}</div>`}
-      ${hasLabel ? idLine : `<div class="asset-meta-row">${typeBadge}</div>`}
+    <div>
+      <div class="asset-name">${esc(asset.name)}</div>
       <div class="asset-dist">${dist !== null ? `${dist}m away · must be within ${tol}m` : 'Distance unknown'}</div>
     </div>
     <div class="toggle-wrap">

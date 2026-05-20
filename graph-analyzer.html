@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" href="data:,">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Graphical Network Analyzer</title>
+  <title>Graph Analyzer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -270,7 +271,7 @@
 <div class="modal-overlay" id="helpModal">
   <div class="modal">
     <button class="modal-close" onclick="closeHelp()" title="Close">✕</button>
-    <h2>❓ Graphical Network Analyzer — Help</h2>
+    <h2>❓ Graph Analyzer — Help</h2>
 
     <h3>Input Format</h3>
     <p>Paste one directed edge per line as two node names separated by a space or tab:</p>
@@ -360,7 +361,7 @@ WTP       WTP</pre>
 <!-- HEADER -->
 <div class="header">
   <p id="headerDate">Loading…</p>
-  <h1>Graphical Network Analyzer</h1>
+  <h1>Graph Analyzer</h1>
   <div class="header-right">
     <a href="index.html" class="scada-link" title="Back to Asset Control">← Asset Control</a>
     <a href="scada-visualizer.html" class="scada-link" title="Open SCADA Visualizer">🌊 SCADA View</a>
@@ -383,10 +384,10 @@ WTP       WTP</pre>
       <option value="none">Do Not Alter Input Names</option>
       <option value="ignore_prefix_and_symbols">Ignore Prefix and Non-Alphanumerics</option>
       <option value="ignore_symbols_only">Ignore Symbols Only</option>
-      <option value="from_zone_json">↩ Paste from zone.json</option>
+      <option value="from_zone_json">↩ Import from zone.json</option>
     </select>
 
-    <textarea id="inputData" placeholder="Paste your node pairs here — one pair per line:
+    <textarea id="inputData" placeholder="Paste your node pairs here — one edge per line:
 WTP       V-E1-300
 V-E1-300  V-CDFG-500
 V-E1-300  V-AB-350
