@@ -373,35 +373,37 @@ async function fetchConfig() {
 
 // ── ZONE ASSET FETCH ──────────────────────────────────────────────────────────
 // Reads manifest.json then every zone JSON from the repo.
-// Builds the global assets[] array from node data (id, label, lat, lng).
-// Then overlays per-person tolerance overrides from config.
-// Nodes without lat/lng are included (distance checks are skipped for them).
+const GIST_BASE = 'https://gist.githubusercontent.com/je1bd1raghu/b92c304c7c56c5a76916600d35b55d67/raw';
+
+// Builds assets[] directly from the public gist status files (via manifest gistFile).
+// label, type, and state come from each zone's _status.json — the single source of truth.
 async function enrichAssetsFromZones() {
   try {
-    // 1. Load manifest
-    const mRes  = await fetch('manifest.json?t=' + Date.now());
+    const mRes = await fetch('manifest.json?t=' + Date.now());
     if (!mRes.ok) throw new Error('manifest.json not found');
     const zones = await mRes.json();
 
-    // 2. Read every zone JSON and collect nodes
     const seen = new Set();
     const raw  = [];
 
     for (const zone of zones) {
+      if (!zone.gistFile) continue;
       try {
-        const zRes = await fetch(`zones/${zone.id}.json?t=` + Date.now());
-        if (!zRes.ok) continue;
-        const diagram = await zRes.json();
-        (diagram.nodes || []).forEach(n => {
-          const d = n.data || {};
-          if (!d.id || seen.has(d.id)) return;
-          seen.add(d.id);
+        const url     = `${GIST_BASE}/${zone.gistFile}?t=${Date.now()}`;
+        const res     = await fetch(url);
+        if (!res.ok) continue;
+        const entries = await res.json();
+        (Array.isArray(entries) ? entries : []).forEach(entry => {
+          if (!entry.id || seen.has(entry.id)) return;
+          seen.add(entry.id);
           raw.push({
-            id:       d.id,
-            name:     d.label ? d.label.replace(/\n/g, ' ') : d.id,
-            lat:      typeof d.lat === 'number' ? d.lat : null,
-            lng:      typeof d.lng === 'number' ? d.lng : null,
-            tolerance: 50   // default — overridden per-person below
+            id:        entry.id,
+            name:      entry.label ? entry.label.replace(/\n/g, ' ') : entry.id,
+            type:      entry.type  || '',
+            state:     entry.state || 'OFF',
+            lat:       typeof entry.lat === 'number' ? entry.lat : null,
+            lng:       typeof entry.lng === 'number' ? entry.lng : null,
+            tolerance: 50
           });
         });
       } catch { /* skip unreadable zone */ }
@@ -410,8 +412,14 @@ async function enrichAssetsFromZones() {
     assets   = raw;
     assetMap = Object.fromEntries(assets.map(a => [a.id, a]));
 
+    // Seed assetStatus from gist state so ON/OFF shows before any CSV records exist
+    assets.forEach(a => {
+      if (!assetStatus[a.id]) {
+        assetStatus[a.id] = { status: a.state, lastPersonId: null, lastPersonName: null, lastChangedAt: null };
+      }
+    });
+
   } catch(e) {
-    // Non-fatal — app continues with empty asset list
     showToast('Zone load warning: ' + e.message, 'warning');
     assets   = [];
     assetMap = {};
@@ -423,53 +431,13 @@ async function fetchStatusAndRecords() {
   try {
     const files = await gistGetAll('output');
 
-    // ── Merge label + type from zone status JSONs into assetMap ──────────────
-    // Zone status files (e.g. zone_a_status.json) are the authoritative source
-    // for label, type, and initial state — those fields are absent from static
-    // zone JSONs. Any file in the output gist whose name ends in _status.json
-    // is parsed and its entries merged (or created) in assetMap so asset cards
-    // show correct names/types even when zone JSON loading was skipped/failed.
-    // statusSeeds holds the state field per asset-id; CSV records override it.
-    const statusSeeds = {};
-    Object.entries(files).forEach(([filename, raw]) => {
-      if (!filename.endsWith('_status.json')) return;
-      try {
-        const entries = JSON.parse(raw || '[]');
-        entries.forEach(entry => {
-          if (!entry.id) return;
-          let asset = assetMap[entry.id];
-          if (!asset) {
-            // Asset not yet in map (zone JSON missing/failed) — create it now
-            // so that label, type, and state from the status file are not lost.
-            asset = {
-              id:        entry.id,
-              name:      entry.id,
-              lat:       typeof entry.lat === 'number' ? entry.lat : null,
-              lng:       typeof entry.lng === 'number' ? entry.lng : null,
-              tolerance: 50
-            };
-            assetMap[entry.id] = asset;
-            assets.push(asset);
-          }
-          if (entry.label) asset.name = entry.label.replace(/\n/g, ' ');
-          if (entry.type)  asset.type = entry.type;
-          // Collect state seeds; applied after CSV so CSV records always win.
-          if (entry.state) statusSeeds[entry.id] = entry.state;
-        });
-      } catch { /* skip malformed status file */ }
-    });
-
     // Parse CSV records
     const allRecs = csvParse(files[cfg.recordsFile] || '');
     todayRecs = allRecs.filter(r => r.date === todayStr());
 
-    // Derive current asset status from records — latest record per asset wins.
-    // This replaces status.json entirely: no extra gist file needed.
-    // Seed from status file first, then let CSV records overwrite.
-    assetStatus = {};
-    Object.entries(statusSeeds).forEach(([id, state]) => {
-      assetStatus[id] = { status: state, lastPersonId: null, lastPersonName: null, lastChangedAt: null };
-    });
+    // Derive current asset status from CSV records — latest record per asset wins.
+    // assetStatus already seeded from gist status files in enrichAssetsFromZones();
+    // CSV records override those seeds.
     allRecs.forEach(r => {
       const existing = assetStatus[r.assetId];
       if (!existing || r.timestamp > existing.lastChangedAt) {
