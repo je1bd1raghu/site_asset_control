@@ -378,13 +378,14 @@ WTP       WTP</pre>
   <!-- ── ANALYZE TAB ── -->
   <div id="analyzeGraphTab" class="tabcontent" style="display: block;">
 
-    <select id="preprocessMode">
+    <select id="preprocessMode" onchange="onPreprocessModeChange()">
       <option value="none">Do Not Alter Input Names</option>
       <option value="ignore_prefix_and_symbols">Ignore Prefix and Non-Alphanumerics</option>
       <option value="ignore_symbols_only">Ignore Symbols Only</option>
+      <option value="from_zone_json">↩ Paste from zone.json</option>
     </select>
 
-    <textarea id="inputData" placeholder="Paste your node pairs here — one edge per line:
+    <textarea id="inputData" placeholder="Paste your node pairs here — one pair per line:
 WTP       V-E1-300
 V-E1-300  V-CDFG-500
 V-E1-300  V-AB-350

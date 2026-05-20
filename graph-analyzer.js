@@ -36,11 +36,84 @@ let latestReport = {};
 const nodeNameMap        = new Map();  // internalName → Set of original raw tokens
 const originalNodeLookup = new Map();  // rawToken     → internalName
 
-// ─── INPUT PREPROCESSING ──────────────────────────────────────────────────────
+// ─── PREPROCESS MODE UI SWITCH ────────────────────────────────────────────────
+
+function onPreprocessModeChange() {
+    const mode = document.getElementById('preprocessMode').value;
+    const ta   = document.getElementById('inputData');
+    if (mode === 'from_zone_json') {
+        ta.placeholder = 'Paste zone.json content here…\n{\n  "nodes": […],\n  "edges": […]\n}';
+        ta.style.fontFamily = 'monospace';
+        ta.style.fontSize   = '12px';
+    } else {
+        ta.placeholder  = 'Paste your node pairs here — one edge per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
+        ta.style.fontFamily = '';
+        ta.style.fontSize   = '';
+    }
+    if (cy) cy.nodes().removeClass('search-highlight');
+}
+
+// ─── ZONE.JSON REVERSE IMPORT ─────────────────────────────────────────────────
+// Called by analyzeGraph() when mode is from_zone_json.
+// Parses the textarea content as zone.json, renders the graph, then stamps
+// lat/lng back onto cy nodes so exportZoneJSON() round-trips coordinates.
+
+function loadFromZoneJSON() {
+    const raw = document.getElementById('inputData').value.trim();
+    if (!raw) { showToast('⚠️ Paste a zone.json first.', 'warning'); return false; }
+
+    let diagram;
+    try {
+        diagram = JSON.parse(raw);
+    } catch (e) {
+        showToast('❌ Invalid JSON — ' + e.message, 'error'); return false;
+    }
+
+    if (!diagram.nodes || !diagram.edges) {
+        showToast('❌ Expected { nodes, edges } at top level.', 'error'); return false;
+    }
+
+    // Convert edges to "source  target" pairs and write into the same textarea
+    const lines = diagram.edges.map(e => {
+        const d = e.data || e;
+        return (d.source || '') + '\t' + (d.target || '');
+    }).filter(l => l.trim());
+
+    if (!lines.length) { showToast('⚠️ No edges found in zone.json.', 'warning'); return false; }
+
+    // Temporarily switch mode to 'none' so parseInput() reads canonical IDs as-is
+    document.getElementById('preprocessMode').value = 'none';
+    document.getElementById('inputData').value = lines.join('\n');
+
+    // Run standard pipeline
+    analyzeGraph();
+
+    // Stamp lat/lng onto cy nodes for faithful exportZoneJSON() round-trip
+    const latLngMap = {};
+    (diagram.nodes || []).forEach(n => {
+        const d = n.data || n;
+        if (d.id && typeof d.lat === 'number' && typeof d.lng === 'number') {
+            latLngMap[d.id] = { lat: d.lat, lng: d.lng };
+        }
+    });
+    if (cy) {
+        cy.nodes().forEach(n => {
+            const coords = latLngMap[n.data('id')];
+            if (coords) { n.data('lat', coords.lat); n.data('lng', coords.lng); }
+        });
+    }
+
+    showToast(`✅ Loaded ${diagram.nodes.length} nodes, ${diagram.edges.length} edges`, 'success');
+    return true;
+}
+
+
 
 function cleanNodeName(rawName) {
     const mode = document.getElementById('preprocessMode').value;
     let name = rawName;
+
+    if (mode === 'from_zone_json') mode = 'none';   // zone IDs are canonical — no cleaning needed
 
     if (mode === 'ignore_prefix_and_symbols') {
         name = name.replace(/[^A-Za-z0-9]/g, '');
@@ -272,6 +345,12 @@ function drawGraph(pairs, duplicates, overbranchedSet) {
 // ─── ANALYSE & REPORT ─────────────────────────────────────────────────────────
 
 function analyzeGraph() {
+    // JSON mode: delegate to loader which resets mode then calls analyzeGraph() again
+    if (document.getElementById('preprocessMode').value === 'from_zone_json') {
+        loadFromZoneJSON();
+        return;
+    }
+
     const { graph, rawPairs, orphans, selfLoops } = parseInput();
 
     const duplicates    = findDuplicates(rawPairs);
