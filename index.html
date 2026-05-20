@@ -10,243 +10,190 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #F4F6FA;
-    --surface: #FFFFFF;
-    --surface2: #F0F4FF;
-    --primary: #2563EB;
-    --primary-dark: #1D4ED8;
-    --primary-light: #EFF6FF;
-    --success: #16A34A;
-    --success-light: #F0FDF4;
-    --danger: #DC2626;
-    --danger-light: #FEF2F2;
-    --warning: #D97706;
-    --warning-light: #FFFBEB;
-    --text: #1E293B;
-    --text2: #475569;
-    --text3: #94A3B8;
-    --border: #E2E8F0;
-    --radius: 16px;
-    --radius-sm: 10px;
-    --shadow: 0 2px 12px rgba(0,0,0,0.07);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+    --bg: #F4F6FA; --surface: #FFFFFF; --surface2: #F0F4FF;
+    --primary: #2563EB; --primary-dark: #1D4ED8; --primary-light: #EFF6FF;
+    --success: #16A34A; --success-light: #F0FDF4;
+    --danger: #DC2626;  --danger-light: #FEF2F2;
+    --warning: #D97706; --warning-light: #FFFBEB;
+    --text: #1E293B; --text2: #475569; --text3: #94A3B8; --border: #E2E8F0;
+    --radius: 16px; --radius-sm: 10px;
+    --shadow: 0 2px 12px rgba(0,0,0,.07); --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
   }
-  body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:16px; line-height:1.5; -webkit-font-smoothing:antialiased; }
 
-  /* ── HEADER ── */
-  .header { background: var(--primary); color: white; padding: 20px 20px 60px; text-align: center; position: relative; }
-  .header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
-  .header p  { font-size: 12px; opacity: 0.8; margin-top: 2px; }
-  .header-right { position: absolute; right: 16px; top: 20px; display: flex; align-items: center; gap: 8px; }
-  .icon-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 10px; color: white; width: 38px; height: 38px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .scada-link { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.35); border-radius: 10px; color: white; padding: 6px 12px; font-size: 12px; font-weight: 800; font-family: 'Nunito', sans-serif; text-decoration: none; letter-spacing: 0.4px; transition: background 0.2s, border-color 0.2s; white-space: nowrap; }
-  .scada-link:hover { background: rgba(255,255,255,0.28); border-color: rgba(255,255,255,0.6); }
+  .header { background:var(--primary); color:#fff; padding:20px 20px 60px; text-align:center; position:relative; }
+  .header h1 { font-size:22px; font-weight:800; letter-spacing:-.3px; }
+  .header p  { font-size:12px; opacity:.8; margin-top:2px; }
+  .header-right { position:absolute; right:16px; top:20px; }
+  .scada-link { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.15); border:1.5px solid rgba(255,255,255,.35); border-radius:10px; color:#fff; padding:6px 12px; font-size:12px; font-weight:800; font-family:'Nunito',sans-serif; text-decoration:none; letter-spacing:.4px; transition:background .2s; white-space:nowrap; }
+  .scada-link:hover { background:rgba(255,255,255,.28); border-color:rgba(255,255,255,.6); }
 
-  /* ── CARD ── */
-  .card-wrapper { padding: 0 16px; margin-top: -40px; position: relative; z-index: 10; }
-  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 24px; margin-bottom: 16px; }
+  .card-wrapper { padding:0 16px; margin-top:-40px; position:relative; z-index:10; }
+  .card { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow-lg); padding:24px; margin-bottom:16px; }
 
-  /* ── DATETIME BAR ── */
-  .datetime-bar { display: flex; justify-content: space-between; align-items: center; background: var(--surface2); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 20px; }
-  .dt-block { text-align: center; }
-  .dt-label { font-size: 11px; color: var(--text3); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; }
-  .dt-val   { font-size: 16px; font-weight: 800; color: var(--text); margin-top: 2px; }
-  .dt-divider { width: 1px; height: 36px; background: var(--border); }
+  .datetime-bar { display:flex; justify-content:space-between; align-items:center; background:var(--surface2); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:20px; }
+  .dt-block { text-align:center; }
+  .dt-label { font-size:11px; color:var(--text3); font-weight:700; text-transform:uppercase; letter-spacing:.8px; }
+  .dt-val   { font-size:16px; font-weight:800; color:var(--text); margin-top:2px; }
+  .dt-divider { width:1px; height:36px; background:var(--border); }
 
-  /* ── FIELD LABEL ── */
-  .field-label { font-size: 13px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+  .field-label { font-size:13px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
 
-  /* ── COMBOBOX ── */
-  .combo-wrapper { position: relative; margin-bottom: 20px; }
-  .combo-input-row { display: flex; align-items: center; border: 2px solid var(--border); border-radius: var(--radius-sm); background: white; transition: border-color 0.2s; }
-  .combo-wrapper.open .combo-input-row, .combo-input-row:focus-within { border-color: var(--primary); }
-  .combo-search-icon { padding: 0 10px 0 14px; font-size: 16px; flex-shrink: 0; }
-  .combo-input { flex: 1; padding: 15px 0; border: none; outline: none; font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 600; color: var(--text); background: transparent; }
-  .combo-input::placeholder { color: var(--text3); font-weight: 400; }
-  .combo-clear { background: none; border: none; padding: 0 14px; font-size: 16px; color: var(--text3); cursor: pointer; line-height: 1; flex-shrink: 0; }
-  .combo-clear:hover { color: var(--danger); }
-  .combo-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: white; border: 2px solid var(--primary); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); z-index: 200; max-height: 240px; overflow-y: auto; }
-  .combo-item { padding: 13px 16px; cursor: pointer; font-size: 15px; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); transition: background 0.12s; }
-  .combo-item:last-child { border-bottom: none; }
-  .combo-item:hover, .combo-item.active { background: var(--primary-light); color: var(--primary); }
-  .combo-item mark { background: #FDE68A; color: var(--text); border-radius: 3px; padding: 0 2px; font-style: normal; }
-  .combo-item .combo-desig { font-size: 11px; font-weight: 700; color: var(--text3); margin-top: 2px; }
-  .combo-empty { padding: 18px 16px; text-align: center; color: var(--text3); font-size: 14px; }
+  .combo-wrapper { position:relative; margin-bottom:20px; }
+  .combo-input-row { display:flex; align-items:center; border:2px solid var(--border); border-radius:var(--radius-sm); background:#fff; transition:border-color .2s; }
+  .combo-wrapper.open .combo-input-row, .combo-input-row:focus-within { border-color:var(--primary); }
+  .combo-search-icon { padding:0 10px 0 14px; font-size:16px; flex-shrink:0; }
+  .combo-input { flex:1; padding:15px 0; border:none; outline:none; font-family:'Nunito',sans-serif; font-size:16px; font-weight:600; color:var(--text); background:transparent; }
+  .combo-input::placeholder { color:var(--text3); font-weight:400; }
+  .combo-clear { background:none; border:none; padding:0 14px; font-size:16px; color:var(--text3); cursor:pointer; flex-shrink:0; }
+  .combo-clear:hover { color:var(--danger); }
+  .combo-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:2px solid var(--primary); border-radius:var(--radius-sm); box-shadow:var(--shadow-lg); z-index:200; max-height:240px; overflow-y:auto; }
+  .combo-item { padding:13px 16px; cursor:pointer; font-size:15px; font-weight:600; color:var(--text); border-bottom:1px solid var(--border); transition:background .12s; }
+  .combo-item:last-child { border-bottom:none; }
+  .combo-item:hover, .combo-item.active { background:var(--primary-light); color:var(--primary); }
+  .combo-item mark { background:#FDE68A; color:var(--text); border-radius:3px; padding:0 2px; font-style:normal; }
+  .combo-item .combo-desig { font-size:11px; font-weight:700; color:var(--text3); margin-top:2px; }
+  .combo-empty { padding:18px 16px; text-align:center; color:var(--text3); font-size:14px; }
 
-  /* ── LOCATION STATUS ── */
-  .loc-status { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: var(--radius-sm); border: 2px solid transparent; transition: all 0.3s; }
-  .loc-status.checking { background: var(--warning-light); border-color: #FDE68A; }
-  .loc-status.verified { background: var(--success-light); border-color: #BBF7D0; }
-  .loc-status.failed   { background: var(--danger-light);  border-color: #FECACA; }
-  .loc-status.idle     { background: var(--surface2);       border-color: var(--border); }
-  .loc-icon  { font-size: 26px; flex-shrink: 0; }
-  .loc-title { font-size: 15px; font-weight: 700; }
-  .loc-sub   { font-size: 12px; font-weight: 600; margin-top: 2px; opacity: 0.75; }
-  .loc-status.checking .loc-title { color: var(--warning); }
-  .loc-status.verified .loc-title { color: var(--success); }
-  .loc-status.failed   .loc-title { color: var(--danger); }
-  .loc-status.idle     .loc-title { color: var(--text2); }
+  .loc-status { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:var(--radius-sm); border:2px solid transparent; transition:all .3s; }
+  .loc-status.checking { background:var(--warning-light); border-color:#FDE68A; }
+  .loc-status.verified { background:var(--success-light); border-color:#BBF7D0; }
+  .loc-status.failed   { background:var(--danger-light);  border-color:#FECACA; }
+  .loc-status.idle     { background:var(--surface2);      border-color:var(--border); }
+  .loc-icon  { font-size:26px; flex-shrink:0; }
+  .loc-title { font-size:15px; font-weight:700; }
+  .loc-sub   { font-size:12px; font-weight:600; margin-top:2px; opacity:.75; }
+  .loc-status.checking .loc-title { color:var(--warning); }
+  .loc-status.verified .loc-title { color:var(--success); }
+  .loc-status.failed   .loc-title { color:var(--danger); }
+  .loc-status.idle     .loc-title { color:var(--text2); }
   @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
-  .loc-status.checking .loc-icon { animation: pulse 1.2s ease-in-out infinite; }
+  .loc-status.checking .loc-icon { animation:pulse 1.2s ease-in-out infinite; }
 
-  /* ── SECTION TITLE ── */
-  .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text3); margin-bottom: 12px; }
-  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .btn-refresh { background: var(--surface2); border: 2px solid var(--border); border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 700; color: var(--text2); cursor: pointer; font-family: 'Nunito', sans-serif; transition: background 0.15s; }
-  .btn-refresh:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .section-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--text3); margin-bottom:12px; }
+  .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .btn-refresh { background:var(--surface2); border:2px solid var(--border); border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700; color:var(--text2); cursor:pointer; font-family:'Nunito',sans-serif; transition:background .15s; }
+  .btn-refresh:hover { background:var(--primary-light); border-color:var(--primary); color:var(--primary); }
 
-  /* ── ASSET CARD ── */
-  .asset-card { border-radius: var(--radius-sm); border: 2px solid var(--border); padding: 16px; margin-bottom: 12px; transition: border-color 0.25s, background 0.25s; }
-  .asset-card:last-child { margin-bottom: 0; }
-  .asset-card.status-on  { border-color: #BBF7D0; background: var(--success-light); }
-  .asset-card.status-off { border-color: var(--border); background: var(--surface); }
-  .asset-card.loading    { opacity: 0.6; pointer-events: none; }
-  .asset-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .asset-name { font-size: 16px; font-weight: 800; color: var(--text); }
-  .asset-dist { font-size: 12px; font-weight: 600; color: var(--text3); margin-top: 3px; }
+  .asset-card { border-radius:var(--radius-sm); border:2px solid var(--border); padding:16px; margin-bottom:12px; transition:border-color .25s, background .25s; }
+  .asset-card:last-child { margin-bottom:0; }
+  .asset-card.status-on  { border-color:#BBF7D0; background:var(--success-light); }
+  .asset-card.status-off { border-color:var(--border); background:var(--surface); }
+  .asset-card.loading    { opacity:.6; pointer-events:none; }
+  .asset-top  { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .asset-name { font-size:16px; font-weight:800; color:var(--text); }
+  .asset-type { font-size:12px; font-weight:600; color:var(--text3); margin-top:2px; }
+  .asset-dist { font-size:12px; font-weight:600; color:var(--text3); margin-top:3px; }
 
-  /* ── TOGGLE SWITCH ── */
-  .toggle-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; }
-  .toggle-switch { width: 56px; height: 30px; border-radius: 15px; position: relative; cursor: pointer; border: none; padding: 0; transition: background 0.25s; }
-  .toggle-switch.on  { background: var(--success); }
-  .toggle-switch.off { background: #CBD5E1; }
-  .toggle-switch:disabled { opacity: 0.45; cursor: not-allowed; }
-  .toggle-knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: white; box-shadow: 0 1px 5px rgba(0,0,0,0.25); transition: transform 0.25s cubic-bezier(0.34,1.4,0.64,1); pointer-events: none; }
-  .toggle-switch.on .toggle-knob { transform: translateX(26px); }
-  .toggle-lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.5px; }
-  .toggle-switch.on  ~ .toggle-lbl { color: var(--success); }
-  .toggle-switch.off ~ .toggle-lbl { color: var(--text3); }
+  .toggle-wrap { display:flex; flex-direction:column; align-items:center; gap:5px; flex-shrink:0; }
+  .toggle-switch { width:56px; height:30px; border-radius:15px; position:relative; cursor:pointer; border:none; padding:0; transition:background .25s; }
+  .toggle-switch.on  { background:var(--success); }
+  .toggle-switch.off { background:#CBD5E1; }
+  .toggle-switch:disabled { opacity:.45; cursor:not-allowed; }
+  .toggle-knob { position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; box-shadow:0 1px 5px rgba(0,0,0,.25); transition:transform .25s cubic-bezier(.34,1.4,.64,1); pointer-events:none; }
+  .toggle-switch.on .toggle-knob { transform:translateX(26px); }
+  .toggle-lbl { font-size:11px; font-weight:800; letter-spacing:.5px; }
+  .toggle-switch.on  ~ .toggle-lbl { color:var(--success); }
+  .toggle-switch.off ~ .toggle-lbl { color:var(--text3); }
 
-  /* ── ASSET FOOTER ── */
-  .asset-footer { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
-  .asset-last { font-size: 11px; color: var(--text3); font-weight: 600; }
-  .loc-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
-  .loc-near { background: var(--success-light); color: var(--success); }
-  .loc-far  { background: var(--danger-light);  color: var(--danger); }
-  .loc-unk  { background: var(--surface2);       color: var(--text3); }
-  .cooldown-badge { font-size: 11px; font-weight: 800; color: var(--warning); background: var(--warning-light); padding: 3px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; }
+  .asset-footer { margin-top:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; }
+  .asset-last { font-size:11px; color:var(--text3); font-weight:600; }
+  .loc-badge  { font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; flex-shrink:0; }
+  .loc-near { background:var(--success-light); color:var(--success); }
+  .loc-far  { background:var(--danger-light);  color:var(--danger); }
+  .loc-unk  { background:var(--surface2);      color:var(--text3); }
+  .cooldown-badge { font-size:11px; font-weight:800; color:var(--warning); background:var(--warning-light); padding:3px 9px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; }
 
-  /* ── RECORDS ── */
-  .record-item { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
-  .record-item:last-child { border-bottom: none; }
-  .record-avatar { width: 44px; height: 44px; border-radius: 12px; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .rec-on  { background: var(--success-light); }
-  .rec-off { background: var(--danger-light); }
-  .record-info { flex: 1; min-width: 0; }
-  .record-name  { font-size: 15px; font-weight: 700; color: var(--text); }
-  .record-asset { font-size: 11px; color: var(--primary); font-weight: 700; margin-top: 1px; }
-  .record-meta  { font-size: 12px; color: var(--text3); font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .record-right { text-align: right; flex-shrink: 0; }
-  .time-chip { display: block; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; margin-bottom: 3px; white-space: nowrap; }
-  .chip-on  { background: var(--success-light); color: var(--success); }
-  .chip-off { background: var(--danger-light);  color: var(--danger); }
+  .record-item { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
+  .record-item:last-child { border-bottom:none; }
+  .record-avatar { width:44px; height:44px; border-radius:12px; font-size:18px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .rec-on  { background:var(--success-light); }
+  .rec-off { background:var(--danger-light); }
+  .record-info { flex:1; min-width:0; }
+  .record-name  { font-size:15px; font-weight:700; color:var(--text); }
+  .record-asset { font-size:11px; color:var(--primary); font-weight:700; margin-top:1px; }
+  .record-meta  { font-size:12px; color:var(--text3); font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .record-right { text-align:right; flex-shrink:0; }
+  .time-chip { display:block; font-size:12px; font-weight:700; padding:3px 8px; border-radius:6px; margin-bottom:3px; white-space:nowrap; }
+  .chip-on  { background:var(--success-light); color:var(--success); }
+  .chip-off { background:var(--danger-light);  color:var(--danger); }
 
-  /* ── EMPTY STATE ── */
-  .empty-state { text-align: center; padding: 28px 0; color: var(--text3); font-weight: 700; font-size: 14px; }
-  .empty-state .e-icon { font-size: 36px; margin-bottom: 8px; }
+  .empty-state { text-align:center; padding:28px 0; color:var(--text3); font-weight:700; font-size:14px; }
+  .empty-state .e-icon { font-size:36px; margin-bottom:8px; }
 
-  /* ── TOAST ── */
-  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--text); color: white; padding: 14px 24px; border-radius: 50px; font-size: 14px; font-weight: 700; z-index: 9999; transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1); white-space: nowrap; max-width: 88vw; text-align: center; }
-  .toast.show { transform: translateX(-50%) translateY(0); }
-  .toast.success { background: var(--success); }
-  .toast.error   { background: var(--danger); }
-  .toast.warning { background: var(--warning); }
+  .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--text); color:#fff; padding:14px 24px; border-radius:50px; font-size:14px; font-weight:700; z-index:9999; transition:transform .35s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; max-width:88vw; text-align:center; }
+  .toast.show    { transform:translateX(-50%) translateY(0); }
+  .toast.success { background:var(--success); }
+  .toast.error   { background:var(--danger); }
+  .toast.warning { background:var(--warning); }
 
-  /* ── LOADING ── */
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner { display: inline-block; width: 20px; height: 20px; border: 2.5px solid rgba(255,255,255,0.35); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
-  .loading-screen { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; gap: 14px; transition: opacity 0.4s; }
-  .loading-screen.hide { opacity: 0; pointer-events: none; }
-  .loading-screen .l-icon { font-size: 52px; }
-  .loading-screen .l-text { font-size: 15px; font-weight: 700; color: var(--text2); }
-  .bar-track { width: 160px; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .bar-fill  { height: 100%; background: var(--primary); border-radius: 3px; width: 0%; transition: width 0.5s; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-screen { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; gap:14px; transition:opacity .4s; }
+  .loading-screen.hide { opacity:0; pointer-events:none; }
+  .loading-screen .l-icon { font-size:52px; }
+  .loading-screen .l-text { font-size:15px; font-weight:700; color:var(--text2); }
+  .bar-track { width:160px; height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .bar-fill  { height:100%; background:var(--primary); border-radius:3px; width:0%; transition:width .5s; }
 </style>
 </head>
 <body>
 
-<!-- LOADING SCREEN -->
 <div class="loading-screen" id="loadingScreen">
   <div class="l-icon">🏭</div>
   <div class="l-text" id="loadingText">Starting up…</div>
   <div class="bar-track"><div class="bar-fill" id="loadingBar"></div></div>
 </div>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- HEADER -->
 <div class="header">
   <p id="headerDate">Loading…</p>
   <h1>Site Asset Control</h1>
   <div class="header-right">
-    <a href="scada-visualizer.html" class="scada-link" title="Open SCADA Visualizer">
-      🌊 SCADA View
-    </a>
+    <a href="scada-visualizer.html" class="scada-link">🌊 SCADA View</a>
   </div>
 </div>
 
-<!-- MAIN -->
 <div class="card-wrapper">
-
   <div class="card">
-    <!-- DATE / TIME BAR -->
     <div class="datetime-bar">
-      <div class="dt-block">
-        <div class="dt-label">Date</div>
-        <div class="dt-val" id="dispDate">—</div>
-      </div>
+      <div class="dt-block"><div class="dt-label">Date</div><div class="dt-val" id="dispDate">—</div></div>
       <div class="dt-divider"></div>
-      <div class="dt-block">
-        <div class="dt-label">Time</div>
-        <div class="dt-val" id="dispTime">—</div>
-      </div>
+      <div class="dt-block"><div class="dt-label">Time</div><div class="dt-val" id="dispTime">—</div></div>
       <div class="dt-divider"></div>
-      <div class="dt-block">
-        <div class="dt-label">Day</div>
-        <div class="dt-val" id="dispDay">—</div>
-      </div>
+      <div class="dt-block"><div class="dt-label">Day</div><div class="dt-val" id="dispDay">—</div></div>
     </div>
 
-    <!-- NAME SEARCH COMBOBOX -->
     <div class="field-label">Select Your Name</div>
     <div class="combo-wrapper" id="comboWrapper">
       <div class="combo-input-row">
         <span class="combo-search-icon">&#128269;</span>
         <input type="text" id="personSearch" class="combo-input"
-               placeholder="Type to search your name…"
-               autocomplete="off"
-               oninput="filterPersons()"
-               onfocus="openDropdown()" />
+               placeholder="Type to search your name…" autocomplete="off"
+               oninput="filterPersons()" onfocus="openDropdown()" />
         <button class="combo-clear" id="comboClear" onclick="clearPerson()" style="display:none">&#x2715;</button>
       </div>
       <div class="combo-dropdown" id="comboDropdown" style="display:none"></div>
     </div>
-    <!-- Hidden select keeps getPersonId() working unchanged -->
     <select id="personSelect" style="display:none"></select>
 
-    <!-- LOCATION STATUS -->
     <div class="loc-status idle" id="locStatus">
       <div class="loc-icon" id="locIcon">📍</div>
       <div>
         <div class="loc-title" id="locTitle">Location not checked</div>
-        <div class="loc-sub"  id="locSub">Select your name to begin</div>
+        <div class="loc-sub"   id="locSub">Select your name to begin</div>
       </div>
     </div>
   </div>
 
-  <!-- ASSETS SECTION (hidden until person selected + GPS acquired) -->
   <div class="card" id="assetsCard" style="display:none">
     <div class="section-header">
       <div class="section-title" style="margin-bottom:0">Assigned Assets / Sites</div>
       <button class="btn-refresh" onclick="refreshAll()">↻ Refresh</button>
     </div>
-    <div id="assetsList">
-      <div class="empty-state"><div class="e-icon">🏭</div>No assets assigned</div>
-    </div>
+    <div id="assetsList"></div>
   </div>
 
-  <!-- TODAY'S TOGGLE RECORDS -->
   <div class="card">
     <div class="section-title">Today's Toggle Records</div>
     <div id="recordsList">
@@ -258,126 +205,92 @@
 </div>
 
 <script>
+// ── CONSTANTS ──────────────────────────────────────────────────────────────────
+const WORKER      = 'https://scada-visualizer.je1-bd1-raghu.workers.dev';
+const GIST_BASE   = 'https://gist.githubusercontent.com/je1bd1raghu/b92c304c7c56c5a76916600d35b55d67/raw';
+const RECORDS_FILE = 'records.csv';
+const CONFIG_FILE  = 'config.json';
+const COOLDOWN_MS  = 5 * 60 * 1000;
 
-const WORKER = 'https://scada-visualizer.je1-bd1-raghu.workers.dev';
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let persons    = [];
+let assets     = [];      // [{ id, name, type, state, lat, lng, tolerance }]
+let assetMap   = {};      // id → asset
+let assetStatus = {};     // id → { status, lastPersonId, lastPersonName, lastChangedAt }
+let todayRecs  = [];
+let currentPos = null;
+let watchId    = null;
 
-// cfg only keeps the filenames — IDs and token live in the Worker env vars
-const cfg = Object.freeze({
-  configFile:  'config.json',
-  recordsFile: 'records.csv'
-  // status.json removed — current asset state is derived from records.csv
-  // (latest record per asset = current ON/OFF). Cooldown is localStorage-only.
-});
-
-const COOLDOWN_MS = 5 * 60 * 1000;   // 5 minutes
-
-let persons      = [];
-let assets       = [];   // flat array built from zone JSONs + person tolerance overrides
-let assetMap     = {};   // id → asset, for O(1) lookup
-let assetStatus  = {};   // { assetId: { status, lastPersonId, lastPersonName, lastChangedAt } }
-let todayRecs    = [];
-let currentPos   = null;
-let watchId      = null;
-let cdTimerInterval = null;
-
-// ── BOOT ──────────────────────────────────────────────────────────────────────
+// ── BOOT ───────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   updateClock();
   setInterval(updateClock, 1000);
-  cdTimerInterval = setInterval(tickCooldowns, 1000);
+  setInterval(tickCooldowns, 1000);
   initApp();
 });
 
 async function initApp() {
-  setProgress(10);
-  setLoadText('Loading configuration…');
-  const ok = await fetchConfig();
-  if (!ok) { hideLoading(); return; }
+  setProgress(10); setLoadText('Loading configuration…');
+  if (!await fetchConfig()) { hideLoading(); return; }
 
-  setProgress(40);
-  setLoadText('Reading zone locations…');
-  await enrichAssetsFromZones();
+  setProgress(40); setLoadText('Reading zone assets…');
+  await loadAssetsFromGist();
 
-  setProgress(70);
-  setLoadText('Loading asset status…');
-  await fetchStatusAndRecords();
+  setProgress(70); setLoadText('Loading records…');
+  await fetchRecords();
 
-  setProgress(100);
-  setLoadText('Ready!');
+  setProgress(100); setLoadText('Ready!');
   setTimeout(hideLoading, 500);
 }
 
-// ── CLOCK ─────────────────────────────────────────────────────────────────────
+// ── CLOCK ──────────────────────────────────────────────────────────────────────
 function updateClock() {
-  const now    = new Date();
+  const now = new Date();
   const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  document.getElementById('dispDate').textContent    = now.getDate() + ' ' + MONTHS[now.getMonth()] + ' ' + now.getFullYear();
-  document.getElementById('dispTime').textContent    = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-  document.getElementById('dispDay').textContent     = DAYS[now.getDay()].slice(0, 3);
-  document.getElementById('headerDate').textContent  = DAYS[now.getDay()] + ', ' + MONTHS[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
-}
-function pad(n) { return n < 10 ? '0' + n : '' + n; }
-
-// ── LOADING HELPERS ───────────────────────────────────────────────────────────
-function setProgress(p) { document.getElementById('loadingBar').style.width = p + '%'; }
-function setLoadText(t) { document.getElementById('loadingText').textContent = t; }
-function hideLoading() {
-  const el = document.getElementById('loadingScreen');
-  el.classList.add('hide');
-  setTimeout(() => el.style.display = 'none', 450);
+  $('dispDate').textContent   = `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  $('dispTime').textContent   = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  $('dispDay').textContent    = DAYS[now.getDay()].slice(0, 3);
+  $('headerDate').textContent = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
 }
 
-// ── GIST API ──────────────────────────────────────────────────────────────────
-// Reads: uses authenticated GET so private gists also work
-async function gistGetAll(endpoint) {          // endpoint = 'config' | 'output'
+// ── WORKER API ─────────────────────────────────────────────────────────────────
+async function workerGet(endpoint) {
   const r = await fetch(`${WORKER}/${endpoint}`);
-  if (!r.ok) throw new Error(`Worker ${endpoint} read failed: HTTP ${r.status}`);
-  const data = await r.json();
-  if (data.error) throw new Error(data.error);
-  return data.files;          // { filename: rawContentString, ... }
+  if (!r.ok) throw new Error(`Worker ${endpoint} failed: HTTP ${r.status}`);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return d.files;  // { filename: rawString }
 }
 
-// Write one or more files to a gist (creates files that don't exist yet)
-async function gistPatch(fileMap) {
+async function workerPatch(fileMap) {
   const files = {};
-  for (const [name, content] of Object.entries(fileMap)) {
-    files[name] = { content: typeof content === 'string' ? content : JSON.stringify(content, null, 2) };
-  }
+  for (const [k, v] of Object.entries(fileMap))
+    files[k] = { content: typeof v === 'string' ? v : JSON.stringify(v, null, 2) };
   const r = await fetch(`${WORKER}/output`, {
-    method:  'PATCH',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ files })
+    body: JSON.stringify({ files })
   });
   if (!r.ok) throw new Error(`Worker write failed: HTTP ${r.status}`);
-  const data = await r.json();
-  if (!data.ok) throw new Error(data.error || 'Gist write failed');
+  const d = await r.json();
+  if (!d.ok) throw new Error(d.error || 'Gist write failed');
 }
 
-// ── CONFIG FETCH ──────────────────────────────────────────────────────────────
-// config.json now only contains persons.
-// Each person may have an assets array of { id, tolerance } objects.
-// Asset lat/lng/name come from the zone JSON files, not config.
+// ── CONFIG ─────────────────────────────────────────────────────────────────────
 async function fetchConfig() {
   try {
-    const files = await gistGetAll('config');
-    const data  = JSON.parse(files[cfg.configFile] || '{}');
-    persons     = data.persons || [];
+    const files = await workerGet('config');
+    persons = JSON.parse(files[CONFIG_FILE] || '{}').persons || [];
     populatePersons();
     return true;
-  } catch(e) {
-    showToast('Config error: ' + e.message, 'error');
-    return false;
-  }
+  } catch(e) { showToast('Config error: ' + e.message, 'error'); return false; }
 }
 
-// ── ZONE ASSET FETCH ──────────────────────────────────────────────────────────
-// Reads manifest.json then every zone JSON from the repo.
-const GIST_BASE = 'https://gist.githubusercontent.com/je1bd1raghu/b92c304c7c56c5a76916600d35b55d67/raw';
-
-// Builds assets[] directly from the public gist status files (via manifest gistFile).
-// label, type, and state come from each zone's _status.json — the single source of truth.
-async function enrichAssetsFromZones() {
+// ── ASSETS FROM GIST ──────────────────────────────────────────────────────────
+// Fetches each zone's _status.json from the public gist (via manifest gistFile).
+// label, type, and state are read directly — single source of truth.
+async function loadAssetsFromGist() {
   try {
     const mRes = await fetch('manifest.json?t=' + Date.now());
     if (!mRes.ok) throw new Error('manifest.json not found');
@@ -389,278 +302,179 @@ async function enrichAssetsFromZones() {
     for (const zone of zones) {
       if (!zone.gistFile) continue;
       try {
-        const url     = `${GIST_BASE}/${zone.gistFile}?t=${Date.now()}`;
-        const res     = await fetch(url);
+        const res = await fetch(`${GIST_BASE}/${zone.gistFile}?t=${Date.now()}`);
         if (!res.ok) continue;
-        const entries = await res.json();
-        (Array.isArray(entries) ? entries : []).forEach(entry => {
-          if (!entry.id || seen.has(entry.id)) return;
+        for (const entry of await res.json()) {
+          if (!entry.id || seen.has(entry.id)) continue;
           seen.add(entry.id);
           raw.push({
             id:        entry.id,
-            name:      entry.label ? entry.label.replace(/\n/g, ' ') : entry.id,
+            name:      (entry.label || entry.id).replace(/\n/g, ' '),
             type:      entry.type  || '',
             state:     entry.state || 'OFF',
             lat:       typeof entry.lat === 'number' ? entry.lat : null,
             lng:       typeof entry.lng === 'number' ? entry.lng : null,
             tolerance: 50
           });
-        });
+        }
       } catch { /* skip unreadable zone */ }
     }
 
     assets   = raw;
     assetMap = Object.fromEntries(assets.map(a => [a.id, a]));
 
-    // Seed assetStatus from gist state so ON/OFF shows before any CSV records exist
+    // Seed ON/OFF from gist state; CSV records will override per-asset below
     assets.forEach(a => {
-      if (!assetStatus[a.id]) {
-        assetStatus[a.id] = { status: a.state, lastPersonId: null, lastPersonName: null, lastChangedAt: null };
-      }
+      assetStatus[a.id] = { status: a.state, lastPersonId: null, lastPersonName: null, lastChangedAt: null };
     });
 
   } catch(e) {
     showToast('Zone load warning: ' + e.message, 'warning');
-    assets   = [];
-    assetMap = {};
+    assets = []; assetMap = {};
   }
 }
 
-// ── STATUS + RECORDS FETCH ────────────────────────────────────────────────────
-async function fetchStatusAndRecords() {
+// ── RECORDS ────────────────────────────────────────────────────────────────────
+async function fetchRecords() {
   try {
-    const files = await gistGetAll('output');
+    const files   = await workerGet('output');
+    const allRecs = csvParse(files[RECORDS_FILE] || '');
+    todayRecs     = allRecs.filter(r => r.date === todayStr());
 
-    // Parse CSV records
-    const allRecs = csvParse(files[cfg.recordsFile] || '');
-    todayRecs = allRecs.filter(r => r.date === todayStr());
-
-    // Derive current asset status from CSV records — latest record per asset wins.
-    // assetStatus already seeded from gist status files in enrichAssetsFromZones();
-    // CSV records override those seeds.
+    // Latest record per asset wins over gist state seed
     allRecs.forEach(r => {
-      const existing = assetStatus[r.assetId];
-      if (!existing || r.timestamp > existing.lastChangedAt) {
-        assetStatus[r.assetId] = {
-          status:         r.action,
-          lastPersonId:   r.personId,
-          lastPersonName: r.personName,
-          lastChangedAt:  r.timestamp
-        };
-      }
+      const cur = assetStatus[r.assetId];
+      if (!cur?.lastChangedAt || r.timestamp > cur.lastChangedAt)
+        assetStatus[r.assetId] = { status: r.action, lastPersonId: r.personId, lastPersonName: r.personName, lastChangedAt: r.timestamp };
     });
 
-    // Initialise cooldowns from server records (survives localStorage clear)
+    // Restore cooldowns from server records
     todayRecs.forEach(r => {
       const ts = new Date(r.timestamp).getTime();
-      if (ts > getLastToggleRaw(r.personId, r.assetId)) {
-        try { localStorage.setItem(cdKey(r.personId, r.assetId), ts.toString()); } catch {}
-      }
+      if (ts > getLastToggleRaw(r.personId, r.assetId))
+        try { localStorage.setItem(cdKey(r.personId, r.assetId), ts); } catch {}
     });
 
     renderRecords();
-  } catch { assetStatus = {}; todayRecs = []; renderRecords(); }
+  } catch { todayRecs = []; renderRecords(); }
 }
 
-// Refresh button
 async function refreshAll() {
-  showToast('Refreshing…', '');
-  await fetchStatusAndRecords();
-  const personId = getPersonId();
-  if (personId && currentPos) {
-    const person = persons.find(p => p.id === personId);
-    if (person) renderAssets(person);
-  }
+  showToast('Refreshing…');
+  await fetchRecords();
+  const person = persons.find(p => p.id === getPersonId());
+  if (person && currentPos) renderAssets(person);
   showToast('Refreshed ✓', 'success');
-}
-
-// ── CSV HELPERS ───────────────────────────────────────────────────────────────
-const CSV_COLS = ['id','personId','personName','assetId','assetName','action',
-                  'timestamp','date','time','lat','lng','distance'];
-
-function csvEscape(v) {
-  const s = v == null ? '' : String(v);
-  return (s.includes(',') || s.includes('"') || s.includes('\n'))
-    ? '"' + s.replace(/"/g, '""') + '"' : s;
-}
-function csvStringify(records) {
-  return [CSV_COLS.join(','), ...records.map(r => CSV_COLS.map(c => csvEscape(r[c])).join(','))].join('\n');
-}
-function csvParse(text) {
-  if (!text || !text.trim()) return [];
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',');
-  return lines.slice(1).map(line => {
-    const vals = []; let cur = ''; let inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (inQ) { if (ch === '"' && line[i+1] === '"') { cur += '"'; i++; } else if (ch === '"') inQ = false; else cur += ch; }
-      else if (ch === '"') inQ = true;
-      else if (ch === ',') { vals.push(cur); cur = ''; }
-      else cur += ch;
-    }
-    vals.push(cur);
-    const rec = {};
-    headers.forEach((h, i) => { rec[h.trim()] = vals[i] !== undefined ? vals[i].trim() : ''; });
-    return rec;
-  });
 }
 
 // ── PERSONS COMBOBOX ──────────────────────────────────────────────────────────
 function populatePersons() {
   persons.sort((a, b) => a.name.localeCompare(b.name));
-  const sel = document.getElementById('personSelect');
+  const sel = $('personSelect');
   sel.innerHTML = '<option value=""></option>';
-  persons.forEach(p => {
-    const o = document.createElement('option');
-    o.value = p.id; o.textContent = p.name;
-    sel.appendChild(o);
-  });
+  persons.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o); });
   renderDropdown('');
 }
 
 function esc(s) { return String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
 function hi(s, q) {
   if (!q) return esc(s);
-  try {
-    const safe = q.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&');
-    return esc(s).replace(new RegExp(safe, 'gi'), m => '<mark>' + m + '</mark>');
-  } catch { return esc(s); }
+  try { return esc(s).replace(new RegExp(q.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&'), 'gi'), m => `<mark>${m}</mark>`); }
+  catch { return esc(s); }
 }
 
 function renderDropdown(query) {
-  const dd   = document.getElementById('comboDropdown');
   const q    = query.trim().toLowerCase();
   const list = q ? persons.filter(p => p.name.toLowerCase().includes(q) || (p.designation||'').toLowerCase().includes(q)) : persons;
-  if (!list.length) { dd.innerHTML = '<div class="combo-empty">No persons found</div>'; return; }
-  dd.innerHTML = list.map(p => {
-    const desig = p.designation ? '<div class="combo-desig">' + hi(p.designation, q) + '</div>' : '';
-    return '<div class="combo-item" data-id="' + esc(p.id) + '">' + hi(p.name, q) + desig + '</div>';
-  }).join('');
+  $('comboDropdown').innerHTML = list.length
+    ? list.map(p => `<div class="combo-item" data-id="${esc(p.id)}">${hi(p.name, q)}${p.designation ? `<div class="combo-desig">${hi(p.designation, q)}</div>` : ''}</div>`).join('')
+    : '<div class="combo-empty">No persons found</div>';
 }
 
 function filterPersons() {
-  const q = document.getElementById('personSearch').value;
-  document.getElementById('comboClear').style.display = q ? '' : 'none';
+  const q = $('personSearch').value;
+  $('comboClear').style.display = q ? '' : 'none';
   openDropdown(); renderDropdown(q);
 }
-function openDropdown() {
-  document.getElementById('comboDropdown').style.display = 'block';
-  document.getElementById('comboWrapper').classList.add('open');
-}
-function closeDropdown() {
-  document.getElementById('comboDropdown').style.display = 'none';
-  document.getElementById('comboWrapper').classList.remove('open');
-}
+function openDropdown()  { $('comboDropdown').style.display = 'block';  $('comboWrapper').classList.add('open'); }
+function closeDropdown() { $('comboDropdown').style.display = 'none';   $('comboWrapper').classList.remove('open'); }
+
 function selectPerson(id) {
   const p = persons.find(x => x.id === id);
   if (!p) return;
-  document.getElementById('personSearch').value = p.name + (p.designation ? ' — ' + p.designation : '');
-  document.getElementById('comboClear').style.display = '';
-  document.getElementById('personSelect').value = id;
+  $('personSearch').value    = p.name + (p.designation ? ' — ' + p.designation : '');
+  $('comboClear').style.display = '';
+  $('personSelect').value    = id;
   closeDropdown();
   onPersonChange();
 }
 function clearPerson() {
-  document.getElementById('personSearch').value = '';
-  document.getElementById('comboClear').style.display = 'none';
-  document.getElementById('personSelect').value = '';
+  $('personSearch').value = '';
+  $('comboClear').style.display = 'none';
+  $('personSelect').value = '';
   renderDropdown('');
   resetLoc();
-  document.getElementById('assetsCard').style.display = 'none';
+  $('assetsCard').style.display = 'none';
 }
 
-document.getElementById('comboDropdown').addEventListener('mousedown', function(e) {
+$('comboDropdown').addEventListener('mousedown', e => {
   const item = e.target.closest('.combo-item');
   if (item) { e.preventDefault(); selectPerson(item.dataset.id); }
 });
-document.addEventListener('click', function(e) {
-  const w = document.getElementById('comboWrapper');
-  if (w && !w.contains(e.target)) closeDropdown();
-});
+document.addEventListener('click', e => { if (!$('comboWrapper').contains(e.target)) closeDropdown(); });
 
 function onPersonChange() {
   resetLoc();
+  $('assetsCard').style.display = 'none';
   const id = getPersonId();
-  document.getElementById('assetsCard').style.display = 'none';
-  if (!id) return;
-  ensureWatch();
-  if (currentPos) onGpsUpdate();
+  if (id) { ensureWatch(); if (currentPos) onGpsUpdate(); }
 }
-function getPersonId() { return document.getElementById('personSelect').value; }
+function getPersonId() { return $('personSelect').value; }
 
-// ── LOCATION ──────────────────────────────────────────────────────────────────
+// ── LOCATION ───────────────────────────────────────────────────────────────────
 function ensureWatch() {
   if (watchId !== null) return;
   if (!navigator.geolocation) { setLoc('failed', '❌', 'GPS not supported', 'Use Chrome or Safari'); return; }
   setLoc('checking', '📡', 'Getting your location…', 'Please hold still');
   watchId = navigator.geolocation.watchPosition(
-    pos => {
-      currentPos = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy) };
-      onGpsUpdate();
-    },
-    err => {
-      const msgs = { 1:'Location permission denied', 2:'Location unavailable', 3:'Location timed out' };
-      setLoc('failed', '❌', msgs[err.code] || 'Location error', 'Enable GPS and try again');
-    },
+    pos => { currentPos = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy) }; onGpsUpdate(); },
+    err  => { const m = {1:'Permission denied', 2:'Location unavailable', 3:'Timed out'}; setLoc('failed', '❌', m[err.code] || 'Location error', 'Enable GPS and try again'); },
     { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
   );
 }
-
 function onGpsUpdate() {
-  const id = getPersonId();
-  if (!id) return;
+  if (!getPersonId()) return;
   setLoc('verified', '✅', 'Location acquired', `Accuracy: ±${currentPos.acc}m`);
-  const person = persons.find(p => p.id === id);
+  const person = persons.find(p => p.id === getPersonId());
   if (person) renderAssets(person);
 }
-
 function haversine(lat1, lng1, lat2, lng2) {
-  const R = 6371000, toR = Math.PI / 180;
-  const dLat = (lat2 - lat1) * toR, dLng = (lng2 - lng1) * toR;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*toR) * Math.cos(lat2*toR) * Math.sin(dLng/2)**2;
+  const R = 6371000, r = Math.PI / 180;
+  const dL = (lat2-lat1)*r, dG = (lng2-lng1)*r;
+  const a  = Math.sin(dL/2)**2 + Math.cos(lat1*r)*Math.cos(lat2*r)*Math.sin(dG/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
-
 function setLoc(cls, icon, title, sub) {
-  document.getElementById('locStatus').className  = 'loc-status ' + cls;
-  document.getElementById('locIcon').textContent  = icon;
-  document.getElementById('locTitle').textContent = title;
-  document.getElementById('locSub').textContent   = sub;
+  $('locStatus').className = 'loc-status ' + cls;
+  $('locIcon').textContent  = icon;
+  $('locTitle').textContent = title;
+  $('locSub').textContent   = sub;
 }
-function resetLoc() {
-  setLoc('idle', '📍', 'Location not checked', 'Select your name to begin');
-}
+function resetLoc() { setLoc('idle', '📍', 'Location not checked', 'Select your name to begin'); }
 
-// ── ASSETS RENDER ─────────────────────────────────────────────────────────────
+// ── ASSET RENDER ───────────────────────────────────────────────────────────────
+const TYPE_ICON = { pump:'⚙️', valve:'🔧', zone:'🗺️' };
+
 function renderAssets(person) {
-  // person.assets is an array of { id, tolerance } objects.
-  // Empty / missing = show all assets (supervisor / catch-all).
-  const list = document.getElementById('assetsList');
+  let list = (person.assets?.length)
+    ? person.assets.map(e => assetMap[e.id] ? { ...assetMap[e.id], tolerance: e.tolerance ?? 50 } : null).filter(Boolean)
+    : assets;
 
-  let myAssets;
-  if (person.assets && person.assets.length) {
-    // Build enriched list: merge zone data with per-person tolerance
-    myAssets = person.assets
-      .map(entry => {
-        const base = assetMap[entry.id];
-        if (!base) return null;
-        return { ...base, tolerance: entry.tolerance ?? base.tolerance };
-      })
-      .filter(Boolean);
-  } else {
-    myAssets = assets;   // no restriction — show everything
-  }
-
-  if (!myAssets.length) {
-    list.innerHTML = '<div class="empty-state"><div class="e-icon">🏭</div>No assets assigned to you</div>';
-    document.getElementById('assetsCard').style.display = 'block';
-    return;
-  }
-
-  list.innerHTML = myAssets.map(asset => buildAssetCard(asset, person.id)).join('');
-  document.getElementById('assetsCard').style.display = 'block';
+  const el = $('assetsList');
+  el.innerHTML = list.length
+    ? list.map(a => buildAssetCard(a, person.id)).join('')
+    : '<div class="empty-state"><div class="e-icon">🏭</div>No assets assigned to you</div>';
+  $('assetsCard').style.display = 'block';
 }
 
 function buildAssetCard(asset, personId) {
@@ -668,164 +482,102 @@ function buildAssetCard(asset, personId) {
   const isOn   = st.status === 'ON';
   const tol    = asset.tolerance || 50;
   const hasGps = asset.lat !== null && asset.lng !== null;
-  const dist   = (hasGps && currentPos)
-                   ? Math.round(haversine(currentPos.lat, currentPos.lng, asset.lat, asset.lng))
-                   : null;
-  const near   = !hasGps || (dist !== null && dist <= tol);  // no GPS = always near
+  const dist   = hasGps && currentPos ? Math.round(haversine(currentPos.lat, currentPos.lng, asset.lat, asset.lng)) : null;
+  const near   = !hasGps || dist <= tol;
   const cdLeft = getCooldownRemaining(personId, asset.id);
-  const inCd   = cdLeft > 0;
 
   const locBadge = dist !== null
-    ? `<span class="loc-badge ${near ? 'loc-near' : 'loc-far'}">${near ? '✅' : '📵'} ${dist}m / ${tol}m</span>`
+    ? `<span class="loc-badge ${near ? 'loc-near':'loc-far'}">${near?'✅':'📵'} ${dist}m / ${tol}m</span>`
     : `<span class="loc-badge loc-unk">📍 Unknown</span>`;
 
-  const lastText = st.lastPersonName
-    ? `By ${esc(st.lastPersonName)} · ${fmtTime(st.lastChangedAt)}`
-    : 'No recent activity';
-
-  const cdBadge = inCd
-    ? `<span class="cooldown-badge" id="cd-badge-${esc(asset.id)}">⏳ ${formatCooldown(cdLeft)}</span>`
-    : `<span id="cd-badge-${esc(asset.id)}"></span>`;
-
-  const disabled = (!near || inCd) ? 'disabled' : '';
-  const title    = !near ? `Move within ${tol}m to toggle` : (inCd ? `Cooldown: ${formatCooldown(cdLeft)}` : '');
-
-  const typeIcon = asset.type === 'pump' ? '⚙️' : asset.type === 'valve' ? '🔧' : asset.type === 'zone' ? '🗺️' : '🏭';
-  const typeLabel = asset.type ? asset.type.charAt(0).toUpperCase() + asset.type.slice(1) : 'Asset';
+  const typeStr = asset.type ? (TYPE_ICON[asset.type] || '🏭') + ' ' + asset.type.charAt(0).toUpperCase() + asset.type.slice(1) : '';
+  const lastText = st.lastPersonName ? `By ${esc(st.lastPersonName)} · ${fmtTime(st.lastChangedAt)}` : 'No recent activity';
+  const cdBadge  = cdLeft > 0 ? `<span class="cooldown-badge" id="cd-badge-${esc(asset.id)}">⏳ ${formatCooldown(cdLeft)}</span>` : `<span id="cd-badge-${esc(asset.id)}"></span>`;
+  const disabled = (!near || cdLeft > 0) ? 'disabled' : '';
+  const title    = !near ? `Move within ${tol}m to toggle` : cdLeft > 0 ? `Cooldown: ${formatCooldown(cdLeft)}` : '';
 
   return `
-<div class="asset-card ${isOn ? 'status-on' : 'status-off'}" id="asset-card-${esc(asset.id)}">
+<div class="asset-card ${isOn?'status-on':'status-off'}" id="asset-card-${esc(asset.id)}">
   <div class="asset-top">
     <div>
       <div class="asset-name">${esc(asset.name)}</div>
-      <div style="font-size:12px;color:var(--text3);font-weight:600;margin-top:2px;">${typeIcon} ${esc(typeLabel)}</div>
+      ${typeStr ? `<div class="asset-type">${esc(typeStr)}</div>` : ''}
       <div class="asset-dist">${dist !== null ? `${dist}m away · must be within ${tol}m` : 'Distance unknown'}</div>
     </div>
     <div class="toggle-wrap">
-      <button class="toggle-switch ${isOn ? 'on' : 'off'}"
-              id="toggle-btn-${esc(asset.id)}"
-              onclick="doToggle('${esc(asset.id)}')"
-              ${disabled}
-              title="${title}">
+      <button class="toggle-switch ${isOn?'on':'off'}" id="toggle-btn-${esc(asset.id)}"
+              onclick="doToggle('${esc(asset.id)}')" ${disabled} title="${title}">
         <div class="toggle-knob"></div>
       </button>
-      <span class="toggle-lbl" id="toggle-lbl-${esc(asset.id)}">${isOn ? 'ON' : 'OFF'}</span>
+      <span class="toggle-lbl" id="toggle-lbl-${esc(asset.id)}">${isOn?'ON':'OFF'}</span>
     </div>
   </div>
   <div class="asset-footer">
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-      ${locBadge}
-      <span class="asset-last">🕐 ${lastText}</span>
-    </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${locBadge}<span class="asset-last">🕐 ${lastText}</span></div>
     ${cdBadge}
   </div>
 </div>`;
 }
 
-// ── COOLDOWN TICK (runs every second) ─────────────────────────────────────────
 function tickCooldowns() {
-  const personId = getPersonId();
-  if (!personId) return;
+  const pid = getPersonId();
+  if (!pid) return;
   assets.forEach(asset => {
-    const badge  = document.getElementById('cd-badge-' + asset.id);
-    const btn    = document.getElementById('toggle-btn-' + asset.id);
+    const badge = document.getElementById('cd-badge-' + asset.id);
+    const btn   = document.getElementById('toggle-btn-' + asset.id);
     if (!badge || !btn) return;
-
-    const cdLeft = getCooldownRemaining(personId, asset.id);
-    const hasGps = asset.lat !== null && asset.lng !== null;
-    const dist   = (hasGps && currentPos)
-                     ? Math.round(haversine(currentPos.lat, currentPos.lng, asset.lat, asset.lng))
-                     : null;
-    const tol    = asset.tolerance || 50;
-    const near   = !hasGps || (dist !== null && dist <= tol);
-
-    if (cdLeft > 0) {
-      badge.className  = 'cooldown-badge';
-      badge.textContent = '⏳ ' + formatCooldown(cdLeft);
-      btn.disabled = true;
-    } else {
-      badge.textContent = '';
-      badge.className   = '';
-      btn.disabled      = !near;
-    }
+    const cdLeft = getCooldownRemaining(pid, asset.id);
+    const dist   = asset.lat !== null && asset.lng !== null && currentPos
+                   ? Math.round(haversine(currentPos.lat, currentPos.lng, asset.lat, asset.lng)) : null;
+    const near   = (asset.lat === null) || dist <= (asset.tolerance || 50);
+    badge.className   = cdLeft > 0 ? 'cooldown-badge' : '';
+    badge.textContent = cdLeft > 0 ? '⏳ ' + formatCooldown(cdLeft) : '';
+    btn.disabled      = !near || cdLeft > 0;
   });
 }
 
-// ── TOGGLE ACTION ─────────────────────────────────────────────────────────────
+// ── TOGGLE ─────────────────────────────────────────────────────────────────────
 async function doToggle(assetId) {
-  const personId = getPersonId();
-  const person   = persons.find(p => p.id === personId);
-  const asset    = assets.find(a => a.id === assetId);
-  if (!person || !asset) return;
-
-  if (!currentPos) { showToast('Location not available yet', 'error'); return; }
+  const person = persons.find(p => p.id === getPersonId());
+  const asset  = assetMap[assetId];
+  if (!person || !asset || !currentPos) { showToast('Location not available yet', 'error'); return; }
 
   const hasGps = asset.lat !== null && asset.lng !== null;
-  const dist   = hasGps
-                   ? Math.round(haversine(currentPos.lat, currentPos.lng, asset.lat, asset.lng))
-                   : null;
+  const dist   = hasGps ? Math.round(haversine(currentPos.lat, currentPos.lng, asset.lat, asset.lng)) : null;
   const tol    = asset.tolerance || 50;
   if (hasGps && dist > tol) { showToast(`Too far away (${dist}m). Must be within ${tol}m`, 'error'); return; }
 
-  const cdLeft = getCooldownRemaining(personId, assetId);
-  if (cdLeft > 0) { showToast('Please wait ' + formatCooldown(cdLeft) + ' before toggling again', 'warning'); return; }
+  const cdLeft = getCooldownRemaining(person.id, assetId);
+  if (cdLeft > 0) { showToast('Wait ' + formatCooldown(cdLeft) + ' before toggling again', 'warning'); return; }
 
-  // Optimistic UI — mark card as loading
   const card = document.getElementById('asset-card-' + assetId);
   if (card) card.classList.add('loading');
 
   try {
     const now       = new Date();
-    const currentSt = (assetStatus[assetId] || { status: 'OFF' }).status;
-    const newStatus = currentSt === 'ON' ? 'OFF' : 'ON';
+    const newStatus = (assetStatus[assetId]?.status || 'OFF') === 'ON' ? 'OFF' : 'ON';
 
-    // Build new status entry
-    assetStatus[assetId] = {
-      status:          newStatus,
-      lastPersonId:    person.id,
-      lastPersonName:  person.name,
-      lastChangedAt:   now.toISOString()
-    };
+    assetStatus[assetId] = { status: newStatus, lastPersonId: person.id, lastPersonName: person.name, lastChangedAt: now.toISOString() };
 
-    // Build record row
     const rec = {
-      id:          now.getTime().toString() + '_' + Math.random().toString(36).slice(2,6),
-      personId:    person.id,
-      personName:  person.name,
-      assetId:     asset.id,
-      assetName:   asset.name,
-      action:      newStatus,
-      timestamp:   now.toISOString(),
-      date:        todayStr(),
-      time:        timeStr(now),
-      lat:         currentPos.lat.toFixed(7),
-      lng:         currentPos.lng.toFixed(7),
-      distance:    dist ?? ''
+      id: now.getTime() + '_' + Math.random().toString(36).slice(2, 6),
+      personId: person.id, personName: person.name,
+      assetId: asset.id,   assetName:  asset.name,
+      action: newStatus,   timestamp:  now.toISOString(),
+      date: todayStr(),    time:       timeStr(now),
+      lat: currentPos.lat.toFixed(7), lng: currentPos.lng.toFixed(7),
+      distance: dist ?? ''
     };
 
-    // Read existing records from gist, append new record
-    const outFiles  = await gistGetAll('output');
-    const allRecords = csvParse(outFiles[cfg.recordsFile] || '');
+    const outFiles   = await workerGet('output');
+    const allRecords = csvParse(outFiles[RECORDS_FILE] || '');
     allRecords.push(rec);
+    await workerPatch({ [RECORDS_FILE]: csvStringify(allRecords) });
 
-    // Write only records.csv — status is derived from records, no status.json needed
-    await gistPatch({
-      [cfg.recordsFile]: csvStringify(allRecords)
-    });
-
-    // Set cooldown
-    setLastToggle(personId, assetId);
-
-    // Update local today's records
+    setLastToggle(person.id, assetId);
     todayRecs.push(rec);
     renderRecords();
-
-    // Re-render this specific asset card
-    if (card) {
-      card.classList.remove('loading');
-      card.outerHTML = buildAssetCard(asset, personId);
-    }
-
+    if (card) card.outerHTML = buildAssetCard(asset, person.id);
     showToast(`${esc(asset.name)} → ${newStatus}`, newStatus === 'ON' ? 'success' : 'error');
   } catch(e) {
     if (card) card.classList.remove('loading');
@@ -833,67 +585,71 @@ async function doToggle(assetId) {
   }
 }
 
-// ── COOLDOWN HELPERS ──────────────────────────────────────────────────────────
-function cdKey(personId, assetId) { return `sac_cd_${personId}_${assetId}`; }
-function getLastToggleRaw(personId, assetId) {
-  try { const v = localStorage.getItem(cdKey(personId, assetId)); return v ? parseInt(v) : 0; } catch { return 0; }
-}
-function setLastToggle(personId, assetId) {
-  try { localStorage.setItem(cdKey(personId, assetId), Date.now().toString()); } catch {}
-}
-function getCooldownRemaining(personId, assetId) {
-  return Math.max(0, COOLDOWN_MS - (Date.now() - getLastToggleRaw(personId, assetId)));
-}
-function formatCooldown(ms) {
-  const s   = Math.ceil(ms / 1000);
-  const m   = Math.floor(s / 60), sec = s % 60;
-  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
-}
-function fmtTime(isoStr) {
-  if (!isoStr) return '—';
-  try { return new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return isoStr; }
-}
+// ── COOLDOWN ───────────────────────────────────────────────────────────────────
+function cdKey(pid, aid)            { return `sac_cd_${pid}_${aid}`; }
+function getLastToggleRaw(pid, aid) { try { return parseInt(localStorage.getItem(cdKey(pid, aid))) || 0; } catch { return 0; } }
+function setLastToggle(pid, aid)    { try { localStorage.setItem(cdKey(pid, aid), Date.now()); } catch {} }
+function getCooldownRemaining(pid, aid) { return Math.max(0, COOLDOWN_MS - (Date.now() - getLastToggleRaw(pid, aid))); }
+function formatCooldown(ms) { const s = Math.ceil(ms/1000), m = Math.floor(s/60); return m > 0 ? `${m}m ${s%60}s` : `${s}s`; }
+function fmtTime(iso) { try { return new Date(iso).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); } catch { return '—'; } }
 
-// ── RECORDS RENDER ────────────────────────────────────────────────────────────
+// ── RECORDS RENDER ─────────────────────────────────────────────────────────────
 function renderRecords() {
-  const el = document.getElementById('recordsList');
-  if (!todayRecs.length) {
-    el.innerHTML = '<div class="empty-state"><div class="e-icon">🗒️</div>No records yet today</div>';
-    return;
-  }
-  const sorted = [...todayRecs].sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
-  el.innerHTML = sorted.map(r => {
+  const el = $('recordsList');
+  if (!todayRecs.length) { el.innerHTML = '<div class="empty-state"><div class="e-icon">🗒️</div>No records yet today</div>'; return; }
+  el.innerHTML = [...todayRecs].sort((a,b) => b.timestamp.localeCompare(a.timestamp)).map(r => {
     const isOn = r.action === 'ON';
-    return `
-<div class="record-item">
-  <div class="record-avatar ${isOn ? 'rec-on' : 'rec-off'}">${isOn ? '▲' : '▼'}</div>
+    return `<div class="record-item">
+  <div class="record-avatar ${isOn?'rec-on':'rec-off'}">${isOn?'▲':'▼'}</div>
   <div class="record-info">
-    <div class="record-name">${esc(r.personName || '—')}</div>
-    <div class="record-asset">🏭 ${esc(r.assetName || '—')}</div>
-    <div class="record-meta">📍 ${r.distance ? r.distance + 'm away' : '—'}</div>
+    <div class="record-name">${esc(r.personName||'—')}</div>
+    <div class="record-asset">🏭 ${esc(r.assetName||'—')}</div>
+    <div class="record-meta">📍 ${r.distance ? r.distance+'m away' : '—'}</div>
   </div>
   <div class="record-right">
-    <span class="time-chip ${isOn ? 'chip-on' : 'chip-off'}">${isOn ? '▲ ON' : '▼ OFF'} ${r.time || '—'}</span>
+    <span class="time-chip ${isOn?'chip-on':'chip-off'}">${isOn?'▲ ON':'▼ OFF'} ${r.time||'—'}</span>
   </div>
 </div>`;
   }).join('');
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
-function todayStr() {
-  const d = new Date();
-  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+// ── CSV ────────────────────────────────────────────────────────────────────────
+const CSV_COLS = ['id','personId','personName','assetId','assetName','action','timestamp','date','time','lat','lng','distance'];
+function csvEscape(v) { const s = v==null?'':String(v); return (s.includes(',')||s.includes('"')||s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+function csvStringify(recs) { return [CSV_COLS.join(','), ...recs.map(r => CSV_COLS.map(c => csvEscape(r[c])).join(','))].join('\n'); }
+function csvParse(text) {
+  if (!text?.trim()) return [];
+  const [header, ...rows] = text.trim().split('\n');
+  const cols = header.split(',');
+  return rows.map(line => {
+    const vals = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQ)      { if (ch==='"' && line[i+1]==='"') { cur+='"'; i++; } else if (ch==='"') inQ=false; else cur+=ch; }
+      else if (ch==='"') inQ=true;
+      else if (ch===',') { vals.push(cur); cur=''; }
+      else cur+=ch;
+    }
+    vals.push(cur);
+    return Object.fromEntries(cols.map((h,i) => [h.trim(), (vals[i]||'').trim()]));
+  });
 }
-function timeStr(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+
+// ── UTILITIES ──────────────────────────────────────────────────────────────────
+function $(id) { return document.getElementById(id); }
+function pad(n) { return n < 10 ? '0'+n : ''+n; }
+function todayStr() { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function timeStr(d) { return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+function setProgress(p) { $('loadingBar').style.width = p+'%'; }
+function setLoadText(t) { $('loadingText').textContent = t; }
+function hideLoading()  { const el=$('loadingScreen'); el.classList.add('hide'); setTimeout(()=>el.style.display='none', 450); }
 
 let toastTmr;
-function showToast(msg, type = '') {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.className = 'toast ' + type;
-  void el.offsetWidth;
-  el.classList.add('show');
-  clearTimeout(toastTmr);
-  toastTmr = setTimeout(() => el.classList.remove('show'), 3400);
+function showToast(msg, type='') {
+  const el = $('toast');
+  el.textContent = msg; el.className = 'toast '+type;
+  void el.offsetWidth; el.classList.add('show');
+  clearTimeout(toastTmr); toastTmr = setTimeout(() => el.classList.remove('show'), 3400);
 }
 </script>
 </body>
