@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&display=swap" rel="stylesheet">
     <title>SCADA View</title>
     <script src="libs/cytoscape.min.js"></script>
     <script src="scada-core.js"></script>
     <script src="gps-layout.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: sans-serif; background: #f0f4f8; }
+        body { font-family: 'Nunito', 'Noto Sans Bengali', sans-serif; background: #f0f4f8; }
 
         .header {
             background: #1a252f;
@@ -184,10 +186,10 @@
         <line x1="56" y1="32" x2="50" y2="32" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
         <line x1="8"  y1="32" x2="14" y2="32" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
         <!-- Cardinal labels -->
-        <text x="32" y="20" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="sans-serif">N</text>
-        <text x="32" y="55" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="sans-serif">S</text>
-        <text x="54" y="36" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="sans-serif">E</text>
-        <text x="10" y="36" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="sans-serif">W</text>
+        <text x="32" y="20" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="'Nunito', 'Noto Sans Bengali', sans-serif">N</text>
+        <text x="32" y="55" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="'Nunito', 'Noto Sans Bengali', sans-serif">S</text>
+        <text x="54" y="36" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="'Nunito', 'Noto Sans Bengali', sans-serif">E</text>
+        <text x="10" y="36" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="'Nunito', 'Noto Sans Bengali', sans-serif">W</text>
     </svg>
 
     <!-- Shown when GPS polar layout is active -->
