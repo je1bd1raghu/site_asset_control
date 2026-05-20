@@ -309,41 +309,38 @@
         });
 
         // ── Minimum-distance enforcement ──────────────────────────────────────
-        // Single pass per outer iteration: compute midpoint between any pair
-        // closer than MIN_DIST and place both exactly MIN_DIST/2 from it along
-        // their original bearing.  Wrap in up to 4 outer passes to resolve
-        // cascades (A–B fix pushing A into C) without convergence complexity.
-        const MIN_DIST = 80;   // pixels — matches label/icon clearance
+        // After GPS projection, any pair of nodes closer than MIN_NODE_DIST px
+        // is pushed apart along their existing bearing to exactly MIN_NODE_DIST.
+        // Direction is fully preserved — only the magnitude is scaled up.
+        // A second outer pass (max 4) resolves cascades where fixing one pair
+        // disturbs a previously-fixed neighbour.
+        const MIN_NODE_DIST = 80;   // pixels — tune here
 
         for (let pass = 0; pass < 4; pass++) {
-            let anyViolation = false;
+            let anyFixed = false;
             for (let i = 0; i < gpsNodes.length; i++) {
                 for (let j = i + 1; j < gpsNodes.length; j++) {
                     const a  = gpsNodes[i].position;
                     const b  = gpsNodes[j].position;
-                    if (!a || !b) continue;
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const d  = Math.sqrt(dx * dx + dy * dy);
 
-                    const dx   = b.x - a.x;
-                    const dy   = b.y - a.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-
-                    if (dist < MIN_DIST && dist > 0.01) {
-                        anyViolation = true;
-                        // Unit vector along a→b
-                        const nx = dx / dist;
-                        const ny = dy / dist;
-                        // Midpoint
+                    if (d < MIN_NODE_DIST && d > 0.01) {
+                        // Anchor at midpoint, place both exactly MIN_NODE_DIST/2 away
                         const mx = (a.x + b.x) / 2;
                         const my = (a.y + b.y) / 2;
-                        // Place both exactly MIN_DIST/2 from midpoint
-                        a.x = mx - nx * MIN_DIST / 2;
-                        a.y = my - ny * MIN_DIST / 2;
-                        b.x = mx + nx * MIN_DIST / 2;
-                        b.y = my + ny * MIN_DIST / 2;
+                        const nx = dx / d;
+                        const ny = dy / d;
+                        gpsNodes[i].position.x = mx - nx * MIN_NODE_DIST / 2;
+                        gpsNodes[i].position.y = my - ny * MIN_NODE_DIST / 2;
+                        gpsNodes[j].position.x = mx + nx * MIN_NODE_DIST / 2;
+                        gpsNodes[j].position.y = my + ny * MIN_NODE_DIST / 2;
+                        anyFixed = true;
                     }
                 }
             }
-            if (!anyViolation) break;   // all pairs already clear — done early
+            if (!anyFixed) break;   // fully resolved — no need for more passes
         }
 
         return true;
@@ -439,10 +436,12 @@
             userPanningEnabled: true
         });
 
-        cy.fit(undefined, 40);
-		if (cy.zoom() < 0.9) {
-		    cy.zoom({ level: 0.9, renderedPosition: { x: cy.width()/2, y: cy.height()/2 } });
-		}			//This is useful when GPS layout spreads nodes far apart (large geographic area) — it prevents the auto-fit from shrinking everything down to match the full extent.
+        cy.fit(undefined, 40);   // auto-fit after layout with 40px padding
+
+        // Zoom floor — prevents GPS-spread diagrams from rendering too small
+        if (cy.zoom() < 0.9) {
+            cy.zoom({ level: 0.9, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+        }
 
         cy.on('tap', 'node', function(evt) {
             const n = evt.target;
