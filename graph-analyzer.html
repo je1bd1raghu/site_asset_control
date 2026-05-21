@@ -74,10 +74,17 @@
     }
 
     /* ── CARD WRAPPER ── */
-    .card-wrapper { padding: 0 16px; margin-top: -40px; position: relative; z-index: 10; }
+    .card-wrapper { padding: 0 8px; margin-top: -40px; position: relative; z-index: 10; }
     .card {
       background: var(--surface); border-radius: var(--radius);
-      box-shadow: var(--shadow-lg); padding: 24px; margin-bottom: 16px;
+      box-shadow: var(--shadow-lg); padding: 14px; margin-bottom: 16px;
+    }
+    @media (min-width: 640px) {
+      .card-wrapper { padding: 0 16px; }
+      .card { padding: 20px; }
+    }
+    @media (min-width: 960px) {
+      .card { padding: 24px; }
     }
 
     /* ── FORM CONTROLS ── */
@@ -111,44 +118,78 @@
     #graph { height: 100%; flex: 1; position: relative; z-index: 1; }
     #compareGraph { height: 500px; margin-bottom: 25px; }
 
-    /* ── PAGE LAYOUT: two-column left-panel + right-content ── */
+    /* ── PAGE LAYOUT ── */
     .page-layout {
       display: flex;
-      gap: 0;
-      align-items: flex-start;
+      flex-direction: column;
+      gap: 16px;
     }
 
     /* ── LEFT INPUT PANEL ── */
     .input-panel {
-      width: 300px;
-      flex-shrink: 0;
-      padding-right: 20px;
-      border-right: 2px solid var(--border);
-      position: sticky;
-      top: 16px;
+      width: 100%;
     }
 
     /* ── RIGHT CONTENT (graph + sidebar) ── */
     .graph-content {
-      flex: 1;
+      width: 100%;
       min-width: 0;
-      padding-left: 20px;
     }
 
     /* ── ANALYSIS LAYOUT ── */
     .analysis-container {
-      display: flex; gap: 20px; height: 700px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
       width: 100%;
     }
     .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-    /* .graph-overlay-wrap replaces .main-content for the graph panel */
+
+    #graph { height: 60vw; min-height: 280px; max-height: 480px; }
 
     /* ── SIDEBAR ── */
     .sidebar {
-      width: 300px; flex-shrink: 0;
+      width: 100%;
       background: var(--surface); border-radius: var(--radius-sm);
       box-shadow: var(--shadow);
-      padding: 20px; overflow-y: auto; max-height: 700px;
+      padding: 16px; overflow-y: auto; max-height: 320px;
+    }
+
+    /* ── TABLET+ (≥ 640px): side-by-side inputs + graph ── */
+    @media (min-width: 640px) {
+      #graph { height: 420px; max-height: 420px; }
+      .sidebar { max-height: 420px; }
+    }
+
+    /* ── DESKTOP (≥ 960px): full two-column layout ── */
+    @media (min-width: 960px) {
+      .page-layout {
+        flex-direction: row;
+        gap: 0;
+        align-items: flex-start;
+      }
+      .input-panel {
+        width: 300px;
+        flex-shrink: 0;
+        padding-right: 20px;
+        border-right: 2px solid var(--border);
+        position: sticky;
+        top: 16px;
+      }
+      .graph-content {
+        flex: 1;
+        padding-left: 20px;
+      }
+      .analysis-container {
+        flex-direction: row;
+        height: 700px;
+      }
+      #graph { height: 100%; max-height: none; }
+      .sidebar {
+        width: 300px;
+        flex-shrink: 0;
+        max-height: 700px;
+      }
     }
     .report-section { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
     .report-section:last-child { border-bottom: none; margin-bottom: 0; }
@@ -158,13 +199,16 @@
     .report-section a:focus-visible { color: var(--primary-dark); outline: 2px solid var(--primary); outline-offset: 1px; border-radius: 2px; }
 
     /* ── CONTROL PANEL ── */
-    #control-panel { display: flex; flex-wrap: wrap; gap: 10px; }
-    #control-panel button { flex: 1 1 auto; min-width: 120px; width: auto; margin-bottom: 0; }
+    #control-panel { display: flex; flex-wrap: wrap; gap: 8px; }
+    #control-panel button { flex: 1 1 140px; min-width: 0; width: auto; margin-bottom: 0; font-size: 14px; padding: 10px 12px; }
     #control-panel .btn-help {
       background: var(--surface2); color: var(--primary);
-      border: 2px solid var(--primary); flex: 0 0 auto; min-width: unset; width: 42px; padding: 11px 0;
+      border: 2px solid var(--primary); flex: 0 0 42px; min-width: unset; width: 42px; padding: 10px 0;
     }
     #control-panel .btn-help:hover { background: var(--primary-light); }
+    @media (min-width: 960px) {
+      #control-panel button { font-size: 15px; padding: 11px 18px; }
+    }
 
     /* In latlng mode: hide the main Analyze button (the panel's Apply & Render handles it) */
     body.mode-latlng #btn-analyze-render { display: none; }
@@ -196,14 +240,20 @@
     /* ── COMPARE TAB ── */
     #compareGraphsTab { background: #FFF5F5 !important; }
     .compare-container {
-      display: flex; gap: 20px; align-items: flex-start;
+      display: flex; flex-direction: column; gap: 12px;
       border-top: 2px solid var(--border); padding-top: 20px; margin-top: 20px;
     }
-    .compare-section { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+    .compare-section { display: flex; flex-direction: column; gap: 8px; }
     .compare-section label { font-weight: 800; color: var(--text); font-size: 15px; margin-bottom: 0; }
-    .compare-section textarea { height: 150px; margin-bottom: 0; resize: vertical; min-height: 150px; }
-    .compare-button-wrapper { display: flex; align-items: flex-end; margin-bottom: 0; }
-    .compare-button-wrapper button { width: auto; padding: 11px 20px; margin-bottom: 0; }
+    .compare-section textarea { height: 130px; margin-bottom: 0; resize: vertical; min-height: 100px; }
+    .compare-button-wrapper { display: flex; justify-content: center; margin-bottom: 0; }
+    .compare-button-wrapper button { width: 100%; max-width: 240px; padding: 11px 20px; margin-bottom: 0; }
+    @media (min-width: 640px) {
+      .compare-container { flex-direction: row; align-items: flex-start; }
+      .compare-section { flex: 1; }
+      .compare-button-wrapper { align-items: flex-end; }
+      .compare-button-wrapper button { width: auto; }
+    }
 
     /* ── TOAST ── */
     .toast {

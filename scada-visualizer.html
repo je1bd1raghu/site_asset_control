@@ -463,6 +463,12 @@
             document.getElementById('compass').style.display      = gpsApplied ? 'block' : 'none';
             document.getElementById('layout-badge').style.display = gpsApplied ? 'block' : 'none';
 
+            // ── Compatibility shim: zone.json files exported by older versions
+            // used crypto.randomUUID() as node id, while edges still referenced
+            // the original string ids (e.g. "R-1"). Detect and remap so Cytoscape
+            // doesn't crash with "nonexistent source" errors.
+            repairDiagramIds(diagram);
+
             initCytoscape(diagram);
 
             // ── Start all visual animations ────────────────────────────────
@@ -478,6 +484,53 @@
             showLoading(false);
             setStatus('⚠ ' + err.message, '#c0392b');
             console.error(err);
+        }
+    }
+
+    // ─── COMPATIBILITY SHIM ───────────────────────────────────────────────────
+    // zone.json files exported by older graph-analyzer versions stored a
+    // crypto.randomUUID() as the node id, while edge source/target still held
+    // the original topology string (e.g. "R-1"). Detect this mismatch and remap
+    // node ids so that Cytoscape can resolve edge endpoints without crashing.
+    function repairDiagramIds(diagram) {
+        if (!diagram.nodes || !diagram.edges || diagram.edges.length === 0) return;
+
+        // Build set of all node ids currently in the diagram
+        const nodeIdSet = new Set(diagram.nodes.map(n => (n.data || n).id));
+
+        // Collect all unique endpoint ids referenced by edges
+        const edgeEndpoints = new Set();
+        diagram.edges.forEach(e => {
+            const d = e.data || e;
+            if (d.source) edgeEndpoints.add(d.source);
+            if (d.target) edgeEndpoints.add(d.target);
+        });
+
+        // If all edge endpoints resolve to known node ids, nothing to fix
+        const missingEndpoints = [...edgeEndpoints].filter(id => !nodeIdSet.has(id));
+        if (missingEndpoints.length === 0) return;
+
+        // Mismatch detected: node ids are UUIDs, edge endpoints are topology strings.
+        // Attempt to remap by matching on node label (which preserves the original id).
+        const labelToNode = new Map();
+        diagram.nodes.forEach(n => {
+            const d = n.data || n;
+            // The label was set from the original node id in older exports
+            if (d.label) labelToNode.set(d.label, n);
+        });
+
+        let remapped = 0;
+        missingEndpoints.forEach(epId => {
+            const matchedNode = labelToNode.get(epId);
+            if (matchedNode) {
+                const d = matchedNode.data || matchedNode;
+                d.id = epId;   // overwrite UUID with topology id
+                remapped++;
+            }
+        });
+
+        if (remapped > 0) {
+            console.warn(`[repairDiagramIds] Remapped ${remapped} node id(s) from UUID to topology id. Re-export zone.json from the graph analyzer to silence this.`);
         }
     }
 

@@ -90,7 +90,7 @@ const CY_BASE_STYLE = [
         selector: 'node',
         style: {
             'background-color': '#0074D9',
-            'label': 'data(label)',
+            'label': '',
             'color': '#ffffff',
             'text-valign': 'center',
             'text-halign': 'center',
@@ -100,6 +100,12 @@ const CY_BASE_STYLE = [
             'height': 'mapData(nameCount, 1, 5, 40, 100)',
             'font-size': '10px'
         }
+    },
+    // Only map label data field on nodes that actually have a label set —
+    // avoids Cytoscape's "no mapping for property label" warning on edges.
+    {
+        selector: 'node[label]',
+        style: { 'label': 'data(label)' }
     },
     { selector: 'node.overbranched', style: { 'background-color': 'red' } },
     {
@@ -274,13 +280,9 @@ function loadFromZoneJSON() {
     diagram.nodes.forEach(n => {
         const d   = n.data || n;
         const pos = n.position || {};
-        // Generate UUID once at render time — stored as id so both zone.json
-        // and zone_status.json exports share the same identifier, keeping
-        // topology and status files in sync without a separate lookup table.
         elements.push({
             data: {
-                id:        d.id || crypto.randomUUID(),
-                uuid:      crypto.randomUUID(),
+                id:        d.id || d.label || crypto.randomUUID(),
                 label:     d.label || d.id || null,
                 nameCount: 1,
                 lat:       typeof d.lat === 'number' ? d.lat : null,
@@ -541,12 +543,9 @@ function drawGraph(pairs, duplicates, overbranchedSet) {
     for (const node of nodeSet) {
         const originalNames = Array.from(nodeNameMap.get(node) || [node]);
         const coord = coordMap[node] || {};
-        // UUID stored separately for export sync (zone.json ↔ zone_status.json).
-        // id must equal the node key so that edge source/target references resolve.
         elements.push({
             data: {
                 id:        node,
-                uuid:      crypto.randomUUID(),
                 label:     originalNames.join('\n'),
                 nameCount: originalNames.length,
                 lat:       typeof coord.lat === 'number' ? coord.lat : null,
@@ -743,11 +742,11 @@ function _fallbackCopy(text, successMsg) {
 function exportZoneJSON() {
     if (!cy) { showToast('⚠️ No graph rendered yet.', 'warning'); return; }
 
-    // Node uuid is assigned at render time — same UUID used in
-    // zone_status.json so the two files reference the same node identity.
+    // Node id is the topology string (e.g. "J-1") set at render time.
+    // Edges use the same id as source/target so the files are self-consistent.
     const nodes = cy.nodes().map(n => ({
         data: {
-            id:  n.data('uuid') || n.data('id'),
+            id:  n.data('id'),
             lat: typeof n.data('lat') === 'number' ? n.data('lat') : null,
             lng: typeof n.data('lng') === 'number' ? n.data('lng') : null
         },
@@ -791,11 +790,11 @@ function exportStatusJSON() {
     const entries = [];
 
     cy.nodes().forEach(n => {
-        // uuid — same UUID assigned at render time, matching zone.json exactly
+        // id — topology string (e.g. "J-1"), matches node id in zone.json exactly.
         // label — human-readable node name from the graph
         // type, state, comment — always present; null when not yet assigned
         entries.push({
-            id:      n.data('uuid') || n.data('id'),
+            id:      n.data('id'),
             label:   n.data('label') || null,
             type:    n.data('type')  || null,
             state:   n.data('state') || null,
