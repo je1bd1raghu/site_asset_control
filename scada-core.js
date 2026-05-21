@@ -28,20 +28,29 @@ const COLOR = {
 // ─── CYTOSCAPE STYLE ──────────────────────────────────────────────────────────
 const CY_STYLE = [
 
-// ── Default (fallback) node ────────────────────────────────────────────────
+// ── Default (fallback) — untyped nodes are silent junction dots ────────────
+// Nodes with no type set in the status JSON are passive junctions (tees,
+// bends, unnamed connection points). They appear as small grey dots with no
+// label so they don't clutter the diagram and clearly signal they are not
+// active hydraulic assets.
 {
     selector: 'node',
     style: {
+        'label': '',
+        'shape': 'ellipse',
+        'width': 8,
+        'height': 8,
+        'background-color': '#b0bec5',
+        'border-width': 0,
+        'events': 'no'     // not interactive — clicks pass through
+    }
+},
+
+// ── Typed nodes share label + text style ──────────────────────────────────
+{
+    selector: 'node[type]',
+    style: {
         'label': 'data(label)',
-
-        'shape': 'diamond',
-        'width': 44,
-        'height': 44,
-
-        'background-color': COLOR.valveOff,
-        'border-width': 2,
-        'border-color': COLOR.valveOffBorder,
-
         'font-size': '11px',
         'font-weight': 'bold',
         'text-wrap': 'wrap',
@@ -49,7 +58,8 @@ const CY_STYLE = [
         'text-valign': 'bottom',
         'text-margin-y': 8,
         'color': '#2c3e50',
-        'min-zoomed-font-size': 8
+        'min-zoomed-font-size': 8,
+        'events': 'yes'
     }
 },
 
@@ -223,6 +233,9 @@ function applyStatus(cy, data) {
         if (item.label !== undefined)
             el.data('label', item.label.toString());
 
+        // Only set type when explicitly present in the status JSON.
+        // Nodes without a type entry remain untyped junction dots — they
+        // render as small grey circles and are skipped in tap/click handlers.
         if (item.type !== undefined)
             el.data('type', item.type.toString().toLowerCase());
 
@@ -290,7 +303,11 @@ function propagateFlow(cy) {
 
         node.outgoers('edge').forEach(edge => {
             reachableEdges.add(edge.id());
-            queue.push(edge.target());
+            const target = edge.target();
+            // Untyped junction dots are transparent — water flows through them
+            // but they are not hydraulic assets, so always traverse.
+            // Typed nodes are handled by the closed-valve guard above.
+            queue.push(target);
         });
     }
 
