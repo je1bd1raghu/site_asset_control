@@ -327,17 +327,31 @@ async function fetchConfig() {
 // Two sources, combined:
 //   Gist status files → id, label, type, state  (one entry per asset)
 //   Zone JSON files   → lat, lng                (repo-hosted, per node)
+//
+// Uses asset.zone from config.json to fetch only the zone JSON files that are
+// actually referenced — avoids fetching every zone on every load.
 async function loadAssetsFromGist() {
   try {
     const mRes = await fetch('manifest.json?t=' + Date.now());
     if (!mRes.ok) throw new Error('manifest.json not found');
-    const zones = await mRes.json();
+    const zones    = await mRes.json();
+    const zoneMap  = Object.fromEntries(zones.map(z => [z.id, z])); // id → manifest entry
+
+    // Collect only the zone ids actually used by any person's assets in config.
+    // Falls back to all zones if config hasn't loaded yet or zone field is absent.
+    const usedZoneIds = new Set(
+      persons.flatMap(p => (p.assets || []).map(a => a.zone).filter(Boolean))
+    );
+    const zonesToFetch = usedZoneIds.size > 0
+      ? zones.filter(z => usedZoneIds.has(z.id))
+      : zones;  // fallback: fetch all (pre-config or legacy data without zone field)
 
     const seen = new Set();
     const raw  = [];
 
-    // 1. Build asset list from gist status files (label / type / state)
-    for (const zone of zones) {
+    // 1. Build asset list from gist status files (label / type / state).
+    //    Only fetch status files for zones we actually need.
+    for (const zone of zonesToFetch) {
       if (!zone.gistFile) continue;
       try {
         const res = await fetch(`${GIST_BASE}/${zone.gistFile}?t=${Date.now()}`);
@@ -361,18 +375,44 @@ async function loadAssetsFromGist() {
     assets   = raw;
     assetMap = Object.fromEntries(assets.map(a => [a.id, a]));
 
-    // 2. Overlay lat/lng from zone JSON files (zones/zone_a.json etc.)
-    for (const zone of zones) {
-      if (!zone.id) continue;
-      try {
-        const res = await fetch(`zones/${zone.id}.json?t=${Date.now()}`);
-        if (!res.ok) continue;
-        for (const node of (await res.json()).nodes || []) {
-          const d = node.data || {};
-          const a = assetMap[d.id];
-          if (a && typeof d.lat === 'number') { a.lat = d.lat; a.lng = d.lng; }
-        }
-      } catch { /* skip unreadable zone JSON */ }
+    // 2. Overlay lat/lng from zone JSON files (zones/zone_a.json etc.).
+    //    Build a per-zone asset lookup so each zone file is fetched at most once.
+    const assetsByZone = {};  // zoneId → [assetId, ...]
+    for (const person of persons) {
+      for (const pa of (person.assets || [])) {
+        if (!pa.zone || !pa.id) continue;
+        (assetsByZone[pa.zone] = assetsByZone[pa.zone] || new Set()).add(pa.id);
+      }
+    }
+
+    if (Object.keys(assetsByZone).length > 0) {
+      // Targeted fetch: only load zone JSON files referenced in config.
+      for (const [zoneId, assetIdSet] of Object.entries(assetsByZone)) {
+        try {
+          const res = await fetch(`zones/${zoneId}.json?t=${Date.now()}`);
+          if (!res.ok) continue;
+          for (const node of (await res.json()).nodes || []) {
+            const d = node.data || {};
+            if (!assetIdSet.has(d.id)) continue;   // skip nodes not in this person's list
+            const a = assetMap[d.id];
+            if (a && typeof d.lat === 'number') { a.lat = d.lat; a.lng = d.lng; }
+          }
+        } catch { /* skip unreadable zone JSON */ }
+      }
+    } else {
+      // Fallback: no zone field in config — scan all zone JSONs as before.
+      for (const zone of zones) {
+        if (!zone.id) continue;
+        try {
+          const res = await fetch(`zones/${zone.id}.json?t=${Date.now()}`);
+          if (!res.ok) continue;
+          for (const node of (await res.json()).nodes || []) {
+            const d = node.data || {};
+            const a = assetMap[d.id];
+            if (a && typeof d.lat === 'number') { a.lat = d.lat; a.lng = d.lng; }
+          }
+        } catch { /* skip unreadable zone JSON */ }
+      }
     }
 
     // Seed ON/OFF from gist state; CSV records will override per-asset below
@@ -519,7 +559,7 @@ const TYPE_ICON = { pump:'⚙️', valve:'🔧', zone:'🗺️' };
 
 function renderAssets(person) {
   let list = (person.assets?.length)
-    ? person.assets.map(e => assetMap[e.id] ? { ...assetMap[e.id], tolerance: e.tolerance ?? 50 } : null).filter(Boolean)
+    ? person.assets.map(e => assetMap[e.id] ? { ...assetMap[e.id], tolerance: e.tolerance ?? 50, zone: e.zone || null } : null).filter(Boolean)
     : assets;
 
   const el = $('assetsList');
