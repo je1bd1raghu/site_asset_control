@@ -26,6 +26,10 @@ function showToast(msg, type) {
     el.classList.add('show');
     clearTimeout(_toastTmr);
     _toastTmr = setTimeout(() => el.classList.remove('show'), 3400);
+
+    // Mirror to the screen-reader live region so AT users hear status messages
+    const sr = document.getElementById('sr-announcer');
+    if (sr) { sr.textContent = ''; requestAnimationFrame(() => { sr.textContent = msg; }); }
 }
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -33,8 +37,179 @@ function showToast(msg, type) {
 let cy           = null;
 let latestReport = {};
 
+// ─── NODE SIZE SCALE ──────────────────────────────────────────────────────────
+// Tracks a discrete step (-5 … +5) that scales node size and label font size
+// relative to the defaults defined in CY_BASE_STYLE.
+
+let _nodeSizeStep = 0;   // current step; 0 = default
+
+// Base values (must match CY_BASE_STYLE mapData min/max)
+const NSC_BASE_MIN = 40;   // mapData min node size
+const NSC_BASE_MAX = 100;  // mapData max node size
+const NSC_BASE_FONT = 10;  // default font-size in px
+const NSC_STEP_PX = 8;     // px added/removed per step for node sizes
+const NSC_STEP_FONT = 2;   // px added/removed per step for font
+
+function adjustNodeSize(delta) {
+    _nodeSizeStep = Math.max(-4, Math.min(5, _nodeSizeStep + delta));
+    _applyNodeSizeStyle();
+}
+
+function _applyNodeSizeStyle() {
+    if (!cy) return;
+    const s = _nodeSizeStep;
+    const minSz = Math.max(10, NSC_BASE_MIN  + s * NSC_STEP_PX);
+    const maxSz = Math.max(20, NSC_BASE_MAX  + s * NSC_STEP_PX);
+    const font  = Math.max(6,  NSC_BASE_FONT + s * NSC_STEP_FONT) + 'px';
+
+    cy.style()
+      .selector('node')
+      .style({
+          'width':  'mapData(nameCount, 1, 5, ' + minSz + ', ' + maxSz + ')',
+          'height': 'mapData(nameCount, 1, 5, ' + minSz + ', ' + maxSz + ')',
+          'font-size': font,
+          'min-zoomed-font-size': 0
+      })
+      .update();
+}
+
+// Reset scale whenever a new graph is drawn
+function _resetNodeSizeStep() { _nodeSizeStep = 0; }
+
+
 const nodeNameMap        = new Map();  // internalName → Set of original raw tokens
 const originalNodeLookup = new Map();  // rawToken     → internalName
+
+// ─── CYTOSCAPE STYLE (single source of truth) ─────────────────────────────────
+// Shared by initCy() — used by loadFromZoneJSON(), drawGraph(), and
+// compareAndRenderGraphs(). Compare mode extends this array with its own
+// class-specific overrides passed as extraStyles.
+
+const CY_BASE_STYLE = [
+    {
+        selector: 'node',
+        style: {
+            'background-color': '#0074D9',
+            'label': 'data(label)',
+            'color': '#ffffff',
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'text-wrap': 'wrap',
+            'shape': 'ellipse',
+            'width':  'mapData(nameCount, 1, 5, 40, 100)',
+            'height': 'mapData(nameCount, 1, 5, 40, 100)',
+            'font-size': '10px'
+        }
+    },
+    { selector: 'node.overbranched', style: { 'background-color': 'red' } },
+    {
+        selector: 'node.search-highlight',
+        style: {
+            'border-color': '#FFD700', 'border-width': '8px', 'border-style': 'double',
+            'background-color': '#FFA500', 'background-opacity': 0.7
+        }
+    },
+    {
+        selector: 'edge',
+        style: { 'line-color': '#888', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier' }
+    },
+    { selector: 'edge.duplicate', style: { 'line-color': 'orange', 'width': 3, 'line-style': 'dashed' } }
+];
+
+// ─── CYTOSCAPE INIT HELPER ────────────────────────────────────────────────────
+// Single place for cy.destroy() + cytoscape({…}).
+// - containerId : DOM id of the graph container
+// - elements    : Cytoscape element array
+// - layout      : Cytoscape layout descriptor  { name: 'preset' } | { name: 'cose' }
+// - extraStyles : optional array of additional style rules appended after CY_BASE_STYLE
+// Returns the new cy instance (also assigned to the global `cy`).
+
+function initCy(containerId, elements, layout, extraStyles) {
+    if (cy) cy.destroy();
+    cy = cytoscape({
+        container: document.getElementById(containerId),
+        elements,
+        layout,
+        style: extraStyles ? CY_BASE_STYLE.concat(extraStyles) : CY_BASE_STYLE
+    });
+    return cy;
+}
+
+// ─── GPS LAYOUT HELPER ────────────────────────────────────────────────────────
+// Shared by loadFromZoneJSON() and drawGraph().
+// Accepts the *elements array* already assembled for Cytoscape.
+// Nodes are identified by the absence of a source field (i.e. not edges).
+//
+// The contract for applyGpsLayout() (from gps-layout.js) requires objects with:
+//   { data: { id, lat, lng, type? }, position: { x, y } }
+// This wrapper builds that shape, runs the projection, then writes the
+// computed positions back into the original elements array so Cytoscape
+// receives them directly.
+//
+// Returns true when GPS layout was applied (≥2 nodes had coordinates).
+
+function applyGpsToElements(elements, containerId) {
+
+    const containerEl =
+        document.getElementById(containerId);
+
+    const canvasW =
+        containerEl.offsetWidth || 800;
+
+    const canvasH =
+        containerEl.offsetHeight || 600;
+
+    const nodeWrappers = elements
+        .filter(e => !e.data.source)
+        .map(e => ({
+            data: e.data,
+            position: e.position || { x: 0, y: 0 }
+        }));
+
+    // REAL GPS preserved
+    // only viewport magnification increased
+    const applied = applyGpsLayout(
+        nodeWrappers,
+        canvasW,
+        canvasH,
+        {
+            padding: 80,
+
+            // enlarges visual spacing
+            // without changing geometry
+            viewScale: 2.8,
+
+            // IMPORTANT:
+            // keep disabled to preserve true coordinates
+            minDist: 0,
+            collisionPasses: 0
+        }
+    );
+
+    if (applied) {
+
+        nodeWrappers.forEach(w => {
+
+            const el =
+                elements.find(
+                    e => e.data.id === w.data.id
+                );
+
+            if (el) {
+                el.position = {
+                    x: w.position.x,
+                    y: w.position.y
+                };
+            }
+        });
+    }
+
+    return {
+        applied,
+        canvasW,
+        canvasH
+    };
+}
 
 // ─── PREPROCESS MODE UI SWITCH ────────────────────────────────────────────────
 
@@ -48,17 +223,20 @@ function onPreprocessModeChange() {
         ta.style.fontFamily = 'monospace';
         ta.style.fontSize   = '12px';
         if (llPanel) llPanel.style.display = 'none';
+        document.body.classList.remove('mode-latlng');
     } else if (mode === 'latlng') {
         ta.placeholder  = 'Paste your node pairs here — one edge per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
         ta.style.fontFamily = '';
         ta.style.fontSize   = '';
         if (llPanel) { llPanel.style.display = 'block'; onLatlngModeActive(); }
+        document.body.classList.add('mode-latlng');
     } else {
         ta.placeholder  = 'Paste your node pairs here — one edge per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
         ta.style.fontFamily = '';
         ta.style.fontSize   = '';
         if (llPanel) llPanel.style.display = 'none';
         window._latlngCoords = null;
+        document.body.classList.remove('mode-latlng');
     }
     if (cy) cy.nodes().removeClass('search-highlight');
 }
@@ -88,33 +266,25 @@ function loadFromZoneJSON() {
         showToast('⚠️ No edges found in zone.json.', 'warning'); return false;
     }
 
-    // ── Apply GPS layout if coordinates are present ───────────────────────────
-    // applyGpsLayout() is provided by gps-layout.js (shared with scada-visualizer).
-    // It mutates node.position.x/y in-place and returns true when applied.
-    const container  = document.getElementById('graph');
-    const canvasW    = container.offsetWidth  || 800;
-    const canvasH    = container.offsetHeight || 600;
-    const gpsApplied = applyGpsLayout(diagram.nodes, canvasW, canvasH);
-
     // ── Build Cytoscape elements directly from zone.json ──────────────────────
     // Nodes: carry id, label, lat, lng so exports round-trip faithfully.
     // Edges: carry source + target directly — no name-cleaning needed.
     const elements = [];
 
     diagram.nodes.forEach(n => {
-        const d = n.data || n;
+        const d   = n.data || n;
         const pos = n.position || {};
         elements.push({
             data: {
-                id:       d.id,
-                label:    d.label ? d.label.replace(/\n/g, '\n') : d.id,
+                id:        d.id,
+                label:     d.label || d.id,
                 nameCount: 1,
-                lat:      typeof d.lat === 'number' ? d.lat : null,
-                lng:      typeof d.lng === 'number' ? d.lng : null
+                lat:       typeof d.lat === 'number' ? d.lat : null,
+                lng:       typeof d.lng === 'number' ? d.lng : null
             },
-            ...(gpsApplied && pos.x !== undefined
-                ? { position: { x: pos.x, y: pos.y } }
-                : {})
+            // Preserve any existing position from the JSON so a round-trip
+            // doesn't discard manually edited positions.
+            ...(pos.x !== undefined ? { position: { x: pos.x, y: pos.y } } : {})
         });
     });
 
@@ -129,45 +299,12 @@ function loadFromZoneJSON() {
         });
     });
 
-    // ── Init / reinit Cytoscape ───────────────────────────────────────────────
-    if (cy) cy.destroy();
+    // ── Apply GPS layout (overwrites positions when ≥2 GPS nodes found) ───────
+    const { applied: gpsApplied, canvasW, canvasH } = applyGpsToElements(elements, 'graph');
 
-    cy = cytoscape({
-        container,
-        elements,
-        // Use preset (GPS positions) when available, cose otherwise
-        layout: gpsApplied ? { name: 'preset' } : { name: 'cose' },
-        style: [
-            {
-                selector: 'node',
-                style: {
-                    'background-color': '#0074D9',
-                    'label': 'data(label)',
-                    'color': '#ffffff',
-                    'text-valign': 'center',
-                    'text-halign': 'center',
-                    'text-wrap': 'wrap',
-                    'shape': 'ellipse',
-                    'width':  'mapData(nameCount, 1, 5, 40, 100)',
-                    'height': 'mapData(nameCount, 1, 5, 40, 100)',
-                    'font-size': '10px'
-                }
-            },
-            { selector: 'node.overbranched', style: { 'background-color': 'red' } },
-            {
-                selector: 'node.search-highlight',
-                style: {
-                    'border-color': '#FFD700', 'border-width': '8px', 'border-style': 'double',
-                    'background-color': '#FFA500', 'background-opacity': 0.7
-                }
-            },
-            {
-                selector: 'edge',
-                style: { 'line-color': '#888', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier' }
-            },
-            { selector: 'edge.duplicate', style: { 'line-color': 'orange', 'width': 3, 'line-style': 'dashed' } }
-        ]
-    });
+    // ── Init Cytoscape ────────────────────────────────────────────────────────
+    initCy('graph', elements, gpsApplied ? { name: 'preset' } : { name: 'cose' });
+    _resetNodeSizeStep();
 
     if (gpsApplied) {
         cy.fit(undefined, 40);
@@ -206,8 +343,6 @@ function loadFromZoneJSON() {
     showToast(`✅ ${diagram.nodes.length} nodes, ${diagram.edges.length} edges${layoutMsg}`, 'success');
     return true;
 }
-
-
 
 function cleanNodeName(rawName) {
     let mode = document.getElementById('preprocessMode').value;
@@ -377,10 +512,8 @@ function findOverbranched(graph) {
 // ─── RENDER ───────────────────────────────────────────────────────────────────
 
 function drawGraph(pairs, duplicates, overbranchedSet) {
-    if (cy) cy.destroy();
-
-    const elements      = [];
-    const nodeSet       = new Set();
+    const elements       = [];
+    const nodeSet        = new Set();
     const duplicateEdges = new Set();
 
     duplicates.forEach(({ a, b }) => {
@@ -419,53 +552,19 @@ function drawGraph(pairs, duplicates, overbranchedSet) {
     // Apply GPS layout when any node has coordinates (latlng mode)
     const hasCoords = Object.values(coordMap).some(c => typeof c.lat === 'number');
     if (hasCoords) {
-        const canvasW = document.getElementById('graph').offsetWidth  || 800;
-        const canvasH = document.getElementById('graph').offsetHeight || 600;
-        const nodeObjs = elements
-            .filter(e => !e.data.source)
-            .map(e => ({ data: e.data, position: { x: 0, y: 0 } }));
-        applyGpsLayout(nodeObjs, canvasW, canvasH);
-        nodeObjs.forEach(n => {
-            const el = elements.find(e => e.data.id === n.data.id);
-            if (el) el.position = n.position;
-        });
+        applyGpsToElements(elements, 'graph');
     }
 
-    cy = cytoscape({
-        container: document.getElementById('graph'),
-        elements,
-        layout: hasCoords ? { name: 'preset' } : { name: 'cose' },
-        style: [
-            {
-                selector: 'node',
-                style: {
-                    'background-color': '#0074D9',
-                    'label': 'data(label)',
-                    'color': '#ffffff',
-                    'text-valign': 'center',
-                    'text-halign': 'center',
-                    'text-wrap': 'wrap',
-                    'shape': 'ellipse',
-                    'width':  'mapData(nameCount, 1, 5, 40, 100)',
-                    'height': 'mapData(nameCount, 1, 5, 40, 100)',
-                    'font-size': '10px'
-                }
-            },
-            { selector: 'node.overbranched',     style: { 'background-color': 'red' } },
-            {
-                selector: 'node.search-highlight',
-                style: {
-                    'border-color': '#FFD700', 'border-width': '8px', 'border-style': 'double',
-                    'background-color': '#FFA500', 'background-opacity': 0.7
-                }
-            },
-            {
-                selector: 'edge',
-                style: { 'line-color': '#888', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier' }
-            },
-            { selector: 'edge.duplicate', style: { 'line-color': 'orange', 'width': 3, 'line-style': 'dashed' } }
-        ]
-    });
+    const newCy = initCy('graph', elements, hasCoords ? { name: 'preset' } : { name: 'cose' });
+    _resetNodeSizeStep();
+
+    if (hasCoords) {
+        const container = document.getElementById('graph');
+        const canvasW = container.offsetWidth  || 800;
+        const canvasH = container.offsetHeight || 600;
+        newCy.fit(undefined, 40);
+        if (newCy.zoom() < 0.9) newCy.zoom({ level: 0.9, renderedPosition: { x: canvasW / 2, y: canvasH / 2 } });
+    }
 }
 
 // ─── ANALYSE & REPORT ─────────────────────────────────────────────────────────
@@ -476,9 +575,21 @@ function analyzeGraph() {
         loadFromZoneJSON();
         return;
     }
-    // lat-lng mode: rebuild table with latest input then continue into normal pipeline
+    // lat-lng mode: rebuild the table first, collect coordinates,
+    // then fall through to the normal analysis pipeline.
     if (document.getElementById('preprocessMode').value === 'latlng') {
-        if (typeof buildLatlngTable === 'function') buildLatlngTable();
+        buildLatlngTable();
+        const coords = {};
+        document.querySelectorAll('#latlngBody tr').forEach(tr => {
+            const id  = tr.dataset.nodeId;
+            const lat = parseFloat(tr.querySelector('.ll-lat')?.value ?? '');
+            const lng = parseFloat(tr.querySelector('.ll-lng')?.value ?? '');
+            if (id) coords[id] = {
+                lat: isFinite(lat) ? lat : null,
+                lng: isFinite(lng) ? lng : null
+            };
+        });
+        window._latlngCoords = coords;
     }
 
     const { graph, rawPairs, orphans, selfLoops } = parseInput();
@@ -642,7 +753,12 @@ function exportZoneJSON() {
         }
     }));
 
-    downloadFile(JSON.stringify({ nodes, edges }, null, 2), 'zone.json', 'application/json');
+    const zoneJson = '{\n  "nodes": [\n'
+        + nodes.map(n => '    ' + JSON.stringify(n)).join(',\n')
+        + '\n  ],\n  "edges": [\n'
+        + edges.map(e => '    ' + JSON.stringify(e)).join(',\n')
+        + '\n  ]\n}';
+    downloadFile(zoneJson, 'zone.json', 'application/json');
     showToast('✅ zone.json downloaded!', 'success');
 }
 
@@ -677,7 +793,10 @@ function exportStatusJSON() {
         flow: e.data('flow') || ''
     }));
 
-    downloadFile(JSON.stringify(entries, null, 2), 'zone_status.json', 'application/json');
+    const statusJson = '[\n'
+        + entries.map(e => '  ' + JSON.stringify(e)).join(',\n')
+        + '\n]';
+    downloadFile(statusJson, 'zone_status.json', 'application/json');
     showToast('✅ zone_status.json downloaded!', 'success');
 }
 
@@ -722,7 +841,7 @@ function compareAndRenderGraphs() {
     for (const node of new Set([...nodes1, ...nodes2])) {
         const cls = (nodes1.has(node) && nodes2.has(node)) ? 'common-node'
                   :  nodes1.has(node) ? 'graph1-unique-node' : 'graph2-unique-node';
-        elements.push({ data: { id: node, label: node }, classes: cls });
+        elements.push({ data: { id: node, label: node, nameCount: 1 }, classes: cls });
     }
 
     for (const edgeKey of new Set([...edges1, ...edges2])) {
@@ -732,34 +851,17 @@ function compareAndRenderGraphs() {
         elements.push({ data: { id: edgeKey, source, target }, classes: cls });
     }
 
-    if (cy) cy.destroy();
+    // Compare-specific styles extend the shared base
+    const compareStyles = [
+        { selector: '.common-node',        style: { 'background-color': 'blue' } },
+        { selector: '.graph1-unique-node', style: { 'background-color': 'red'  } },
+        { selector: '.graph2-unique-node', style: { 'background-color': 'red'  } },
+        { selector: '.common-edge',        style: { 'line-color': 'blue', 'width': 3 } },
+        { selector: '.graph1-unique-edge', style: { 'line-color': 'red',  'width': 3, 'line-style': 'dashed' } },
+        { selector: '.graph2-unique-edge', style: { 'line-color': 'red',  'width': 3, 'line-style': 'dashed' } }
+    ];
 
-    cy = cytoscape({
-        container: document.getElementById('compareGraph'),
-        elements,
-        layout: { name: 'cose' },
-        style: [
-            {
-                selector: 'node',
-                style: {
-                    'background-color': '#0074D9', 'label': 'data(label)',
-                    'color': '#ffffff', 'text-valign': 'center', 'text-halign': 'center',
-                    'text-wrap': 'wrap', 'shape': 'ellipse',
-                    'width': '40px', 'height': '40px', 'font-size': '10px'
-                }
-            },
-            { selector: '.common-node',        style: { 'background-color': 'blue' } },
-            { selector: '.graph1-unique-node',  style: { 'background-color': 'red'  } },
-            { selector: '.graph2-unique-node',  style: { 'background-color': 'red'  } },
-            {
-                selector: 'edge',
-                style: { 'line-color': '#888', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier' }
-            },
-            { selector: '.common-edge',        style: { 'line-color': 'blue', 'width': 3 } },
-            { selector: '.graph1-unique-edge', style: { 'line-color': 'red',  'width': 3, 'line-style': 'dashed' } },
-            { selector: '.graph2-unique-edge', style: { 'line-color': 'red',  'width': 3, 'line-style': 'dashed' } }
-        ]
-    });
+    initCy('compareGraph', elements, { name: 'cose' }, compareStyles);
 }
 
 // ─── HELP MODAL ───────────────────────────────────────────────────────────────

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" href="data:,">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Graph Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graphical Network Analyzer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -39,13 +39,19 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    /* ── SKIP LINK ── */
+    .skip-link {
+      position: absolute; top: -100%; left: 8px;
+      background: var(--primary); color: #fff;
+      padding: 8px 16px; border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      font-weight: 700; font-size: 14px; z-index: 9999; text-decoration: none;
+    }
+    .skip-link:focus { top: 0; }
+
     /* ── HEADER ── */
     .header {
-      background: var(--primary);
-      color: white;
-      padding: 20px 20px 60px;
-      text-align: center;
-      position: relative;
+      background: var(--primary); color: white;
+      padding: 20px 20px 60px; text-align: center; position: relative;
     }
     .header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
     .header p  { font-size: 12px; opacity: 0.8; margin-top: 2px; }
@@ -60,15 +66,11 @@
       border-radius: 10px; color: white;
       padding: 6px 12px; font-size: 12px; font-weight: 800;
       font-family: 'Nunito', sans-serif; text-decoration: none;
-      letter-spacing: 0.4px;
-      transition: background 0.2s, border-color 0.2s;
-      white-space: nowrap;
+      letter-spacing: 0.4px; transition: background 0.2s, border-color 0.2s; white-space: nowrap;
     }
-    .scada-link:hover { background: rgba(255,255,255,0.28); border-color: rgba(255,255,255,0.6); }
-    .icon-btn {
-      background: rgba(255,255,255,0.2); border: none; border-radius: 10px;
-      color: white; width: 38px; height: 38px; font-size: 18px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    .scada-link:hover, .scada-link:focus-visible {
+      background: rgba(255,255,255,0.28); border-color: rgba(255,255,255,0.6);
+      outline: 2px solid white; outline-offset: 2px;
     }
 
     /* ── CARD WRAPPER ── */
@@ -79,89 +81,117 @@
     }
 
     /* ── FORM CONTROLS ── */
-    select, textarea, input[type="text"] {
-      width: 100%;
-      border-radius: var(--radius-sm);
-      border: 2px solid var(--border);
-      padding: 11px 14px;
-      margin-bottom: 14px;
-      font-size: 15px;
-      font-family: 'Nunito', sans-serif;
-      color: var(--text);
-      background: var(--surface);
-      outline: none;
-      transition: border-color 0.2s;
+    label { display: block; font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 5px; }
+
+    select, textarea, input[type="text"], input[type="search"] {
+      width: 100%; border-radius: var(--radius-sm); border: 2px solid var(--border);
+      padding: 11px 14px; margin-bottom: 14px; font-size: 15px;
+      font-family: 'Nunito', sans-serif; color: var(--text); background: var(--surface);
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
     }
-    select:focus, textarea:focus, input[type="text"]:focus { border-color: var(--primary); }
+    select:focus, textarea:focus, input[type="text"]:focus, input[type="search"]:focus {
+      border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+    }
     textarea { height: 150px; resize: vertical; }
 
     button {
-      background: var(--primary);
-      color: white; border: none;
-      border-radius: var(--radius-sm);
-      padding: 11px 18px; margin-bottom: 14px;
+      background: var(--primary); color: white; border: none;
+      border-radius: var(--radius-sm); padding: 11px 18px; margin-bottom: 14px;
       font-size: 15px; font-family: 'Nunito', sans-serif; font-weight: 700;
-      cursor: pointer; transition: background 0.2s; width: 100%;
+      cursor: pointer; transition: background 0.2s, outline 0.1s; width: 100%;
     }
     button:hover { background: var(--primary-dark); }
+    button:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
 
     /* ── GRAPH CANVAS ── */
-    #graph {
-      width: 100%; height: 100%; flex: 1;
-      border: 2px solid #333; border-radius: var(--radius-sm);
-      background-color: #111;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    #graph, #compareGraph {
+      width: 100%; border: 2px solid #333; border-radius: var(--radius-sm);
+      background-color: #111; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    #graph { height: 100%; flex: 1; position: relative; z-index: 1; }
+    #compareGraph { height: 500px; margin-bottom: 25px; }
+
+    /* ── PAGE LAYOUT: two-column left-panel + right-content ── */
+    .page-layout {
+      display: flex;
+      gap: 0;
+      align-items: flex-start;
+    }
+
+    /* ── LEFT INPUT PANEL ── */
+    .input-panel {
+      width: 300px;
+      flex-shrink: 0;
+      padding-right: 20px;
+      border-right: 2px solid var(--border);
+      position: sticky;
+      top: 16px;
+    }
+
+    /* ── RIGHT CONTENT (graph + sidebar) ── */
+    .graph-content {
+      flex: 1;
+      min-width: 0;
+      padding-left: 20px;
     }
 
     /* ── ANALYSIS LAYOUT ── */
     .analysis-container {
-      display: flex; gap: 20px; height: 800px;
-      width: 100%; border-top: 2px solid var(--border);
-      padding-top: 20px; margin-top: 20px;
+      display: flex; gap: 20px; height: 700px;
+      width: 100%;
     }
     .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    /* .graph-overlay-wrap replaces .main-content for the graph panel */
+
+    /* ── SIDEBAR ── */
     .sidebar {
-      width: 350px; flex-shrink: 0;
+      width: 300px; flex-shrink: 0;
       background: var(--surface); border-radius: var(--radius-sm);
       box-shadow: var(--shadow);
-      padding: 20px; overflow-y: auto; max-height: 800px;
+      padding: 20px; overflow-y: auto; max-height: 700px;
     }
     .report-section { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
     .report-section:last-child { border-bottom: none; margin-bottom: 0; }
     .report-section h3 { margin-bottom: 10px; color: var(--warning); font-weight: 700; font-size: 14px; }
     .report-section a { color: var(--primary); text-decoration: underline; cursor: pointer; }
-    .report-section a:hover { color: var(--primary-dark); }
+    .report-section a:hover,
+    .report-section a:focus-visible { color: var(--primary-dark); outline: 2px solid var(--primary); outline-offset: 1px; border-radius: 2px; }
 
     /* ── CONTROL PANEL ── */
-    #control-panel { display: flex; flex-wrap: wrap; gap: 10px; max-width: 700px; }
-    #control-panel button { flex: 1 1 auto; min-width: 140px; width: auto; margin-bottom: 0; }
+    #control-panel { display: flex; flex-wrap: wrap; gap: 10px; }
+    #control-panel button { flex: 1 1 auto; min-width: 120px; width: auto; margin-bottom: 0; }
     #control-panel .btn-help {
       background: var(--surface2); color: var(--primary);
       border: 2px solid var(--primary); flex: 0 0 auto; min-width: unset; width: 42px; padding: 11px 0;
     }
     #control-panel .btn-help:hover { background: var(--primary-light); }
 
+    /* In latlng mode: hide the main Analyze button (the panel's Apply & Render handles it) */
+    body.mode-latlng #btn-analyze-render { display: none; }
+
     /* ── TABS ── */
-    .tabs {
-      overflow: hidden; border: 2px solid var(--border);
-      background: var(--surface2); margin-bottom: 20px;
-      border-radius: var(--radius-sm);
+    .tab-list {
+      display: flex; border: 2px solid var(--border);
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      background: var(--surface2); overflow: hidden; margin-bottom: 0;
     }
-    .tabs button {
-      background: var(--surface2); float: left; border: none; outline: none;
-      cursor: pointer; padding: 14px 16px; transition: 0.2s;
-      font-size: 15px; font-weight: 700; width: 50%;
-      border-radius: 0; margin-bottom: 0; color: var(--text2);
+    .tab-list button {
+      background: var(--surface2); border: none; outline: none;
+      cursor: pointer; padding: 14px 16px; transition: background 0.2s, color 0.2s;
+      font-size: 15px; font-weight: 700; flex: 1; border-radius: 0; margin-bottom: 0; color: var(--text2);
     }
-    .tabs button:hover  { background: var(--primary-light); color: var(--primary); }
-    .tabs button.active { background: var(--primary); color: white; }
-    .tabcontent {
-      display: none; padding: 16px;
+    .tab-list button:hover  { background: var(--primary-light); color: var(--primary); }
+    .tab-list button[aria-selected="true"] { background: var(--primary); color: white; }
+    .tab-list button:focus-visible { outline: 3px solid var(--primary); outline-offset: -3px; }
+
+    .tabpanel {
+      display: none; padding: 20px;
       border: 2px solid var(--border); border-top: none;
       border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-      background: var(--surface);
+      background: var(--surface); margin-bottom: 20px;
     }
-    .tabcontent h2 { color: var(--text); margin-top: 10px; margin-bottom: 20px; text-align: center; font-size: 18px; font-weight: 800; }
+    .tabpanel[aria-hidden="false"] { display: block; }
+    .tabpanel h2 { color: var(--text); margin-top: 10px; margin-bottom: 20px; text-align: center; font-size: 18px; font-weight: 800; }
 
     /* ── COMPARE TAB ── */
     #compareGraphsTab { background: #FFF5F5 !important; }
@@ -170,7 +200,7 @@
       border-top: 2px solid var(--border); padding-top: 20px; margin-top: 20px;
     }
     .compare-section { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-    .compare-section span { font-weight: 800; color: var(--text); }
+    .compare-section label { font-weight: 800; color: var(--text); font-size: 15px; margin-bottom: 0; }
     .compare-section textarea { height: 150px; margin-bottom: 0; resize: vertical; min-height: 150px; }
     .compare-button-wrapper { display: flex; align-items: flex-end; margin-bottom: 0; }
     .compare-button-wrapper button { width: auto; padding: 11px 20px; margin-bottom: 0; }
@@ -202,23 +232,16 @@
 
     /* ── HELP MODAL ── */
     .modal-overlay {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(15,23,42,0.55);
-      z-index: 500;
-      align-items: flex-start;
-      justify-content: center;
-      padding: 32px 16px;
-      overflow-y: auto;
+      display: none; position: fixed; inset: 0;
+      background: rgba(15,23,42,0.55); z-index: 500;
+      align-items: flex-start; justify-content: center;
+      padding: 32px 16px; overflow-y: auto;
     }
     .modal-overlay.open { display: flex; }
     .modal {
-      background: var(--surface);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-lg);
-      width: 100%; max-width: 640px;
-      padding: 28px 28px 24px;
-      position: relative;
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-lg); width: 100%; max-width: 640px;
+      padding: 28px 28px 24px; position: relative;
     }
     .modal-close {
       position: absolute; top: 16px; right: 16px;
@@ -228,6 +251,7 @@
       color: var(--text2); transition: background 0.2s;
     }
     .modal-close:hover { background: var(--border); }
+    .modal-close:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
     .modal h2 { font-size: 18px; font-weight: 800; margin-bottom: 18px; color: var(--primary); }
     .modal h3 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text2); margin: 18px 0 8px; }
     .modal p, .modal li { font-size: 14px; color: var(--text); line-height: 1.6; margin-bottom: 4px; }
@@ -241,8 +265,7 @@
       background: var(--surface2); border: 1px solid var(--border);
       border-radius: var(--radius-sm); padding: 12px 14px;
       font-family: 'Courier New', monospace; font-size: 12px;
-      color: var(--text); overflow-x: auto; margin-top: 6px; margin-bottom: 4px;
-      line-height: 1.5;
+      color: var(--text); overflow-x: auto; margin-top: 6px; margin-bottom: 4px; line-height: 1.5;
     }
     .schema-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
     .schema-box { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
@@ -250,40 +273,23 @@
     .schema-box pre { background: none; border: none; padding: 0; margin: 0; font-size: 11px; }
     .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 
-    /* ── LAT-LNG PREPROCESS MODE ── */
+    /* ── LAT-LNG PANEL ── */
     #latlngPanel { display:none; margin-bottom:14px; }
     .latlng-hint { font-size:13px; color:var(--text3); font-weight:600; margin-bottom:10px; }
-
-    /* Scrollable table container — fixed height, sticky header */
     .latlng-table-wrap {
-      height: 220px;
-      overflow-y: auto;
-      overflow-x: auto;
-      border: 2px solid var(--border);
-      border-radius: var(--radius-sm);
-      margin-bottom: 10px;
+      height: 220px; overflow-y: auto; overflow-x: auto;
+      border: 2px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px;
     }
     .latlng-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      table-layout: fixed;
+      width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed;
     }
     .latlng-table thead th {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      background: var(--surface2);
-      color: var(--text2);
-      font-weight: 800;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .6px;
-      padding: 8px 10px;
-      border-bottom: 2px solid var(--border);
-      white-space: nowrap;
+      position: sticky; top: 0; z-index: 2;
+      background: var(--surface2); color: var(--text2);
+      font-weight: 800; font-size: 11px; text-transform: uppercase;
+      letter-spacing: .6px; padding: 8px 10px;
+      border-bottom: 2px solid var(--border); white-space: nowrap;
     }
-    /* Column widths: # | Node ID | Lat | Lng */
     .latlng-table col:nth-child(1) { width: 36px; }
     .latlng-table col:nth-child(2) { width: auto; }
     .latlng-table col:nth-child(3) { width: 130px; }
@@ -295,36 +301,80 @@
       font-family: 'Nunito','Noto Sans Bengali',sans-serif;
       font-size: 13px; background: transparent; color: var(--text);
     }
-    .latlng-table input:focus { background: var(--primary-light); border-radius: 4px; }
+    .latlng-table input:focus { background: var(--primary-light); border-radius: 4px; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
     .latlng-table tbody tr:nth-child(even) { background: #fafbff; }
     .latlng-actions { display:flex; gap:8px; }
     .latlng-actions button { flex:1; margin-bottom:0; font-size:13px; padding:9px 12px; }
-    .btn-secondary { background:var(--surface2) !important; color:var(--primary) !important;
-      border:2px solid var(--border) !important; }
+    .btn-secondary {
+      background:var(--surface2) !important; color:var(--primary) !important;
+      border:2px solid var(--border) !important;
+    }
     .btn-secondary:hover { background:var(--primary-light) !important; border-color:var(--primary) !important; }
+
+
+    /* ── NODE SIZE OVERLAY ── */
+    .graph-overlay-wrap {
+      flex: 1; min-width: 0; display: flex; flex-direction: column;
+      position: relative;
+    }
+    .node-size-controls {
+      position: absolute; bottom: 16px; right: 16px;
+      z-index: 100;
+      pointer-events: all;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .node-size-controls .nsc-label {
+      font-size: 10px; font-weight: 800; color: var(--text3);
+      font-family: 'Nunito', sans-serif; letter-spacing: 0.4px;
+      text-transform: uppercase; user-select: none; text-align: center;
+      background: rgba(255,255,255,0.85); border-radius: 4px;
+      padding: 1px 5px; line-height: 1.4;
+    }
+    .nsc-btn {
+      width: 32px; height: 32px; border-radius: 8px; border: 2px solid var(--border);
+      background: var(--surface); color: var(--primary);
+      font-size: 20px; font-weight: 800; line-height: 1;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--shadow); transition: background 0.15s, border-color 0.15s;
+      padding: 0; margin-bottom: 0;
+    }
+    .nsc-btn:hover { background: var(--primary-light); border-color: var(--primary); }
+    .nsc-btn:active { background: var(--primary); color: white; }
+    .nsc-btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+    /* ── REDUCED MOTION ── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
   </style>
 
   <script src="libs/cytoscape.min.js"></script>
-  <script src="graph-analyzer.js" defer></script>
   <script src="gps-layout.js"></script>
+  <script src="graph-analyzer.js" defer></script>
 </head>
 <body>
 
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div id="sr-announcer" role="status" aria-live="polite" aria-atomic="true"
+     style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;"></div>
+
 <!-- LOADING SCREEN -->
-<div class="loading-screen" id="loadingScreen">
-  <div class="l-icon">🔗</div>
+<div class="loading-screen" id="loadingScreen" role="status" aria-label="Loading Graphical Network Analyzer">
+  <div class="l-icon" aria-hidden="true">🔗</div>
   <div class="l-text" id="loadingText">Starting up…</div>
-  <div class="bar-track"><div class="bar-fill" id="loadingBar"></div></div>
+  <div class="bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Loading progress">
+    <div class="bar-fill" id="loadingBar"></div>
+  </div>
 </div>
 
 <!-- TOAST -->
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" aria-hidden="true"></div>
 
 <!-- HELP MODAL -->
-<div class="modal-overlay" id="helpModal">
+<div class="modal-overlay" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
   <div class="modal">
-    <button class="modal-close" onclick="closeHelp()" title="Close">✕</button>
-    <h2>❓ Graph Analyzer — Help</h2>
+    <button class="modal-close" onclick="closeHelp()" aria-label="Close help">✕</button>
+    <h2 id="helpModalTitle">Graphical Network Analyzer — Help</h2>
 
     <h3>Input Format</h3>
     <p>Paste one directed edge per line as two node names separated by a space or tab:</p>
@@ -339,9 +389,9 @@ WTP       WTP</pre>
     <h3>Preprocessing Modes</h3>
     <ul>
       <li><strong>Do Not Alter Input Names</strong> — node names used exactly as typed.</li>
-      <li><strong>Ignore Symbols Only</strong> — strips non-alphanumeric characters, uppercases. Useful when the same node appears as <code>V-E1</code> and <code>VE1</code>.</li>
-      <li><strong>Ignore Prefix &amp; Symbols</strong> — additionally strips any leading letters, leaving only the numeric part. Useful when node numbers are significant but text prefixes vary.</li>
-      <li><strong>Add Lat-Long to Nodes</strong> — reveals a table of all nodes parsed from the input. Enter <code>lat</code> and <code>lng</code> per node, then click <strong>Apply &amp; Render</strong>. Nodes with coordinates use GPS layout; others fall back to auto-layout. Coordinates are embedded in the exported <code>zone.json</code>.</li>
+      <li><strong>Ignore Symbols Only</strong> — strips non-alphanumeric characters, uppercases.</li>
+      <li><strong>Ignore Prefix &amp; Symbols</strong> — additionally strips any leading letters, leaving only the numeric part.</li>
+      <li><strong>Add Lat-Long to Nodes</strong> — reveals a table of all nodes parsed from the input. Enter <code>lat</code> and <code>lng</code> per node, then click <strong>Apply &amp; Render</strong> in the coordinate panel. Nodes with coordinates use GPS layout; others fall back to auto-layout.</li>
     </ul>
 
     <hr class="divider">
@@ -359,11 +409,9 @@ WTP       WTP</pre>
     <hr class="divider">
 
     <h3>Export Files</h3>
-    <p>The two JSON exports correspond to the two files each zone needs in this project:</p>
-
     <div class="schema-grid">
       <div class="schema-box">
-        <h4>📁 zone.json &nbsp;(repo — static)</h4>
+        <h4>zone.json (repo — static)</h4>
         <pre>{
   "nodes": [
     {
@@ -385,10 +433,9 @@ WTP       WTP</pre>
     }
   ]
 }</pre>
-        <p style="margin-top:8px">Topology only. Add real <code>lat</code>/<code>lng</code> values to each node after export to enable GPS layout in the SCADA visualizer.</p>
       </div>
       <div class="schema-box">
-        <h4>☁️ zone_status.json &nbsp;(gist — live)</h4>
+        <h4>zone_status.json (gist — live)</h4>
         <pre>[
   {
     "id": "WTP",
@@ -401,7 +448,6 @@ WTP       WTP</pre>
     "flow": ""
   }
 ]</pre>
-        <p style="margin-top:8px">Flat array consumed by <code>applyStatus()</code>. Edit <code>type</code>, <code>label</code>, and <code>state</code> per node after export. Valid types: <code>pump</code>, <code>valve</code>, <code>zone</code>.</p>
       </div>
     </div>
 
@@ -413,162 +459,226 @@ WTP       WTP</pre>
 </div>
 
 <!-- HEADER -->
-<div class="header">
-  <p id="headerDate">Loading…</p>
-  <h1>Graph Analyzer</h1>
-  <div class="header-right">
-    <a href="index.html" class="scada-link" title="Back to Asset Control">← Asset Control</a>
-    <a href="scada-visualizer.html" class="scada-link" title="Open SCADA Visualizer">🌊 SCADA View</a>
-  </div>
-</div>
+<header class="header">
+  <p id="headerDate" aria-live="off">Loading…</p>
+  <h1>Graphical Network Analyzer</h1>
+  <nav class="header-right" aria-label="Site navigation">
+    <a href="index.html" class="scada-link">← Asset Control</a>
+    <a href="scada-visualizer.html" class="scada-link">SCADA View</a>
+  </nav>
+</header>
 
 <!-- MAIN -->
-<div class="card-wrapper">
+<main id="main-content" class="card-wrapper">
 <div class="card">
 
-  <div class="tabs">
-    <button class="tablinks active" onclick="openTab(event, 'analyzeGraphTab')">Analyze Graph</button>
-    <button class="tablinks" onclick="openTab(event, 'compareGraphsTab')">Compare Graphs</button>
+  <div role="tablist" aria-label="Graph views" class="tab-list">
+    <button role="tab" id="tab-analyze" aria-controls="analyzeGraphTab" aria-selected="true"
+      onclick="openTab(event, 'analyzeGraphTab')">Analyze Graph</button>
+    <button role="tab" id="tab-compare" aria-controls="compareGraphsTab" aria-selected="false"
+      onclick="openTab(event, 'compareGraphsTab')">Compare Graphs</button>
   </div>
 
   <!-- ── ANALYZE TAB ── -->
-  <div id="analyzeGraphTab" class="tabcontent" style="display: block;">
+  <div id="analyzeGraphTab" role="tabpanel" aria-labelledby="tab-analyze"
+       aria-hidden="false" class="tabpanel">
 
-    <select id="preprocessMode" onchange="onPreprocessModeChange()">
-      <option value="none">Do Not Alter Input Names</option>
-      <option value="ignore_prefix_and_symbols">Ignore Prefix and Non-Alphanumerics</option>
-      <option value="ignore_symbols_only">Ignore Symbols Only</option>
-      <option value="from_zone_json">↩ Import from zone.json</option>
-      <option value="latlng">📍 Add Lat-Long to Nodes</option>
-    </select>
+    <div class="page-layout">
 
-    <textarea id="inputData" placeholder="Paste your node pairs here — one edge per line:
+      <!-- LEFT: inputs + controls -->
+      <div class="input-panel">
+
+        <div>
+          <label for="preprocessMode">Preprocessing mode</label>
+          <select id="preprocessMode" onchange="onPreprocessModeChange()">
+            <option value="none">Do Not Alter Input Names</option>
+            <option value="ignore_prefix_and_symbols">Ignore Prefix and Non-Alphanumerics</option>
+            <option value="ignore_symbols_only">Ignore Symbols Only</option>
+            <option value="from_zone_json">↩ Import from zone.json</option>
+            <option value="latlng">📍 Add Lat-Long to Nodes</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="inputData">Edge list</label>
+          <textarea id="inputData"
+            placeholder="Paste your node pairs here — one edge per line:
 WTP       V-E1-300
 V-E1-300  V-CDFG-500
 V-E1-300  V-AB-350
 WTP       WTP"></textarea>
-
-    <div id="latlngPanel">
-      <div class="latlng-hint">Enter lat/long for each node. Nodes without coordinates will use auto-layout. After editing, click <strong>Apply &amp; Render</strong>.</div>
-      <div class="latlng-table-wrap">
-        <table class="latlng-table" id="latlngTable">
-          <colgroup>
-            <col><col><col><col>
-          </colgroup>
-          <thead><tr>
-            <th>#</th>
-            <th>Node ID</th>
-            <th>Lat</th>
-            <th>Lng</th>
-          </tr></thead>
-          <tbody id="latlngBody"></tbody>
-        </table>
-      </div>
-      <div class="latlng-actions">
-        <button class="btn-secondary" onclick="buildLatlngTable()">↻ Rebuild from Input</button>
-        <button onclick="applyLatlngAndRender()">📍 Apply &amp; Render</button>
-      </div>
-    </div>
-
-    <input type="text" id="searchBox" placeholder="🔍 Search node…" oninput="searchNode()">
-
-    <div id="control-panel">
-      <button onclick="analyzeGraph()">🚀 Analyze &amp; Render</button>
-      <button onclick="downloadCSV()">📥 CSV Report</button>
-      <button onclick="exportZoneJSON()">📁 Export zone.json</button>
-      <button onclick="exportStatusJSON()">☁️ Export zone_status.json</button>
-      <button class="btn-help" onclick="openHelp()" title="Help">❓</button>
-    </div>
-
-    <div class="analysis-container">
-      <div class="main-content">
-        <div id="graph"></div>
-      </div>
-
-      <div class="sidebar">
-        <div class="report-section">
-          <h3>🔁 Repeated or Bidirectional</h3>
-          <div id="duplicates"></div>
-          <small><strong>Example:</strong><br>
-            A &lt;-&gt; B [Repeated] — A→B appears more than once<br>
-            A &lt;-&gt; B [Bidirectional] — both A→B and B→A exist
-          </small>
         </div>
 
-        <div class="report-section">
-          <h3>🔀 Triangles</h3>
-          <div id="midpoints"></div>
-          <small><strong>Example:</strong><br>
-            A - B - C — all three nodes are mutually connected
-          </small>
+        <!-- Lat-lng coordinate panel (shown only in latlng mode) -->
+        <section id="latlngPanel" aria-label="Node coordinates">
+          <p class="latlng-hint">
+            Enter lat/long for each node. Nodes without coordinates will use auto-layout.
+          </p>
+          <div class="latlng-table-wrap">
+            <table class="latlng-table" id="latlngTable" aria-label="Node coordinate table">
+              <colgroup><col><col><col><col></colgroup>
+              <thead><tr>
+                <th scope="col">#</th>
+                <th scope="col">Node ID</th>
+                <th scope="col">Lat</th>
+                <th scope="col">Lng</th>
+              </tr></thead>
+              <tbody id="latlngBody"></tbody>
+            </table>
+          </div>
+          <div class="latlng-actions">
+            <button type="button" class="btn-secondary" onclick="buildLatlngTable()"
+                    style="flex:0 0 auto;width:auto;">↻ Rebuild</button>
+            <button type="button" onclick="applyLatlngAndRender()">✓ Apply &amp; Render</button>
+          </div>
+        </section>
+
+        <div>
+          <label for="searchBox">Search graph</label>
+          <input type="search" id="searchBox" placeholder="Search node…"
+            aria-label="Search node in graph" oninput="searchNode()">
         </div>
 
-        <div class="report-section">
-          <h3>🔄 Self-Loops</h3>
-          <div id="loops"></div>
-          <small><strong>Example:</strong><br>
-            A → A — a node pointing to itself
-          </small>
+        <div id="control-panel" role="toolbar" aria-label="Graph actions">
+          <button id="btn-analyze-render" type="button" onclick="analyzeGraph()">🚀 Analyze &amp; Render</button>
+          <button type="button" onclick="downloadCSV()">📥 CSV Report</button>
+          <button type="button" onclick="exportZoneJSON()">📁 Export zone.json</button>
+          <button type="button" onclick="exportStatusJSON()">☁️ Export zone_status.json</button>
+          <button type="button" class="btn-help" onclick="openHelp()" aria-label="Open help">❓</button>
         </div>
 
-        <div class="report-section">
-          <h3>⚠️ Nodes with 4+ Branches</h3>
-          <div id="branches"></div>
-          <small><strong>Example:</strong><br>
-            A connects to B, C, D, E (4+ edges)
-          </small>
-        </div>
+      </div><!-- /.input-panel -->
 
-        <div class="report-section">
-          <h3>❗ Malformed Input Lines</h3>
-          <div id="orphans"></div>
-          <small><strong>Example:</strong><br>
-            Incomplete or extra tokens: "A", or "A B C"
-          </small>
+      <!-- RIGHT: graph + analysis sidebar -->
+      <div class="graph-content">
+        <div class="analysis-container">
+          <div class="graph-overlay-wrap">
+            <div id="graph" role="img" aria-label="Network graph visualisation" aria-live="polite"></div>
+            <div class="node-size-controls" aria-label="Node size controls">
+              <span class="nsc-label">Node<br>Size</span>
+              <button class="nsc-btn" onclick="adjustNodeSize(1)" title="Increase node &amp; label size" aria-label="Increase node size">+</button>
+              <button class="nsc-btn" onclick="adjustNodeSize(-1)" title="Decrease node &amp; label size" aria-label="Decrease node size">−</button>
+            </div>
+          </div>
+
+          <aside class="sidebar" aria-label="Analysis results">
+            <div class="report-section">
+              <h3>🔁 Repeated or Bidirectional</h3>
+              <div id="duplicates" aria-live="polite"></div>
+              <small>
+                <strong>Example:</strong><br>
+                A &lt;-&gt; B [Repeated] — A→B appears more than once<br>
+                A &lt;-&gt; B [Bidirectional] — both A→B and B→A exist
+              </small>
+            </div>
+            <div class="report-section">
+              <h3>🔀 Triangles</h3>
+              <div id="midpoints" aria-live="polite"></div>
+              <small><strong>Example:</strong><br>A - B - C — all three nodes are mutually connected</small>
+            </div>
+            <div class="report-section">
+              <h3>🔄 Self-Loops</h3>
+              <div id="loops" aria-live="polite"></div>
+              <small><strong>Example:</strong><br>A → A — a node pointing to itself</small>
+            </div>
+            <div class="report-section">
+              <h3>⚠️ Nodes with 4+ Branches</h3>
+              <div id="branches" aria-live="polite"></div>
+              <small><strong>Example:</strong><br>A connects to B, C, D, E (4+ edges)</small>
+            </div>
+            <div class="report-section">
+              <h3>❗ Malformed Input Lines</h3>
+              <div id="orphans" aria-live="polite"></div>
+              <small><strong>Example:</strong><br>Incomplete or extra tokens: "A", or "A B C"</small>
+            </div>
+          </aside>
         </div>
-      </div>
-    </div>
-  </div>
+      </div><!-- /.graph-content -->
+
+    </div><!-- /.page-layout -->
+  </div><!-- /#analyzeGraphTab -->
 
   <!-- ── COMPARE TAB ── -->
-  <div id="compareGraphsTab" class="tabcontent">
+  <div id="compareGraphsTab" role="tabpanel" aria-labelledby="tab-compare"
+       aria-hidden="true" class="tabpanel" style="background:#FFF5F5">
     <h2>Compare Two Graphs</h2>
     <p style="text-align:center; margin-bottom:8px; font-size:14px; color:var(--text2)">
       <span style="color:blue; font-weight:800">Blue</span> = shared nodes/edges &nbsp;·&nbsp;
       <span style="color:red; font-weight:800">Red</span> = unique to one graph
     </p>
-
     <div class="compare-container">
       <div class="compare-section">
-        <span contenteditable="true" id="graph1Label">Graph 1</span>
+        <label for="inputData1">Graph 1</label>
         <textarea id="inputData1" placeholder="Paste Graph 1 node pairs here…"></textarea>
       </div>
       <div class="compare-button-wrapper">
-        <button onclick="compareAndRenderGraphs()">Compare</button>
+        <button type="button" onclick="compareAndRenderGraphs()">Compare</button>
       </div>
       <div class="compare-section">
-        <span contenteditable="true" id="graph2Label">Graph 2</span>
+        <label for="inputData2">Graph 2</label>
         <textarea id="inputData2" placeholder="Paste Graph 2 node pairs here…"></textarea>
       </div>
     </div>
-
     <div style="border-top: 2px solid var(--border); margin-top: 20px; padding-top: 20px;"></div>
-    <div id="compareGraph" style="width:100%; height:500px; border:2px solid #333; border-radius:8px; margin-bottom:25px; background:#111; box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>
-  </div>
+    <div id="compareGraph" role="img" aria-label="Comparison graph visualisation" aria-live="polite"></div>
+  </div><!-- /#compareGraphsTab -->
 
 </div><!-- /.card -->
-</div><!-- /.card-wrapper -->
+</main>
 
 <script>
-  function openTab(evt, tabName) {
-    Array.from(document.getElementsByClassName('tabcontent'))
-      .forEach(el => el.style.display = 'none');
-    Array.from(document.getElementsByClassName('tablinks'))
-      .forEach(el => el.classList.remove('active'));
-    document.getElementById(tabName).style.display = 'block';
-    evt.currentTarget.classList.add('active');
+  const TABS     = ['analyzeGraphTab', 'compareGraphsTab'];
+  const TAB_BTNS = ['tab-analyze', 'tab-compare'];
+
+  function openTab(evt, tabId) {
+    TABS.forEach((id, i) => {
+      const panel = document.getElementById(id);
+      const btn   = document.getElementById(TAB_BTNS[i]);
+      const active = (id === tabId);
+      panel.setAttribute('aria-hidden', active ? 'false' : 'true');
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      btn.tabIndex = active ? 0 : -1;
+    });
   }
 
+  document.querySelector('[role="tablist"]').addEventListener('keydown', e => {
+    const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+    const idx  = tabs.indexOf(document.activeElement);
+    if (idx === -1) return;
+    if (e.key === 'ArrowRight') { const n = tabs[(idx+1)%tabs.length]; n.focus(); n.click(); }
+    else if (e.key === 'ArrowLeft') { const p = tabs[(idx-1+tabs.length)%tabs.length]; p.focus(); p.click(); }
+    else if (e.key === 'Home') { tabs[0].focus(); tabs[0].click(); }
+    else if (e.key === 'End')  { tabs[tabs.length-1].focus(); tabs[tabs.length-1].click(); }
+  });
+
+  document.getElementById('tab-analyze').tabIndex = 0;
+  document.getElementById('tab-compare').tabIndex = -1;
+
+  function openHelp() {
+    const modal = document.getElementById('helpModal');
+    modal.classList.add('open');
+    modal.querySelector('.modal-close').focus();
+    document.addEventListener('keydown', trapFocus);
+  }
+  function closeHelp() {
+    document.getElementById('helpModal').classList.remove('open');
+    document.removeEventListener('keydown', trapFocus);
+    document.querySelector('.btn-help').focus();
+  }
+  function trapFocus(e) {
+    if (e.key === 'Escape') { closeHelp(); return; }
+    if (e.key !== 'Tab') return;
+    const modal = document.getElementById('helpModal');
+    const focusable = Array.from(modal.querySelectorAll(
+      'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    ));
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+  document.getElementById('helpModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeHelp();
+  });
 </script>
 </body>
 </html>
