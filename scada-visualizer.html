@@ -423,10 +423,13 @@
                 select.appendChild(opt);
             });
 
-            // Auto-load first zone
+            // Restore the last-viewed zone (or fall back to first)
             if (zones.length > 0) {
-                select.selectedIndex = 1;
-                loadZone(zones[0]);
+                const savedId = localStorage.getItem('scada_last_zone');
+                const savedIdx = savedId ? zones.findIndex(z => z.id === savedId) : -1;
+                const zoneToLoad = savedIdx >= 0 ? zones[savedIdx] : zones[0];
+                select.selectedIndex = (savedIdx >= 0 ? savedIdx : 0) + 1; // +1 for placeholder option
+                loadZone(zoneToLoad);
             }
         } catch (err) {
             select.innerHTML = '<option>Error loading manifest</option>';
@@ -438,6 +441,7 @@
     async function loadZone(zone) {
         if (currentZone && currentZone.id === zone.id) return;
         currentZone = zone;
+        localStorage.setItem('scada_last_zone', zone.id);
 
         // Stop existing refresh + animation loops
         if (refreshTimer) clearInterval(refreshTimer);
