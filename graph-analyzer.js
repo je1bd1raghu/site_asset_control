@@ -805,3 +805,164 @@ window.addEventListener('DOMContentLoaded', () => {
         }, 300);
     }, 400);
 });
+
+
+// ─── LAT-LNG PREPROCESS MODE ──────────────────────────────────────────────────
+
+function onLatlngModeActive() {
+    document.getElementById('latlngPanel').style.display = 'block';
+    buildLatlngTable();
+}
+
+// Parse edge textarea → unique node IDs, preserving any lat/lng already typed.
+function buildLatlngTable() {
+    const raw   = document.getElementById('inputData').value;
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    const seen  = new Set();
+    const order = [];
+
+    lines.forEach(line => {
+        const parts = line.split(/\s+/);
+        if (parts.length === 2) {
+            [parts[0], parts[1]].forEach(id => {
+                if (!seen.has(id)) { seen.add(id); order.push(id); }
+            });
+        }
+    });
+
+    // Preserve existing values so edits survive a rebuild
+    const existing = {};
+    document.querySelectorAll('#latlngBody tr').forEach(tr => {
+        const id  = tr.dataset.nodeId;
+        const lat = tr.querySelector('.ll-lat') ? tr.querySelector('.ll-lat').value.trim() : '';
+        const lng = tr.querySelector('.ll-lng') ? tr.querySelector('.ll-lng').value.trim() : '';
+        if (id) existing[id] = { lat, lng };
+    });
+
+    const tbody = document.getElementById('latlngBody');
+    tbody.innerHTML = '';
+
+    if (!order.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:12px;color:var(--text3)">Paste edges in the textarea above first, then click Rebuild.</td></tr>';
+        return;
+    }
+
+    order.forEach((id, i) => {
+        const prev = existing[id] || {};
+        const tr   = document.createElement('tr');
+        tr.dataset.nodeId = id;
+
+        const tdNum  = document.createElement('td');
+        tdNum.style.cssText = 'color:var(--text3);font-size:12px;text-align:center';
+        tdNum.textContent   = i + 1;
+
+        const tdId  = document.createElement('td');
+        tdId.style.cssText  = 'font-weight:700;color:var(--text)';
+        tdId.textContent    = id;
+
+        const tdLat = document.createElement('td');
+        const inLat = document.createElement('input');
+        inLat.className   = 'll-lat';
+        inLat.type        = 'number';
+        inLat.step        = 'any';
+        inLat.placeholder = 'e.g. 24.1693';
+        inLat.value       = prev.lat || '';
+        tdLat.appendChild(inLat);
+
+        const tdLng = document.createElement('td');
+        const inLng = document.createElement('input');
+        inLng.className   = 'll-lng';
+        inLng.type        = 'number';
+        inLng.step        = 'any';
+        inLng.placeholder = 'e.g. 88.2790';
+        inLng.value       = prev.lng || '';
+        tdLng.appendChild(inLng);
+
+        tr.append(tdNum, tdId, tdLat, tdLng);
+        tbody.appendChild(tr);
+    });
+}
+
+// Read table coords → store on window → trigger analysis pipeline.
+function applyLatlngAndRender() {
+    const coords = {};
+    document.querySelectorAll('#latlngBody tr').forEach(tr => {
+        const id  = tr.dataset.nodeId;
+        const lat = parseFloat(tr.querySelector('.ll-lat') ? tr.querySelector('.ll-lat').value : '');
+        const lng = parseFloat(tr.querySelector('.ll-lng') ? tr.querySelector('.ll-lng').value : '');
+        if (id) coords[id] = {
+            lat: isFinite(lat) ? lat : null,
+            lng: isFinite(lng) ? lng : null
+        };
+    });
+    window._latlngCoords = coords;
+    analyzeGraph();
+}
+
+// ─── EXCEL PASTE HANDLER FOR LAT-LNG TABLE ────────────────────────────────────
+// Excel copies cells as tab-separated columns, newline-separated rows.
+// When the user pastes into any lat or lng cell, this handler checks if the
+// clipboard contains multiple rows/columns and distributes them across the
+// table starting from the pasted cell's row.
+//
+// Supported paste shapes from Excel:
+//   • Single column (lat only):   one value per row → fills lat column only
+//   • Two columns (lat + lng):    two tab-separated values → fills lat and lng
+//   • Three+ columns (id,lat,lng) → skips first column, fills lat and lng
+//     (handles copy from a spreadsheet that includes the node ID column)
+
+(function attachLatlngPasteHandler() {
+    document.addEventListener('paste', function(e) {
+        const active = document.activeElement;
+        if (!active || (!active.classList.contains('ll-lat') && !active.classList.contains('ll-lng'))) return;
+
+        const text = (e.clipboardData || window.clipboardData).getData('text');
+        if (!text) return;
+
+        // Only intercept if it looks like multi-cell data (contains tab or newline)
+        if (!text.includes('\t') && !text.includes('\n')) return;
+
+        e.preventDefault();
+
+        // Parse into rows × cols
+        const rows = text.trim().split(/\r?\n/).map(r => r.split('\t').map(v => v.trim()));
+
+        // Find the starting row in the tbody
+        const tbody    = document.getElementById('latlngBody');
+        if (!tbody) return;
+        const allRows  = Array.from(tbody.querySelectorAll('tr'));
+        const startRow = allRows.indexOf(active.closest('tr'));
+        if (startRow === -1) return;
+
+        const isLat    = active.classList.contains('ll-lat');
+
+        rows.forEach((cols, i) => {
+            const tr = allRows[startRow + i];
+            if (!tr) return;
+
+            const latInput = tr.querySelector('.ll-lat');
+            const lngInput = tr.querySelector('.ll-lng');
+
+            if (cols.length === 1) {
+                // Single column — fill whichever input was targeted
+                const target = isLat ? latInput : lngInput;
+                if (target) target.value = cols[0];
+
+            } else if (cols.length === 2) {
+                // Two columns — lat, lng
+                if (latInput) latInput.value = cols[0];
+                if (lngInput) lngInput.value = cols[1];
+
+            } else {
+                // Three+ columns — assume rightmost two are lat, lng
+                // (handles id | lat | lng or any extra leading columns)
+                const lat = cols[cols.length - 2];
+                const lng = cols[cols.length - 1];
+                if (latInput) latInput.value = lat;
+                if (lngInput) lngInput.value = lng;
+            }
+        });
+
+        showToast(`✅ Pasted ${rows.length} row${rows.length > 1 ? 's' : ''}`, 'success');
+    });
+})();
