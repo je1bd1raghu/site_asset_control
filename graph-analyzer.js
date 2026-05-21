@@ -39,16 +39,26 @@ const originalNodeLookup = new Map();  // rawToken     → internalName
 // ─── PREPROCESS MODE UI SWITCH ────────────────────────────────────────────────
 
 function onPreprocessModeChange() {
-    const mode = document.getElementById('preprocessMode').value;
-    const ta   = document.getElementById('inputData');
+    const mode   = document.getElementById('preprocessMode').value;
+    const ta     = document.getElementById('inputData');
+    const llPanel = document.getElementById('latlngPanel');
+
     if (mode === 'from_zone_json') {
         ta.placeholder = 'Paste zone.json content here…\n{\n  "nodes": […],\n  "edges": […]\n}';
         ta.style.fontFamily = 'monospace';
         ta.style.fontSize   = '12px';
+        if (llPanel) llPanel.style.display = 'none';
+    } else if (mode === 'latlng') {
+        ta.placeholder  = 'Paste your node pairs here — one edge per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
+        ta.style.fontFamily = '';
+        ta.style.fontSize   = '';
+        if (llPanel) { llPanel.style.display = 'block'; onLatlngModeActive(); }
     } else {
         ta.placeholder  = 'Paste your node pairs here — one edge per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
         ta.style.fontFamily = '';
         ta.style.fontSize   = '';
+        if (llPanel) llPanel.style.display = 'none';
+        window._latlngCoords = null;
     }
     if (cy) cy.nodes().removeClass('search-highlight');
 }
@@ -203,7 +213,7 @@ function cleanNodeName(rawName) {
     const mode = document.getElementById('preprocessMode').value;
     let name = rawName;
 
-    if (mode === 'from_zone_json') mode = 'none';   // zone IDs are canonical — no cleaning needed
+    if (mode === 'from_zone_json' || mode === 'latlng') mode = 'none';   // zone/latlng IDs are canonical
 
     if (mode === 'ignore_prefix_and_symbols') {
         name = name.replace(/[^A-Za-z0-9]/g, '');
@@ -387,18 +397,44 @@ function drawGraph(pairs, duplicates, overbranchedSet) {
         });
     }
 
+    // Collect lat/lng from the preprocess table when in latlng mode
+    const coordMap = (document.getElementById('preprocessMode').value === 'latlng' && window._latlngCoords)
+        ? window._latlngCoords : {};
+
     for (const node of nodeSet) {
         const originalNames = Array.from(nodeNameMap.get(node) || [node]);
+        const coord = coordMap[node] || {};
         elements.push({
-            data:    { id: node, label: originalNames.join('\n'), nameCount: originalNames.length },
+            data: {
+                id:        node,
+                label:     originalNames.join('\n'),
+                nameCount: originalNames.length,
+                lat:       typeof coord.lat === 'number' ? coord.lat : null,
+                lng:       typeof coord.lng === 'number' ? coord.lng : null
+            },
             classes: overbranchedSet.has(node) ? 'overbranched' : ''
+        });
+    }
+
+    // Apply GPS layout when any node has coordinates (latlng mode)
+    const hasCoords = Object.values(coordMap).some(c => typeof c.lat === 'number');
+    if (hasCoords) {
+        const canvasW = document.getElementById('graph').offsetWidth  || 800;
+        const canvasH = document.getElementById('graph').offsetHeight || 600;
+        const nodeObjs = elements
+            .filter(e => !e.data.source)
+            .map(e => ({ data: e.data, position: { x: 0, y: 0 } }));
+        applyGpsLayout(nodeObjs, canvasW, canvasH);
+        nodeObjs.forEach(n => {
+            const el = elements.find(e => e.data.id === n.data.id);
+            if (el) el.position = n.position;
         });
     }
 
     cy = cytoscape({
         container: document.getElementById('graph'),
         elements,
-        layout: { name: 'cose' },
+        layout: hasCoords ? { name: 'preset' } : { name: 'cose' },
         style: [
             {
                 selector: 'node',
@@ -435,10 +471,14 @@ function drawGraph(pairs, duplicates, overbranchedSet) {
 // ─── ANALYSE & REPORT ─────────────────────────────────────────────────────────
 
 function analyzeGraph() {
-    // JSON mode: delegate to loader which resets mode then calls analyzeGraph() again
+    // JSON import mode: delegate to loader
     if (document.getElementById('preprocessMode').value === 'from_zone_json') {
         loadFromZoneJSON();
         return;
+    }
+    // lat-lng mode: rebuild table with latest input then continue into normal pipeline
+    if (document.getElementById('preprocessMode').value === 'latlng') {
+        if (typeof buildLatlngTable === 'function') buildLatlngTable();
     }
 
     const { graph, rawPairs, orphans, selfLoops } = parseInput();

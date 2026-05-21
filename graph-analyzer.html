@@ -249,6 +249,26 @@
     .schema-box h4 { font-size: 12px; font-weight: 800; color: var(--primary); margin-bottom: 6px; }
     .schema-box pre { background: none; border: none; padding: 0; margin: 0; font-size: 11px; }
     .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    /* ── LAT-LNG PREPROCESS MODE ── */
+    #latlngPanel { display:none; margin-bottom:14px; }
+    .latlng-hint { font-size:13px; color:var(--text3); font-weight:600; margin-bottom:10px; }
+    .latlng-table-wrap { overflow-x:auto; margin-bottom:10px; }
+    .latlng-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .latlng-table th { background:var(--surface2); color:var(--text2); font-weight:800;
+      font-size:11px; text-transform:uppercase; letter-spacing:.6px;
+      padding:8px 10px; border:1px solid var(--border); white-space:nowrap; }
+    .latlng-table td { padding:4px 6px; border:1px solid var(--border); }
+    .latlng-table input { width:100%; border:none; outline:none; padding:5px 6px;
+      font-family:'Nunito',sans-serif; font-size:13px; background:transparent;
+      color:var(--text); }
+    .latlng-table input:focus { background:var(--primary-light); border-radius:4px; }
+    .latlng-table tr:nth-child(even) { background:#fafbff; }
+    .latlng-actions { display:flex; gap:8px; }
+    .latlng-actions button { flex:1; margin-bottom:0; font-size:13px; padding:9px 12px; }
+    .btn-secondary { background:var(--surface2) !important; color:var(--primary) !important;
+      border:2px solid var(--border) !important; }
+    .btn-secondary:hover { background:var(--primary-light) !important; border-color:var(--primary) !important; }
   </style>
 
   <script src="libs/cytoscape.min.js"></script>
@@ -288,6 +308,7 @@ WTP       WTP</pre>
       <li><strong>Do Not Alter Input Names</strong> — node names used exactly as typed.</li>
       <li><strong>Ignore Symbols Only</strong> — strips non-alphanumeric characters, uppercases. Useful when the same node appears as <code>V-E1</code> and <code>VE1</code>.</li>
       <li><strong>Ignore Prefix &amp; Symbols</strong> — additionally strips any leading letters, leaving only the numeric part. Useful when node numbers are significant but text prefixes vary.</li>
+      <li><strong>Add Lat-Long to Nodes</strong> — reveals a table of all nodes parsed from the input. Enter <code>lat</code> and <code>lng</code> per node, then click <strong>Apply &amp; Render</strong>. Nodes with coordinates use GPS layout; others fall back to auto-layout. Coordinates are embedded in the exported <code>zone.json</code>.</li>
     </ul>
 
     <hr class="divider">
@@ -385,6 +406,7 @@ WTP       WTP</pre>
       <option value="ignore_prefix_and_symbols">Ignore Prefix and Non-Alphanumerics</option>
       <option value="ignore_symbols_only">Ignore Symbols Only</option>
       <option value="from_zone_json">↩ Import from zone.json</option>
+      <option value="latlng">📍 Add Lat-Long to Nodes</option>
     </select>
 
     <textarea id="inputData" placeholder="Paste your node pairs here — one edge per line:
@@ -392,6 +414,25 @@ WTP       V-E1-300
 V-E1-300  V-CDFG-500
 V-E1-300  V-AB-350
 WTP       WTP"></textarea>
+
+    <div id="latlngPanel">
+      <div class="latlng-hint">Enter lat/long for each node. Nodes without coordinates will use auto-layout. After editing, click <strong>Apply &amp; Render</strong>.</div>
+      <div class="latlng-table-wrap">
+        <table class="latlng-table" id="latlngTable">
+          <thead><tr>
+            <th>#</th>
+            <th>Node ID</th>
+            <th>Lat</th>
+            <th>Lng</th>
+          </tr></thead>
+          <tbody id="latlngBody"></tbody>
+        </table>
+      </div>
+      <div class="latlng-actions">
+        <button class="btn-secondary" onclick="buildLatlngTable()">↻ Rebuild from Input</button>
+        <button onclick="applyLatlngAndRender()">📍 Apply &amp; Render</button>
+      </div>
+    </div>
 
     <input type="text" id="searchBox" placeholder="🔍 Search node…" oninput="searchNode()">
 
@@ -490,6 +531,74 @@ WTP       WTP"></textarea>
       .forEach(el => el.classList.remove('active'));
     document.getElementById(tabName).style.display = 'block';
     evt.currentTarget.classList.add('active');
+  }
+
+  // ── LAT-LNG PREPROCESS MODE ──────────────────────────────────────────────
+  function onLatlngModeActive() {
+    document.getElementById('latlngPanel').style.display = 'block';
+    buildLatlngTable();
+  }
+
+  // Parse the edge textarea and extract unique node IDs, preserving any
+  // lat/lng already entered in the table so edits survive a rebuild.
+  function buildLatlngTable() {
+    const raw   = document.getElementById('inputData').value;
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    const seen  = new Set();
+    const order = [];
+    lines.forEach(line => {
+      const parts = line.split(/\s+/);
+      if (parts.length === 2) {
+        [parts[0], parts[1]].forEach(id => {
+          if (!seen.has(id)) { seen.add(id); order.push(id); }
+        });
+      }
+    });
+
+    // Preserve existing values from the table
+    const existing = {};
+    document.querySelectorAll('#latlngBody tr').forEach(tr => {
+      const id  = tr.dataset.nodeId;
+      const lat = tr.querySelector('.ll-lat')?.value.trim();
+      const lng = tr.querySelector('.ll-lng')?.value.trim();
+      if (id) existing[id] = { lat: lat || '', lng: lng || '' };
+    });
+
+    const tbody = document.getElementById('latlngBody');
+    tbody.innerHTML = '';
+    order.forEach((id, i) => {
+      const prev = existing[id] || {};
+      const tr   = document.createElement('tr');
+      tr.dataset.nodeId = id;
+      tr.innerHTML = \`
+        <td style="color:var(--text3);font-size:12px;text-align:center">\${i+1}</td>
+        <td style="font-weight:700;color:var(--text)">\${id}</td>
+        <td><input class="ll-lat" type="number" step="any" placeholder="e.g. 24.1693" value="\${prev.lat||''}"></td>
+        <td><input class="ll-lng" type="number" step="any" placeholder="e.g. 88.2790" value="\${prev.lng||''}"></td>\`;
+      tbody.appendChild(tr);
+    });
+
+    if (!order.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:12px;color:var(--text3)">Paste edges in the textarea above first, then click Rebuild.</td></tr>';
+    }
+  }
+
+  // Read the table, inject lat/lng onto each node in the Cytoscape instance
+  // (or trigger a fresh render if cy not yet built), then run GPS layout.
+  function applyLatlngAndRender() {
+    const coords = {};
+    document.querySelectorAll('#latlngBody tr').forEach(tr => {
+      const id  = tr.dataset.nodeId;
+      const lat = parseFloat(tr.querySelector('.ll-lat')?.value);
+      const lng = parseFloat(tr.querySelector('.ll-lng')?.value);
+      if (id) coords[id] = {
+        lat: isFinite(lat) ? lat : null,
+        lng: isFinite(lng) ? lng : null
+      };
+    });
+    // Store for analyzeGraph to pick up, then run analysis
+    window._latlngCoords = coords;
+    analyzeGraph();
   }
 </script>
 </body>
