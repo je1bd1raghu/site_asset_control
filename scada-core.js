@@ -177,7 +177,7 @@ const CY_STYLE = [
 
         'curve-style': 'bezier',
 
-        'label': 'data(label)',
+        'label': '',
         'font-size': '9px',
         'edge-text-rotation': 'autorotate',
 
@@ -189,6 +189,14 @@ const CY_STYLE = [
         'text-border-color': '#d0d7de',
         'text-border-width': 1
     }
+},
+
+// Only map label data field on edges that actually have a label set —
+// avoids Cytoscape's "no mapping for property label" warning on every
+// animation frame for edges where the field is absent.
+{
+    selector: 'edge[label]',
+    style: { 'label': 'data(label)' }
 },
 
 // Inactive pipe
