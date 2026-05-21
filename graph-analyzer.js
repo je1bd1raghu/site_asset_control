@@ -274,10 +274,14 @@ function loadFromZoneJSON() {
     diagram.nodes.forEach(n => {
         const d   = n.data || n;
         const pos = n.position || {};
+        // Generate UUID once at render time — stored as id so both zone.json
+        // and zone_status.json exports share the same identifier, keeping
+        // topology and status files in sync without a separate lookup table.
         elements.push({
             data: {
-                id:        d.id,
-                label:     d.label || d.id,
+                id:        d.id || crypto.randomUUID(),
+                uuid:      crypto.randomUUID(),
+                label:     d.label || d.id || null,
                 nameCount: 1,
                 lat:       typeof d.lat === 'number' ? d.lat : null,
                 lng:       typeof d.lng === 'number' ? d.lng : null
@@ -537,9 +541,12 @@ function drawGraph(pairs, duplicates, overbranchedSet) {
     for (const node of nodeSet) {
         const originalNames = Array.from(nodeNameMap.get(node) || [node]);
         const coord = coordMap[node] || {};
+        // UUID stored separately for export sync (zone.json ↔ zone_status.json).
+        // id must equal the node key so that edge source/target references resolve.
         elements.push({
             data: {
                 id:        node,
+                uuid:      crypto.randomUUID(),
                 label:     originalNames.join('\n'),
                 nameCount: originalNames.length,
                 lat:       typeof coord.lat === 'number' ? coord.lat : null,
@@ -736,9 +743,11 @@ function _fallbackCopy(text, successMsg) {
 function exportZoneJSON() {
     if (!cy) { showToast('⚠️ No graph rendered yet.', 'warning'); return; }
 
+    // Node uuid is assigned at render time — same UUID used in
+    // zone_status.json so the two files reference the same node identity.
     const nodes = cy.nodes().map(n => ({
         data: {
-            id:  n.data('id'),
+            id:  n.data('uuid') || n.data('id'),
             lat: typeof n.data('lat') === 'number' ? n.data('lat') : null,
             lng: typeof n.data('lng') === 'number' ? n.data('lng') : null
         },
@@ -781,12 +790,18 @@ function exportStatusJSON() {
 
     const entries = [];
 
-    cy.nodes().forEach(n => entries.push({
-        id:    n.data('id'),
-        type:  n.data('type')  || 'valve',
-        label: n.data('label') || n.data('id'),
-        state: n.data('state') || 'OFF'
-    }));
+    cy.nodes().forEach(n => {
+        // uuid — same UUID assigned at render time, matching zone.json exactly
+        // label — human-readable node name from the graph
+        // type, state, comment — always present; null when not yet assigned
+        entries.push({
+            id:      n.data('uuid') || n.data('id'),
+            label:   n.data('label') || null,
+            type:    n.data('type')  || null,
+            state:   n.data('state') || null,
+            comment: null
+        });
+    });
 
     cy.edges().forEach(e => entries.push({
         id:   e.data('id') || (e.data('source') + '_' + e.data('target')),

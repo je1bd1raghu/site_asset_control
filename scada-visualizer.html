@@ -191,6 +191,90 @@
             50%       { background: #ff8c00; }
         }
         .lg-fault { animation: legendFaultBlink 1s infinite; }
+
+        /* ── Node info panel ─────────────────────────────────────────────── */
+        #node-info-panel {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: #1a252f;
+            color: #ecf0f1;
+            border-top: 2px solid #2c3e50;
+            padding: 10px 20px;
+            z-index: 30;
+            display: none;
+            font-family: 'Nunito', 'Noto Sans Bengali', sans-serif;
+            font-size: 0.82rem;
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.35);
+        }
+        #node-info-panel.visible { display: flex; }
+        .nip-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .nip-title {
+            font-size: 0.88rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: #7fdbca;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .nip-close {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.6);
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        .nip-close:hover { background: rgba(255,255,255,0.1); color: white; }
+        .nip-fields {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 20px;
+        }
+        .nip-field {
+            display: flex;
+            flex-direction: column;
+            min-width: 80px;
+        }
+        .nip-key {
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 1px;
+        }
+        .nip-val {
+            font-size: 0.82rem;
+            color: #ecf0f1;
+            word-break: break-word;
+        }
+        .nip-val.empty { color: rgba(255,255,255,0.25); font-style: italic; }
+        .nip-val.state-on  { color: #2ecc71; font-weight: 700; }
+        .nip-val.state-off { color: #e74c3c; font-weight: 700; }
+        .nip-comment-block {
+            flex: 1;
+            min-width: 200px;
+        }
+        .nip-comment-block .nip-val {
+            background: rgba(241,196,15,0.1);
+            border-left: 3px solid #f1c40f;
+            padding: 4px 8px;
+            border-radius: 0 4px 4px 0;
+            color: #f9e79f;
+            line-height: 1.4;
+        }
+        .nip-inner {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -271,6 +355,16 @@
         <div class="legend-item">
             <div class="lg-fault"></div>
             Fault
+        </div>
+    </div>
+    <!-- Node info panel — shown on node click -->
+    <div id="node-info-panel" role="complementary" aria-label="Node information">
+        <div class="nip-inner">
+            <div class="nip-header">
+                <span class="nip-title" id="nip-title">Node Info</span>
+                <button class="nip-close" onclick="closeNodePanel()" aria-label="Close info panel">✕ Close</button>
+            </div>
+            <div class="nip-fields" id="nip-fields"></div>
         </div>
     </div>
 </div>
@@ -412,9 +506,64 @@
 
         cy.on('tap', 'node', function(evt) {
             const n = evt.target;
-            console.log(`[TAP] id=${n.id()} type=${n.data('type')} state=${n.data('state')} lat=${n.data('lat')} lng=${n.data('lng')}`);
+            showNodePanel(n);
+        });
+
+        // Tap on background dismisses the panel
+        cy.on('tap', function(evt) {
+            if (evt.target === cy) closeNodePanel();
         });
     }
+
+    // ─── NODE INFO PANEL ─────────────────────────────────────────────────────
+    function showNodePanel(n) {
+        const panel  = document.getElementById('node-info-panel');
+        const title  = document.getElementById('nip-title');
+        const fields = document.getElementById('nip-fields');
+
+        const id      = n.id()               || '';
+        const type    = n.data('type')        || '';
+        const label   = n.data('label')       || '';
+        const state   = n.data('state')       || '';
+        const lat     = n.data('lat')         != null ? n.data('lat') : '';
+        const lng     = n.data('lng')         != null ? n.data('lng') : '';
+        const comment = n.data('comment')     || '';
+
+        title.textContent = label || id || 'Node Info';
+
+        const stateClass = state === 'ON' ? 'state-on' : state === 'OFF' ? 'state-off' : '';
+        const fmtCoord   = v => v !== '' ? parseFloat(v).toFixed(6) : '';
+
+        function field(key, val, extraClass) {
+            const isEmpty = val === '' || val == null;
+            return `<div class="nip-field">
+                <span class="nip-key">${key}</span>
+                <span class="nip-val${isEmpty ? ' empty' : ''}${extraClass ? ' ' + extraClass : ''}">${isEmpty ? '—' : val}</span>
+            </div>`;
+        }
+
+        let html = field('ID', id)
+                 + field('Type', type ? type.charAt(0).toUpperCase() + type.slice(1) : '')
+                 + field('Label', label)
+                 + field('State', state, stateClass)
+                 + field('Lat', fmtCoord(lat))
+                 + field('Long', fmtCoord(lng));
+
+        if (comment) {
+            html += `<div class="nip-field nip-comment-block">
+                <span class="nip-key">Comment</span>
+                <span class="nip-val">${comment}</span>
+            </div>`;
+        }
+
+        fields.innerHTML = html;
+        panel.classList.add('visible');
+    }
+
+    function closeNodePanel() {
+        document.getElementById('node-info-panel').classList.remove('visible');
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // ─── FETCH LIVE STATUS FROM GIST ─────────────────────────────────────────
     async function refreshStatus(zone) {

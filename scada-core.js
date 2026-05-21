@@ -28,29 +28,42 @@ const COLOR = {
 // ─── CYTOSCAPE STYLE ──────────────────────────────────────────────────────────
 const CY_STYLE = [
 
-// ── Default (fallback) — untyped nodes are silent junction dots ────────────
-// Nodes with no type set in the status JSON are passive junctions (tees,
-// bends, unnamed connection points). They appear as small grey dots with no
-// label so they don't clutter the diagram and clearly signal they are not
-// active hydraulic assets.
+// ── Default (fallback) — untyped nodes are passive junction dots ────────────
+// ── Default (fallback) — untyped nodes are passive junction dots ────────────
+// No label mapping here — avoids Cytoscape's "no mapping for property label"
+// warning on every animation frame for nodes without the field set.
 {
     selector: 'node',
     style: {
         'label': '',
         'shape': 'ellipse',
-        'width': 8,
-        'height': 8,
+        'width': 10,
+        'height': 10,
         'background-color': '#b0bec5',
         'border-width': 0,
-        'events': 'no'     // not interactive — clicks pass through
+        'font-size': '9px',
+        'font-weight': 'bold',
+        'color': '#555e68',
+        'text-valign': 'bottom',
+        'text-margin-y': 4,
+        'min-zoomed-font-size': 7,
+        'events': 'yes'
+    }
+},
+
+// ── Untyped node with a label — show it when explicitly set ───────────────
+{
+    selector: 'node[label]',
+    style: {
+        'label': 'data(label)'
     }
 },
 
 // ── Typed nodes share label + text style ──────────────────────────────────
+// Scoped to nodes that actually have a label field to avoid mapping warnings.
 {
     selector: 'node[type]',
     style: {
-        'label': 'data(label)',
         'font-size': '11px',
         'font-weight': 'bold',
         'text-wrap': 'wrap',
@@ -60,6 +73,14 @@ const CY_STYLE = [
         'color': '#2c3e50',
         'min-zoomed-font-size': 8,
         'events': 'yes'
+    }
+},
+
+// Typed nodes with a label — map the data field (safe: field is guaranteed present)
+{
+    selector: 'node[type][label]',
+    style: {
+        'label': 'data(label)'
     }
 },
 
@@ -214,6 +235,16 @@ const CY_STYLE = [
         'width': 6,
         'line-style': 'solid'
     }
+},
+
+// ── Nodes with a comment — yellow highlight ring ───────────────────────────
+{
+    selector: 'node[comment]',
+    style: {
+        'border-width': 3,
+        'border-color': '#f1c40f',
+        'border-style': 'solid'
+    }
 }
 ];
 
@@ -241,6 +272,18 @@ function applyStatus(cy, data) {
 
         if (item.flow !== undefined)
             el.data('flow', item.flow.toString().toLowerCase());
+
+        // comment — free-text annotation shown in the info panel on click.
+        // An empty string clears any previously set comment so the yellow
+        // highlight ring also clears when the status update removes it.
+        if (item.comment !== undefined) {
+            const c = item.comment.toString().trim();
+            if (c) {
+                el.data('comment', c);
+            } else {
+                el.removeData('comment');
+            }
+        }
 
         updated++;
     });
