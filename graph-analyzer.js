@@ -747,8 +747,8 @@ function exportZoneJSON() {
     const nodes = cy.nodes().map(n => ({
         data: {
             id:  n.data('id'),
-            lat: typeof n.data('lat') === 'number' ? n.data('lat') : null,
-            lng: typeof n.data('lng') === 'number' ? n.data('lng') : null
+            lat: typeof n.data('lat') === 'number' ? n.data('lat') : '',
+            lng: typeof n.data('lng') === 'number' ? n.data('lng') : ''
         },
         position: { x: Math.round(n.position('x')), y: Math.round(n.position('y')) }
     }));
@@ -792,13 +792,13 @@ function exportStatusJSON() {
     cy.nodes().forEach(n => {
         // id — topology string (e.g. "J-1"), matches node id in zone.json exactly.
         // label — human-readable node name from the graph
-        // type, state, comment — always present; null when not yet assigned
+        // type, state, comment — always present; "" when not yet assigned
         entries.push({
             id:      n.data('id'),
-            label:   n.data('label') || null,
-            type:    n.data('type')  || null,
-            state:   n.data('state') || null,
-            comment: null
+            label:   n.data('label') || '',
+            type:    n.data('type')  || '',
+            state:   n.data('state') || '',
+            comment: ''
         });
     });
 
