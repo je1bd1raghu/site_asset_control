@@ -253,17 +253,50 @@
     /* ── LAT-LNG PREPROCESS MODE ── */
     #latlngPanel { display:none; margin-bottom:14px; }
     .latlng-hint { font-size:13px; color:var(--text3); font-weight:600; margin-bottom:10px; }
-    .latlng-table-wrap { overflow-x:auto; margin-bottom:10px; }
-    .latlng-table { width:100%; border-collapse:collapse; font-size:13px; }
-    .latlng-table th { background:var(--surface2); color:var(--text2); font-weight:800;
-      font-size:11px; text-transform:uppercase; letter-spacing:.6px;
-      padding:8px 10px; border:1px solid var(--border); white-space:nowrap; }
-    .latlng-table td { padding:4px 6px; border:1px solid var(--border); }
-    .latlng-table input { width:100%; border:none; outline:none; padding:5px 6px;
-      font-family:'Nunito',sans-serif; font-size:13px; background:transparent;
-      color:var(--text); }
-    .latlng-table input:focus { background:var(--primary-light); border-radius:4px; }
-    .latlng-table tr:nth-child(even) { background:#fafbff; }
+
+    /* Scrollable table container — fixed height, sticky header */
+    .latlng-table-wrap {
+      height: 220px;
+      overflow-y: auto;
+      overflow-x: auto;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+    }
+    .latlng-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      table-layout: fixed;
+    }
+    .latlng-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--surface2);
+      color: var(--text2);
+      font-weight: 800;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      padding: 8px 10px;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    /* Column widths: # | Node ID | Lat | Lng */
+    .latlng-table col:nth-child(1) { width: 36px; }
+    .latlng-table col:nth-child(2) { width: auto; }
+    .latlng-table col:nth-child(3) { width: 130px; }
+    .latlng-table col:nth-child(4) { width: 130px; }
+    .latlng-table td { padding: 3px 6px; border-bottom: 1px solid var(--border); }
+    .latlng-table tbody tr:last-child td { border-bottom: none; }
+    .latlng-table input {
+      width: 100%; border: none; outline: none; padding: 5px 6px;
+      font-family: 'Nunito','Noto Sans Bengali',sans-serif;
+      font-size: 13px; background: transparent; color: var(--text);
+    }
+    .latlng-table input:focus { background: var(--primary-light); border-radius: 4px; }
+    .latlng-table tbody tr:nth-child(even) { background: #fafbff; }
     .latlng-actions { display:flex; gap:8px; }
     .latlng-actions button { flex:1; margin-bottom:0; font-size:13px; padding:9px 12px; }
     .btn-secondary { background:var(--surface2) !important; color:var(--primary) !important;
@@ -419,6 +452,9 @@ WTP       WTP"></textarea>
       <div class="latlng-hint">Enter lat/long for each node. Nodes without coordinates will use auto-layout. After editing, click <strong>Apply &amp; Render</strong>.</div>
       <div class="latlng-table-wrap">
         <table class="latlng-table" id="latlngTable">
+          <colgroup>
+            <col><col><col><col>
+          </colgroup>
           <thead><tr>
             <th>#</th>
             <th>Node ID</th>

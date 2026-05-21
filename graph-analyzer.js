@@ -210,7 +210,7 @@ function loadFromZoneJSON() {
 
 
 function cleanNodeName(rawName) {
-    const mode = document.getElementById('preprocessMode').value;
+    let mode = document.getElementById('preprocessMode').value;
     let name = rawName;
 
     if (mode === 'from_zone_json' || mode === 'latlng') mode = 'none';   // zone/latlng IDs are canonical
