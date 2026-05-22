@@ -859,6 +859,11 @@
             if (data.error) throw new Error(data.error);
 
             const updated = applyStatus(cy, data);
+
+            // Re-apply fault overlay after every sync — applyStatus + propagateFlow
+            // can overwrite edge flow values set by fault reports
+            applyFaultOverlay();
+
             setStatus(`✓ Synced ${new Date().toLocaleTimeString()} (${updated} elements)`, '#27ae60');
         } catch (err) {
             setStatus('⚠ ' + err.message, '#c0392b');
