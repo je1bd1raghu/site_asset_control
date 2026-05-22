@@ -1258,30 +1258,43 @@ function closeModal() { document.getElementById('csvModal').classList.remove('op
 function modalBackdropClick(e) { if (e.target===document.getElementById('csvModal')) closeModal(); }
 
 // CSV helpers
+const BOM = '\uFEFF'; // UTF-8 BOM — makes Excel open the file in UTF-8 so ₹ renders correctly
+
 function estToCsv(e) {
-  const lines = [];
-  lines.push(['Estimate Name', csvCell(e.name||'')].join(','));
-  lines.push(['Asset ID',      csvCell(e.assetId||'')].join(','));
-  lines.push(['Date',          csvCell(e.date||'')].join(','));
-  lines.push('');
-  lines.push(['Sl.','Particulars','Qty','Unit','Rate (₹)','Amount (₹)'].join(','));
-  (e.items||[]).forEach((it,i) => {
-    lines.push([i+1, csvCell(it.particulars), it.quantity, csvCell(it.unit), it.rate, it.amount].join(','));
-  });
-  lines.push(['','','','','Grand Total (₹)', e.total||0].join(','));
-  return lines.join('\r\n');
+  const meta = Papa.unparse([
+    { Field: 'Estimate Name', Value: e.name    || '' },
+    { Field: 'Asset ID',      Value: e.assetId || '' },
+    { Field: 'Date',          Value: e.date    || '' },
+  ]);
+  const items = Papa.unparse(
+    (e.items||[]).map((it,i) => ({
+      'Sl.':          i + 1,
+      'Particulars':  it.particulars,
+      'Qty':          it.quantity,
+      'Unit':         it.unit,
+      'Rate (Rs.)':   it.rate,
+      'Amount (Rs.)': it.amount,
+    }))
+  );
+  const footer = Papa.unparse([{ '': '', ' ': '', '  ': '', '   ': '', 'Grand Total (Rs.)': e.total || 0 }]);
+  return BOM + meta + '\r\n\r\n' + items + '\r\n' + footer;
 }
+
 function summaryCsv(ests) {
-  const lines = [['Sl.','Asset ID','Estimate Name','Date','Items','Grand Total (₹)'].join(',')];
-  ests.forEach((e,i) => lines.push([i+1, csvCell(e.assetId||''), csvCell(e.name||''), csvCell(e.date||''), (e.items||[]).length, e.total||0].join(',')));
-  return lines.join('\r\n');
+  return BOM + Papa.unparse(
+    ests.map((e,i) => ({
+      'Sl.':              i + 1,
+      'Asset ID':         e.assetId || '',
+      'Estimate Name':    e.name    || '',
+      'Date':             e.date    || '',
+      'Items':            (e.items||[]).length,
+      'Grand Total (Rs.)': e.total  || 0,
+    }))
+  );
 }
-function csvCell(s) {
-  s = String(s||'');
-  return (s.includes(',')||s.includes('"')||s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s;
-}
+
 function triggerCsvDownload(csv, filename) {
-  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a'); a.href=url; a.download=filename; a.click();
   URL.revokeObjectURL(url);

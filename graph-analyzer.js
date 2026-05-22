@@ -829,27 +829,24 @@ function exportStatusJSON() {
 
 // CSV analysis report
 function downloadCSV() {
-    const rows = [['Section', 'Details']];
-    const fmt  = n => getOriginalNames(n);
+    const fmt = n => getOriginalNames(n);
+    const rows = [];
 
     (latestReport.duplicates   || []).forEach(({ a, b, type }) =>
-        rows.push(['Duplicate Edge',    `${fmt(a)} <-> ${fmt(b)} [${type}]`]));
+        rows.push({ Section: 'Duplicate Edge',    Details: `${fmt(a)} <-> ${fmt(b)} [${type}]` }));
     (latestReport.midpoints    || []).forEach(trio =>
-        rows.push(['Triangle',          trio.map(fmt).join(' - ')]));
+        rows.push({ Section: 'Triangle',          Details: trio.map(fmt).join(' - ') }));
     (latestReport.cycles       || []).forEach(cycle =>
-        rows.push(['Cycle',             cycle.map(fmt).join(' -> ')]));
+        rows.push({ Section: 'Cycle',             Details: cycle.map(fmt).join(' -> ') }));
     (latestReport.selfLoops    || []).forEach(n =>
-        rows.push(['Self-Loop',         fmt(n)]));
+        rows.push({ Section: 'Self-Loop',         Details: fmt(n) }));
     (latestReport.overbranches || []).forEach(n =>
-        rows.push(['Overbranched Node', fmt(n)]));
+        rows.push({ Section: 'Overbranched Node', Details: fmt(n) }));
     (latestReport.orphans      || []).forEach(line =>
-        rows.push(['Malformed Line',    line]));
+        rows.push({ Section: 'Malformed Line',    Details: line }));
 
-    downloadFile(
-        rows.map(r => `"${r[0]}","${r[1]}"`).join('\n'),
-        'graph_analysis_report.csv',
-        'text/csv;charset=utf-8;'
-    );
+    const csv = '\uFEFF' + Papa.unparse(rows, { columns: ['Section', 'Details'] });
+    downloadFile(csv, 'graph_analysis_report.csv', 'text/csv;charset=utf-8;');
 }
 
 // ─── COMPARE GRAPHS ───────────────────────────────────────────────────────────
