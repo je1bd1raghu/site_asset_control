@@ -312,7 +312,7 @@
   </div>
 
   <div class="card" id="faultCard">
-    <button class="section-toggle-btn" onclick="toggleSection('faultBody','faultChevron',this)" aria-expanded="false">
+    <button class="section-toggle-btn" onclick="toggleSection('faultBody',this)" aria-expanded="false">
       <div class="stb-left">
         <span class="stb-icon">⚠️</span>
         <div class="stb-texts">
@@ -359,7 +359,7 @@
 
   <!-- Pending Estimates -->
   <div class="card" id="pendingEstCard">
-    <button class="section-toggle-btn" onclick="toggleSection('pendingEstBody','pendingEstChevron',this)" aria-expanded="false">
+    <button class="section-toggle-btn" onclick="toggleSection('pendingEstBody',this)" aria-expanded="false">
       <div class="stb-left">
         <span class="stb-icon">📋</span>
         <div class="stb-texts">
@@ -385,7 +385,7 @@
 
   <div class="card">
     <!-- Today's Toggle Records toggle -->
-    <button class="section-toggle-btn" onclick="toggleSection('recordsBody','recordsChevron',this)" aria-expanded="false">
+    <button class="section-toggle-btn" onclick="toggleSection('recordsBody',this)" aria-expanded="false">
       <div class="stb-left">
         <span class="stb-icon">🗒️</span>
         <div class="stb-texts">
@@ -407,7 +407,7 @@
     <div class="section-divider"></div>
 
     <!-- Download Records by Month toggle -->
-    <button class="section-toggle-btn" onclick="toggleSection('downloadBody','downloadChevron',this)" aria-expanded="false" style="margin-top:16px;">
+    <button class="section-toggle-btn" onclick="toggleSection('downloadBody',this)" aria-expanded="false" style="margin-top:16px;">
       <div class="stb-left">
         <span class="stb-icon">⬇️</span>
         <div class="stb-texts">
@@ -660,10 +660,8 @@ async function fetchRecords() {
 
 async function refreshAll() {
   showToast('Refreshing…');
-  await fetchRecords();
-  await checkEstimate();
-  deriveFaultStateFromRecords();
-  renderPendingEstimates();
+  await Promise.all([fetchRecords(), checkEstimate()]);
+  await loadAllEdges();   // re-derives fault state and re-renders pending list
   const person = persons.find(p => p.id === getPersonId());
   if (person && currentPos) renderAssets(person);
   showToast('Refreshed ✓', 'success');
@@ -950,9 +948,9 @@ async function checkEstimate() {
 
 async function loadAllEdges() {
   try {
-    const mRes = await fetch('manifest.json?t=' + Date.now());
+    const mRes  = await fetch('manifest.json?t=' + Date.now());
     const zones = await mRes.json();
-    allEdges = [];
+    const edges = [];
     for (const zone of zones) {
       try {
         const res = await fetch(`zones/${zone.id}.json?t=${Date.now()}`);
@@ -960,15 +958,17 @@ async function loadAllEdges() {
         const data = await res.json();
         for (const e of (data.edges || [])) {
           const d = e.data || e;
-          allEdges.push({ id: d.id, source: d.source || '', target: d.target || '', zone: zone.id, zoneName: zone.name || zone.id });
+          edges.push({ id: d.id, source: d.source || '', target: d.target || '', zone: zone.id, zoneName: zone.name || zone.id });
         }
-      } catch { /* skip */ }
+      } catch { /* skip unreadable zone */ }
     }
+    allEdges = edges;   // commit only after a successful manifest load
     buildFaultZoneTabs(zones);
     deriveFaultStateFromRecords();
     renderFaultEdgeList();
     renderPendingEstimates();
   } catch(e) {
+    // Keep any previously loaded edges/list intact on failure
     $('faultEdgeList').innerHTML = `<div class="fault-empty">Could not load edges: ${esc(e.message)}</div>`;
   }
 }
@@ -1023,12 +1023,10 @@ function renderPendingEstimates() {
 }
 
 async function refreshPendingEstimates() {
-  await fetchRecords();
-  await checkEstimate();
-
-  deriveFaultStateFromRecords();
-  renderPendingEstimates();
-
+  // Reload records, estimates AND edges, then rebuild the list from fresh data.
+  // (Refreshing only records/estimates left allEdges stale, which could empty the list.)
+  await Promise.all([fetchRecords(), checkEstimate()]);
+  await loadAllEdges();   // re-derives fault state and re-renders pending list
   showToast('Pending estimates refreshed', 'success');
 }
 
@@ -1278,14 +1276,8 @@ async function downloadRecords() {
       return;
     }
 
-    const csv      = Papa.unparse(filtered, { columns: CSV_COLS });
-    const blob     = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url      = URL.createObjectURL(blob);
-    const a        = document.createElement('a');
-    a.href         = url;
-    a.download     = `records_${year}_${month}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const csv = Papa.unparse(filtered, { columns: CSV_COLS });
+    triggerCsvDownload(BOM + csv, `records_${year}_${month}.csv`);
 
     status.style.color = 'var(--success)';
     status.textContent = `✓ Downloaded ${filtered.length} record${filtered.length > 1 ? 's' : ''} for ${$('dlMonth').options[$('dlMonth').selectedIndex].text} ${year}.`;
@@ -1344,9 +1336,9 @@ function renderModalList() {
   list.innerHTML = _modalEstimates.map((e,i) => {
     const id  = e.assetId || ('est_'+i);
     const sel = _selectedIds.has(id);
-    const nm  = (e.name||e.assetId||'Unnamed estimate').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const aid = (e.assetId||'').replace(/</g,'&lt;');
-    const dt  = (e.date||'').replace(/</g,'&lt;');
+    const nm  = esc(e.name || e.assetId || 'Unnamed estimate');
+    const aid = esc(e.assetId || '');
+    const dt  = esc(e.date || '');
     const tot = (parseFloat(e.total)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
     return `<div class="modal-est-item${sel?' selected':''}" onclick="toggleEstItem('${id.replace(/'/g,"\\'")}')">
       <div class="mei-check">${sel?'✓':''}</div>
@@ -1427,11 +1419,14 @@ function summaryCsv(ests) {
   );
 }
 
-function triggerCsvDownload(csv, filename) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a'); a.href=url; a.download=filename; a.click();
+function downloadBlob(data, filename, mime) {
+  const url = URL.createObjectURL(new Blob([data], { type: mime }));
+  const a   = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+function triggerCsvDownload(csv, filename) {
+  downloadBlob(csv, filename, 'text/csv;charset=utf-8;');
 }
 
 function downloadSelected() {
@@ -1459,20 +1454,16 @@ async function downloadAllZip() {
     zipData[fname] = enc.encode(estToCsv(e));
   });
   const zipped = fflate.zipSync(zipData, { level: 6 });
-  const blob = new Blob([zipped], { type:'application/zip' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a'); a.href=url; a.download=`estimates_${sel.length}files.zip`; a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(zipped, `estimates_${sel.length}files.zip`, 'application/zip');
   closeModal();
   showToast(`✓ ZIP with ${sel.length} CSVs downloaded`, 'success');
   $('dlStatus').style.color='var(--success)';
   $('dlStatus').textContent=`✓ Downloaded ${sel.length} CSV file(s).`;
 }
-function toggleSection(bodyId, chevronId, btn) {
-  const body = document.getElementById(bodyId);
-  const isOpen = body.classList.contains('expanded');
-  body.classList.toggle('expanded', !isOpen);
-  btn.setAttribute('aria-expanded', String(!isOpen));
+function toggleSection(bodyId, btn) {
+  const body   = $(bodyId);
+  const isOpen = body.classList.toggle('expanded');
+  btn.setAttribute('aria-expanded', String(isOpen));
 }
 
 function $(id) { return document.getElementById(id); }
