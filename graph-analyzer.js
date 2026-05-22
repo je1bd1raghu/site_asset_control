@@ -1,7 +1,5 @@
 // ─── SHARED HELPERS ───────────────────────────────────────────────────────────
 
-function pad(n) { return n < 10 ? '0' + n : '' + n; }
-
 function updateClock() {
     const now    = new Date();
     const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -233,6 +231,15 @@ function applyGpsToElements(elements, containerId) {
     };
 }
 
+// ─── GRAPH LAYOUT & INITIALIZATION Shared Helper ──────────────────────────────
+function setupGraphLayout(elements, containerId) {
+    const { applied } = applyGpsToElements(elements, containerId);
+    initCy(containerId, elements, applied ? { name: 'preset' } : { name: 'cose', fit: false });
+    cy.center();
+    _resetNodeSizeStep();
+    return applied;
+}
+
 // ─── PREPROCESS MODE UI SWITCH ────────────────────────────────────────────────
 
 function onPreprocessModeChange() {
@@ -321,17 +328,8 @@ function loadFromZoneJSON() {
         });
     });
 
-    // ── Apply GPS layout (overwrites positions when ≥2 GPS nodes found) ───────
-    const { applied: gpsApplied, canvasW, canvasH } = applyGpsToElements(elements, 'graph');
-
-    // ── Init Cytoscape ────────────────────────────────────────────────────────
-    initCy('graph', elements, gpsApplied ? { name: 'preset' } : { name: 'cose', fit: false });
-    if (!gpsApplied) cy.center();
-    _resetNodeSizeStep();
-
-    if (gpsApplied) {
-        cy.center();
-    }
+    // ── Apply Layout and Init Cytoscape ───────────────────────────────────────
+    const gpsApplied = setupGraphLayout(elements, 'graph');
 
     // ── Also run the text-based analysis pipeline for the sidebar report ──────
     // Populate inputData so parseInput() can derive the graph structure.
@@ -571,19 +569,8 @@ function drawGraph(pairs, duplicates, overbranchedSet) {
         });
     }
 
-    // Apply GPS layout when any node has coordinates (latlng mode)
-    const hasCoords = Object.values(coordMap).some(c => typeof c.lat === 'number');
-    if (hasCoords) {
-        applyGpsToElements(elements, 'graph');
-    }
-
-    const newCy = initCy('graph', elements, hasCoords ? { name: 'preset' } : { name: 'cose', fit: false });
-    if (!hasCoords) newCy.center();
-    _resetNodeSizeStep();
-
-    if (hasCoords) {
-        newCy.center();
-    }
+    // ── Apply Layout and Init Cytoscape ───────────────────────────────────────
+    setupGraphLayout(elements, 'graph');
 }
 
 // ─── ANALYSE & REPORT ─────────────────────────────────────────────────────────
@@ -687,24 +674,6 @@ function searchNode() {
     if (matched.length) cy.fit(matched, 50);
 }
 
-function highlightNode(name) {
-    if (!cy) return;
-    cy.nodes().removeClass('search-highlight');
-    const node = cy.getElementById(cleanNodeName(name));
-    if (node && node.length) { node.addClass('search-highlight'); cy.fit(node, 50); }
-}
-
-function highlightNodes(nodeList) {
-    if (!cy) return;
-    cy.nodes().removeClass('search-highlight');
-    const coll = cy.collection();
-    for (const name of nodeList) {
-        const node = cy.getElementById(cleanNodeName(name));
-        if (node && node.length) { node.addClass('search-highlight'); coll.merge(node); }
-    }
-    if (coll.length) cy.fit(coll, 50);
-}
-
 // ─── FILE DOWNLOAD & CLIPBOARD HELPERS ───────────────────────────────────────
 
 function downloadFile(content, filename, mimeType) {
@@ -737,26 +706,9 @@ function _fallbackCopy(text, successMsg) {
 
 // ─── EXPORTS ──────────────────────────────────────────────────────────────────
 
-/**
- * Export  zone_x.json  ── repo / static topology file
- * ────────────────────────────────────────────────────
- * Contains ONLY structural data so the repo file and the gist status file
- * own completely separate fields and never overwrite each other.
- *
- * Schema:
- *   {
- *     nodes: [ { data: { id, lat, lng }, position: { x, y } } ],
- *     edges: [ { data: { id, source, target } } ]
- *   }
- *
- * type / state / label / flow are intentionally absent — those are
- * set at runtime by applyStatus() reading the status file.
- */
 function exportZoneJSON() {
     if (!cy) { showToast('⚠️ No graph rendered yet.', 'warning'); return; }
 
-    // Node id is the topology string (e.g. "J-1") set at render time.
-    // Edges use the same id as source/target so the files are self-consistent.
     const nodes = cy.nodes().map(n => ({
         data: {
             id:  n.data('id'),
@@ -783,29 +735,12 @@ function exportZoneJSON() {
     showToast('✅ zone.json downloaded!', 'success');
 }
 
-/**
- * Export  zone_x_status.json  ── gist / live operational file
- * ────────────────────────────────────────────────────────────
- * Flat array consumed by applyStatus() in scada-core.js.
- * Nodes carry type, label, state.  Edges carry flow.
- * Positions and topology are intentionally absent — those live in zone.json.
- *
- * Schema:
- *   [
- *     { id, type, label, state },   ← one entry per node
- *     { id, flow },                  ← one entry per edge
- *     …
- *   ]
- */
 function exportStatusJSON() {
     if (!cy) { showToast('⚠️ No graph rendered yet.', 'warning'); return; }
 
     const entries = [];
 
     cy.nodes().forEach(n => {
-        // id — topology string (e.g. "J-1"), matches node id in zone.json exactly.
-        // label — human-readable node name from the graph
-        // type, state, comment — always present; "" when not yet assigned
         entries.push({
             id:      n.data('id'),
             label:   n.data('label') || '',
@@ -875,7 +810,6 @@ function compareAndRenderGraphs() {
         elements.push({ data: { id: edgeKey, source, target }, classes: cls });
     }
 
-    // Compare-specific styles extend the shared base
     const compareStyles = [
         { selector: '.common-node',        style: { 'background-color': 'blue' } },
         { selector: '.graph1-unique-node', style: { 'background-color': 'red'  } },
@@ -1026,17 +960,6 @@ function applyLatlngAndRender() {
 }
 
 // ─── EXCEL PASTE HANDLER FOR LAT-LNG TABLE ────────────────────────────────────
-// Excel copies cells as tab-separated columns, newline-separated rows.
-// When the user pastes into any lat or lng cell, this handler checks if the
-// clipboard contains multiple rows/columns and distributes them across the
-// table starting from the pasted cell's row.
-//
-// Supported paste shapes from Excel:
-//   • Single column (lat only):   one value per row → fills lat column only
-//   • Two columns (lat + lng):    two tab-separated values → fills lat and lng
-//   • Three+ columns (id,lat,lng) → skips first column, fills lat and lng
-//     (handles copy from a spreadsheet that includes the node ID column)
-
 (function attachLatlngPasteHandler() {
     document.addEventListener('paste', function(e) {
         const active = document.activeElement;
@@ -1045,15 +968,12 @@ function applyLatlngAndRender() {
         const text = (e.clipboardData || window.clipboardData).getData('text');
         if (!text) return;
 
-        // Only intercept if it looks like multi-cell data (contains tab or newline)
         if (!text.includes('\t') && !text.includes('\n')) return;
 
         e.preventDefault();
 
-        // Parse into rows × cols
         const rows = text.trim().split(/\r?\n/).map(r => r.split('\t').map(v => v.trim()));
 
-        // Find the starting row in the tbody
         const tbody    = document.getElementById('latlngBody');
         if (!tbody) return;
         const allRows  = Array.from(tbody.querySelectorAll('tr'));
@@ -1070,18 +990,14 @@ function applyLatlngAndRender() {
             const lngInput = tr.querySelector('.ll-lng');
 
             if (cols.length === 1) {
-                // Single column — fill whichever input was targeted
                 const target = isLat ? latInput : lngInput;
                 if (target) target.value = cols[0];
 
             } else if (cols.length === 2) {
-                // Two columns — lat, lng
                 if (latInput) latInput.value = cols[0];
                 if (lngInput) lngInput.value = cols[1];
 
             } else {
-                // Three+ columns — assume rightmost two are lat, lng
-                // (handles id | lat | lng or any extra leading columns)
                 const lat = cols[cols.length - 2];
                 const lng = cols[cols.length - 1];
                 if (latInput) latInput.value = lat;

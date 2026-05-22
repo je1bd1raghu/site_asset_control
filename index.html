@@ -208,6 +208,40 @@
   .btn-upload-est:hover { background:var(--primary-dark); }
 
 
+  /* ── Collapsible section toggle buttons ── */
+  .section-toggle-btn {
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    background:none; border:none; padding:0; cursor:pointer;
+    font-family:'Nunito','Noto Sans Bengali',sans-serif;
+    text-align:left; gap:10px;
+  }
+  .section-toggle-btn:focus-visible { outline:2px solid var(--primary); border-radius:8px; }
+  .stb-left { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+  .stb-icon { font-size:20px; flex-shrink:0; }
+  .stb-texts { display:flex; flex-direction:column; gap:1px; }
+  .stb-title { font-size:15px; font-weight:800; color:var(--text); letter-spacing:-.2px; }
+  .stb-sub { font-size:11px; font-weight:600; color:var(--text3); }
+  .stb-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .stb-badge { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 6px; border-radius:11px; font-size:12px; font-weight:800; background:var(--danger); color:#fff; }
+  .stb-badge.zero { background:var(--success); }
+  .stb-chevron { width:28px; height:28px; border-radius:8px; background:var(--surface2); border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; transition:transform .3s cubic-bezier(.34,1.2,.64,1), background .2s; flex-shrink:0; }
+  .section-toggle-btn[aria-expanded="true"] .stb-chevron { transform:rotate(180deg); background:var(--primary-light); border-color:var(--primary); }
+
+  .collapsible-body {
+    overflow:hidden;
+    max-height:0;
+    opacity:0;
+    transition: max-height .4s cubic-bezier(.4,0,.2,1), opacity .3s ease, padding .3s ease;
+    padding-top:0;
+  }
+  .collapsible-body.expanded {
+    max-height:3000px;
+    opacity:1;
+    padding-top:18px;
+  }
+
+  .section-divider { height:1px; background:var(--border); margin:16px 0 0; }
+
   .loading-screen { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; gap:14px; transition:opacity .4s; }
   .loading-screen.hide { opacity:0; pointer-events:none; }
   .loading-screen .l-icon { font-size:52px; }
@@ -278,63 +312,115 @@
   </div>
 
   <div class="card" id="faultCard">
-    <div class="section-header">
-      <div class="section-title" style="margin-bottom:0">⚠ Report Fault</div>
-    </div>
+    <button class="section-toggle-btn" onclick="toggleSection('faultBody','faultChevron',this)" aria-expanded="false">
+      <div class="stb-left">
+        <span class="stb-icon">⚠️</span>
+        <div class="stb-texts">
+          <span class="stb-title">Report Fault</span>
+          <span class="stb-sub">Select a pipe and report or clear a fault</span>
+        </div>
+      </div>
+      <div class="stb-right">
+        <div class="stb-chevron" id="faultChevron">▾</div>
+      </div>
+    </button>
 
-    <!-- Zone filter tabs -->
-    <div id="faultZoneTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div class="collapsible-body" id="faultBody">
+      <!-- Zone filter tabs -->
+      <div id="faultZoneTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
 
-    <!-- Search -->
-    <div class="fault-search-wrap">
-      <span class="fault-search-icon">🔍</span>
-      <input type="search" id="faultSearch" class="fault-search-input"
-             placeholder="Search pipe by ID, source or target…"
-             oninput="filterFaultEdges()" autocomplete="off">
-    </div>
+      <!-- Search -->
+      <div class="fault-search-wrap">
+        <span class="fault-search-icon">🔍</span>
+        <input type="search" id="faultSearch" class="fault-search-input"
+               placeholder="Search pipe by ID, source or target…"
+               oninput="filterFaultEdges()" autocomplete="off">
+      </div>
 
-    <!-- Edge list -->
-    <div class="fault-edge-list" id="faultEdgeList">
-      <div class="fault-empty">Loading edges…</div>
-    </div>
+      <!-- Edge list -->
+      <div class="fault-edge-list" id="faultEdgeList">
+        <div class="fault-empty">Loading edges…</div>
+      </div>
 
-    <!-- Selected edge + action row -->
-    <div class="fault-action-row">
-      <div class="fault-selected-label" id="faultSelectedLabel">No pipe selected</div>
-      <button class="btn-fault-rpt" id="btnFaultReport" onclick="submitEdgeFault('FAULT')"       disabled>⚠ Report</button>
-      <button class="btn-fault-clr" id="btnFaultClear"  onclick="submitEdgeFault('FAULT_CLEAR')" disabled>✓ Clear</button>
-    </div>
-    <div class="fault-submit-status" id="faultSubmitStatus"></div>
+      <!-- Selected edge + action row -->
+      <div class="fault-action-row">
+        <div class="fault-selected-label" id="faultSelectedLabel">No pipe selected</div>
+        <button class="btn-fault-rpt" id="btnFaultReport" onclick="submitEdgeFault('FAULT')"       disabled>⚠ Report</button>
+        <button class="btn-fault-clr" id="btnFaultClear"  onclick="submitEdgeFault('FAULT_CLEAR')" disabled>✓ Clear</button>
+      </div>
+      <div class="fault-submit-status" id="faultSubmitStatus"></div>
 
-    <!-- Inline estimate panel — shown only when a FAULTED pipe is selected -->
-    <div id="estimatePanel" style="display:none;margin-top:14px;border-top:2px solid var(--border);padding-top:14px;">
-      <div id="estimatePanelContent"></div>
+      <!-- Inline estimate panel — shown only when a FAULTED pipe is selected -->
+      <div id="estimatePanel" style="display:none;margin-top:14px;border-top:2px solid var(--border);padding-top:14px;">
+        <div id="estimatePanelContent"></div>
+      </div>
     </div>
   </div>
 
   <!-- Pending Estimates -->
   <div class="card" id="pendingEstCard">
-    <div class="section-header">
-      <div class="section-title" style="margin-bottom:0">
-        📋 Pending Estimates
-        <span class="pending-count-badge" id="pendingCount">0</span>
+    <button class="section-toggle-btn" onclick="toggleSection('pendingEstBody','pendingEstChevron',this)" aria-expanded="false">
+      <div class="stb-left">
+        <span class="stb-icon">📋</span>
+        <div class="stb-texts">
+          <span class="stb-title">Pending Estimates</span>
+          <span class="stb-sub">Faults awaiting cost estimate upload</span>
+        </div>
       </div>
-      <button class="btn-refresh" onclick="refreshPendingEstimates()">↻ Refresh</button>
-    </div>
-    <div id="pendingEstList">
-      <div class="empty-state"><div class="e-icon">⏳</div>Loading…</div>
+      <div class="stb-right">
+        <span class="stb-badge" id="pendingCount">0</span>
+        <div class="stb-chevron" id="pendingEstChevron">▾</div>
+      </div>
+    </button>
+
+    <div class="collapsible-body" id="pendingEstBody">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+        <button class="btn-refresh" onclick="refreshPendingEstimates()">↻ Refresh</button>
+      </div>
+      <div id="pendingEstList">
+        <div class="empty-state"><div class="e-icon">⏳</div>Loading…</div>
+      </div>
     </div>
   </div>
 
   <div class="card">
-    <div class="section-header">
-      <div class="section-title" style="margin-bottom:0">Today's Toggle Records</div>
+    <!-- Today's Toggle Records toggle -->
+    <button class="section-toggle-btn" onclick="toggleSection('recordsBody','recordsChevron',this)" aria-expanded="false">
+      <div class="stb-left">
+        <span class="stb-icon">🗒️</span>
+        <div class="stb-texts">
+          <span class="stb-title">Today's Toggle Records</span>
+          <span class="stb-sub">All on/off and fault actions logged today</span>
+        </div>
+      </div>
+      <div class="stb-right">
+        <div class="stb-chevron" id="recordsChevron">▾</div>
+      </div>
+    </button>
+
+    <div class="collapsible-body" id="recordsBody">
+      <div id="recordsList">
+        <div class="empty-state"><div class="e-icon">🗒️</div>No records yet today</div>
+      </div>
     </div>
-    <div id="recordsList">
-      <div class="empty-state"><div class="e-icon">🗒️</div>No records yet today</div>
-    </div>
-    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-      <div class="field-label" style="margin-bottom:10px">Download Records by Month</div>
+
+    <div class="section-divider"></div>
+
+    <!-- Download Records by Month toggle -->
+    <button class="section-toggle-btn" onclick="toggleSection('downloadBody','downloadChevron',this)" aria-expanded="false" style="margin-top:16px;">
+      <div class="stb-left">
+        <span class="stb-icon">⬇️</span>
+        <div class="stb-texts">
+          <span class="stb-title">Download Records by Month</span>
+          <span class="stb-sub">Export toggle records or estimates as CSV / ZIP</span>
+        </div>
+      </div>
+      <div class="stb-right">
+        <div class="stb-chevron" id="downloadChevron">▾</div>
+      </div>
+    </button>
+
+    <div class="collapsible-body" id="downloadBody">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select id="dlMonth" class="dl-select">
           <option value="01">January</option><option value="02">February</option>
@@ -905,7 +991,7 @@ function renderPendingEstimates() {
 
   const badge = $('pendingCount');
   badge.textContent = pending.length;
-  badge.className   = 'pending-count-badge' + (pending.length === 0 ? ' zero' : '');
+  badge.className   = 'stb-badge' + (pending.length === 0 ? ' zero' : '');
 
   const el = $('pendingEstList');
   if (!pending.length) {
@@ -980,7 +1066,6 @@ function renderFaultEdgeList() {
         <div class="fei-id">${hi(e.id, q)}</div>
         <div class="fei-route">${hi(e.source, q)} → ${hi(e.target, q)}</div>
       </div>
-      <span class="fei-zone">${esc(e.zoneName || e.zone)}</span>
       ${isFaulted ? '<span class="fei-fault-badge">⚠ FAULT</span>' : ''}
     </div>`;
   }).join('');
@@ -1028,8 +1113,8 @@ function renderEstimatePanel(edgeId, edge, isFaulted, hasEst) {
     const rows  = (est.items || []).map((it, i) => `
       <tr>
         <td style="padding:7px 10px;color:#94A3B8;font-size:12px;font-weight:700;">${i+1}</td>
-        <td style="padding:7px 10px;font-size:13px;font-weight:600;">${escHtml(it.particulars)}</td>
-        <td style="padding:7px 10px;font-size:13px;text-align:right;">${it.quantity} ${escHtml(it.unit)}</td>
+        <td style="padding:7px 10px;font-size:13px;font-weight:600;">${esc(it.particulars)}</td>
+        <td style="padding:7px 10px;font-size:13px;text-align:right;">${it.quantity} ${esc(it.unit)}</td>
         <td style="padding:7px 10px;font-size:13px;text-align:right;">₹${(it.rate||0).toLocaleString('en-IN')}</td>
         <td style="padding:7px 10px;font-size:13px;font-weight:800;text-align:right;color:#2563EB;">₹${(it.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
       </tr>`).join('');
@@ -1038,7 +1123,7 @@ function renderEstimatePanel(edgeId, edge, isFaulted, hasEst) {
         <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#16A34A;">✅ Estimate Uploaded</div>
         <a href="estimate.html?asset=${encId}&name=${encName}" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px;border:1.5px solid #E2E8F0;background:#F0F4FF;color:#2563EB;text-decoration:none;">✏ Revise</a>
       </div>
-      <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:8px;">📋 ${escHtml(est.name || assetLabel)} &nbsp;·&nbsp; ${escHtml(est.date||'')}</div>
+      <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:8px;">📋 ${esc(est.name || assetLabel)} &nbsp;·&nbsp; ${esc(est.date||'')}</div>
       <div style="overflow-x:auto;border-radius:8px;border:2px solid #E2E8F0;margin-bottom:10px;">
         <table style="width:100%;border-collapse:collapse;min-width:400px;">
           <thead><tr style="background:#F0F4FF;">
@@ -1070,8 +1155,6 @@ function renderEstimatePanel(edgeId, edge, isFaulted, hasEst) {
       </a>`;
   }
 }
-
-function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 async function submitEdgeFault(action) {
   const pid    = getPersonId();
@@ -1374,6 +1457,13 @@ async function downloadAllZip() {
   $('dlStatus').style.color='var(--success)';
   $('dlStatus').textContent=`✓ Downloaded ${sel.length} CSV file(s).`;
 }
+function toggleSection(bodyId, chevronId, btn) {
+  const body = document.getElementById(bodyId);
+  const isOpen = body.classList.contains('expanded');
+  body.classList.toggle('expanded', !isOpen);
+  btn.setAttribute('aria-expanded', String(!isOpen));
+}
+
 function $(id) { return document.getElementById(id); }
 function pad(n) { return n < 10 ? '0'+n : ''+n; }
 function todayStr() { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }

@@ -1,6 +1,20 @@
 // ─── REAL-WORLD GPS LAYOUT PROJECTION ────────────────────────────────────────
 // Accurate local geographic projection for SCADA / GIS layouts.
 
+// ─────────────────────────────────────────────────────────────────────────
+// HELPER: COMPUTE BOUNDS
+// ─────────────────────────────────────────────────────────────────────────
+function computeBounds(projectedItems) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    projectedItems.forEach(p => {
+        minX = Math.min(minX, p.xMeters);
+        maxX = Math.max(maxX, p.xMeters);
+        minY = Math.min(minY, p.yMeters);
+        maxY = Math.max(maxY, p.yMeters);
+    });
+    return { minX, maxX, minY, maxY };
+}
+
 function applyGpsLayout(nodes, canvasW, canvasH, options = {}) {
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -10,9 +24,6 @@ function applyGpsLayout(nodes, canvasW, canvasH, options = {}) {
 const PADDING        = options.padding ?? 100;
 
 // Engineering/site north correction
-// Example:
-//   +15 => rotate clockwise 15°
-//   -10 => rotate counter-clockwise 10°
 const ROTATION_DEG   = options.rotationDeg ?? 0;
 
 // Optional collision spreading
@@ -62,11 +73,6 @@ const cosLat = Math.cos(oLat * DEG2RAD);
 
 const projected = [];
 
-let minX = Infinity;
-let maxX = -Infinity;
-let minY = Infinity;
-let maxY = -Infinity;
-
 gpsNodes.forEach(node => {
 
     const d = node.data || node;
@@ -89,13 +95,10 @@ gpsNodes.forEach(node => {
         xMeters,
         yMeters
     });
-
-    minX = Math.min(minX, xMeters);
-    maxX = Math.max(maxX, xMeters);
-
-    minY = Math.min(minY, yMeters);
-    maxY = Math.max(maxY, yMeters);
 });
+
+// Compute initial bounds
+let { minX, maxX, minY, maxY } = computeBounds(projected);
 
 // ─────────────────────────────────────────────────────────────────────────
 // APPLY OPTIONAL ENGINEERING ROTATION
@@ -120,19 +123,12 @@ projected.forEach(p => {
     p.yMeters = ry;
 });
 
-// Recompute bounds after rotation
-minX = Infinity;
-maxX = -Infinity;
-minY = Infinity;
-maxY = -Infinity;
-
-projected.forEach(p => {
-    minX = Math.min(minX, p.xMeters);
-    maxX = Math.max(maxX, p.xMeters);
-
-    minY = Math.min(minY, p.yMeters);
-    maxY = Math.max(maxY, p.yMeters);
-});
+// Recompute bounds cleanly after rotation using helper
+const postRotationBounds = computeBounds(projected);
+minX = postRotationBounds.minX;
+maxX = postRotationBounds.maxX;
+minY = postRotationBounds.minY;
+maxY = postRotationBounds.maxY;
 
 // ─────────────────────────────────────────────────────────────────────────
 // AUTO SCALE TO VIEWPORT
