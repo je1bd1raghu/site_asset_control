@@ -109,6 +109,10 @@
   .record-avatar { width:44px; height:44px; border-radius:12px; font-size:18px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .rec-on  { background:var(--success-light); }
   .rec-off { background:var(--danger-light); }
+  .rec-fault       { background:#fff3cd; }
+  .rec-fault-clear { background:var(--success-light); }
+  .chip-fault       { background:#fff3cd; color:var(--warning); }
+  .chip-fault-clear { background:var(--success-light); color:var(--success); }
   .record-info { flex:1; min-width:0; }
   .record-name  { font-size:15px; font-weight:700; color:var(--text); }
   .record-asset { font-size:11px; color:var(--primary); font-weight:700; margin-top:1px; }
@@ -690,23 +694,30 @@ function renderRecords() {
   const el = $('recordsList');
   if (!todayRecs.length) { el.innerHTML = '<div class="empty-state"><div class="e-icon">🗒️</div>No records yet today</div>'; return; }
   el.innerHTML = [...todayRecs].sort((a,b) => b.timestamp.localeCompare(a.timestamp)).map(r => {
-    const isOn = r.action === 'ON';
+    const isOn      = r.action === 'ON';
+    const isFault   = r.action === 'FAULT';
+    const isClear   = r.action === 'FAULT_CLEAR';
+    const avatarCls = isFault ? 'rec-fault' : isClear ? 'rec-fault-clear' : isOn ? 'rec-on' : 'rec-off';
+    const avatarIcon= isFault ? '⚠' : isClear ? '✓' : isOn ? '▲' : '▼';
+    const chipCls   = isFault ? 'chip-fault' : isClear ? 'chip-fault-clear' : isOn ? 'chip-on' : 'chip-off';
+    const chipLabel = isFault ? '⚠ FAULT' : isClear ? '✓ CLEARED' : isOn ? '▲ ON' : '▼ OFF';
+    const assetIcon = (isFault || isClear) ? '🔗' : '🏭';
     return `<div class="record-item">
-  <div class="record-avatar ${isOn?'rec-on':'rec-off'}">${isOn?'▲':'▼'}</div>
+  <div class="record-avatar ${avatarCls}">${avatarIcon}</div>
   <div class="record-info">
     <div class="record-name">${esc(r.personName||'—')}</div>
-    <div class="record-asset">🏭 ${esc(r.assetName||'—')}</div>
-    <div class="record-meta">📍 ${r.distance ? r.distance+'m away' : '—'}</div>
+    <div class="record-asset">${assetIcon} ${esc(r.assetName||'—')}</div>
+    <div class="record-meta">📍 ${r.distance ? r.distance+'m away' : (r.zone ? 'Zone: '+r.zone : '—')}</div>
   </div>
   <div class="record-right">
-    <span class="time-chip ${isOn?'chip-on':'chip-off'}">${isOn?'▲ ON':'▼ OFF'} ${r.time||'—'}</span>
+    <span class="time-chip ${chipCls}">${chipLabel} ${r.time||'—'}</span>
   </div>
 </div>`;
   }).join('');
 }
 
 // ── CSV ────────────────────────────────────────────────────────────────────────
-const CSV_COLS = ['sn','deviceId','personId','personName','assetId','assetName','action','timestamp','date','time','lat','lng','distance'];
+const CSV_COLS = ['sn','deviceId','personId','personName','assetId','assetName','action','timestamp','date','time','lat','lng','distance','zone'];
 function csvParse(text) {
   if (!text?.trim()) return [];
   return Papa.parse(text.trim(), { header: true, skipEmptyLines: true }).data;

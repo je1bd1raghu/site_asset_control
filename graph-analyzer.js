@@ -152,7 +152,7 @@ function initCy(containerId, elements, layout, extraStyles) {
         style: extraStyles ? CY_BASE_STYLE.concat(extraStyles) : CY_BASE_STYLE,
         minZoom: 0.05,
         maxZoom: 6,
-        wheelSensitivity: 0.2
+
     });
     return cy;
 }

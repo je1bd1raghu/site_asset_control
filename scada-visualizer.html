@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&display=swap" rel="stylesheet">
     <title>SCADA View</title>
     <script src="libs/cytoscape.min.js"></script>
+  <script src="libs/fp.min.js"></script>
+  <script src="libs/papaparse.min.js"></script>
     <script src="scada-core.js"></script>
     <script src="gps-layout.js"></script>
     <style>
@@ -333,6 +335,89 @@
         .nip-inner {
             flex: 1;
         }
+
+        /* ── Fault report action bar ───────────────────────────────────── */
+        .nip-fault-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px 0 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: 8px;
+        }
+        .nip-fault-person {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .nip-fault-person label {
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: rgba(255,255,255,0.4);
+            white-space: nowrap;
+        }
+        .nip-fault-person select {
+            background: #2c3e50;
+            color: #ecf0f1;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 5px;
+            padding: 4px 8px;
+            font-family: 'Nunito', 'Noto Sans Bengali', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 600;
+            flex: 1;
+            min-width: 0;
+            outline: none;
+        }
+        .nip-fault-person select:focus { border-color: #e74c3c; }
+        .nip-fault-btns {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn-fault-report {
+            background: #c0392b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-family: 'Nunito', 'Noto Sans Bengali', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        .btn-fault-report:hover { background: #e74c3c; }
+        .btn-fault-report:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-fault-clear {
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-family: 'Nunito', 'Noto Sans Bengali', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        .btn-fault-clear:hover { background: #2ecc71; }
+        .btn-fault-clear:disabled { opacity: 0.4; cursor: not-allowed; }
+        .nip-fault-status {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.45);
+            min-height: 16px;
+        }
+        .nip-fault-status.ok   { color: #2ecc71; }
+        .nip-fault-status.err  { color: #e74c3c; }
+        .nip-fault-status.warn { color: #f39c12; }
     </style>
 </head>
 <body>
@@ -425,6 +510,18 @@
                 <button class="nip-close" onclick="closeNodePanel()" aria-label="Close info panel">✕ Close</button>
             </div>
             <div class="nip-fields" id="nip-fields"></div>
+            <!-- Fault report bar — shown only for edges -->
+            <div class="nip-fault-bar" id="nip-fault-bar" style="display:none">
+                <div class="nip-fault-person">
+                    <label for="fault-person-select">Your Name</label>
+                    <select id="fault-person-select"><option value="">— select —</option></select>
+                </div>
+                <div class="nip-fault-btns">
+                    <button class="btn-fault-report" id="btn-fault-report" onclick="submitFault('FAULT')" disabled>⚠ Report Fault</button>
+                    <button class="btn-fault-clear"  id="btn-fault-clear"  onclick="submitFault('FAULT_CLEAR')" disabled>✓ Clear Fault</button>
+                    <span class="nip-fault-status" id="nip-fault-status"></span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -449,7 +546,17 @@
     const GITHUB_USERNAME     = 'je1bd1raghu';
     const GIST_ID             = 'b92c304c7c56c5a76916600d35b55d67';
     const REFRESH_INTERVAL_MS = 20000;
+
+    // ─── WORKER / RECORDS ────────────────────────────────────────────────────
+    const WORKER       = 'https://scada-visualizer.je1-bd1-raghu.workers.dev';
+    const RECORDS_FILE = 'records.csv';
+    const CONFIG_FILE  = 'config.json';
     // ─────────────────────────────────────────────────────────────────────────
+
+    let persons    = [];   // loaded from config.json
+    let deviceId   = '';   // FingerprintJS visitor ID
+    let faultState = {};   // edgeId → 'FAULT' | 'FAULT_CLEAR' | undefined
+    let _currentFaultEdgeId = null;   // edge currently shown in info panel
 
     let cy            = null;
     let refreshTimer  = null;
@@ -586,6 +693,10 @@
             await refreshStatus(zone);
             refreshTimer = setInterval(() => refreshStatus(zone), REFRESH_INTERVAL_MS);
 
+            // Load fault state from records.csv and overlay on graph
+            await loadFaultState();
+            applyFaultOverlay();
+
         } catch (err) {
             showLoading(false);
             setStatus('⚠ ' + err.message, '#c0392b');
@@ -656,7 +767,7 @@
             userPanningEnabled: true,
             minZoom: 0.15,
             maxZoom: 8,
-            wheelSensitivity: 0.2
+
         });
 
         cy.center();   // centre graph at true size without fitting to canvas
@@ -670,6 +781,8 @@
         cy.on('tap', function(evt) {
             if (evt.target === cy) closeNodePanel();
         });
+
+        bindEdgeTap();
     }
 
     // ─── NODE INFO PANEL ─────────────────────────────────────────────────────
@@ -714,6 +827,8 @@
         }
 
         fields.innerHTML = html;
+        document.getElementById('nip-fault-bar').style.display = 'none';
+        _currentFaultEdgeId = null;
         panel.classList.add('visible');
     }
 
@@ -753,14 +868,256 @@
         document.getElementById('loading').classList.toggle('hidden', !visible);
     }
 
-    // ─── ZONE SELECT HANDLER ──────────────────────────────────────────────────
-    document.getElementById('zone-select').addEventListener('change', function() {
-        if (!this.value) return;
-        loadZone(JSON.parse(this.value));
-    });
+
+    // ─── WORKER HELPERS ───────────────────────────────────────────────────────
+    async function workerGet(endpoint) {
+        const r = await fetch(`${WORKER}/${endpoint}`);
+        if (!r.ok) throw new Error(`Worker ${endpoint} failed: HTTP ${r.status}`);
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+        return d.files;
+    }
+    async function workerPatch(fileMap) {
+        const files = {};
+        for (const [k, v] of Object.entries(fileMap))
+            files[k] = { content: typeof v === 'string' ? v : JSON.stringify(v, null, 2) };
+        const r = await fetch(`${WORKER}/output`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files })
+        });
+        if (!r.ok) throw new Error(`Worker write failed: HTTP ${r.status}`);
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'Gist write failed');
+    }
+
+    // ─── DEVICE ID ────────────────────────────────────────────────────────────
+    async function getDeviceId() {
+        try {
+            const fp = await FingerprintJS.load();
+            return (await fp.get()).visitorId;
+        } catch { return 'unknown'; }
+    }
+
+    // ─── PERSONS CONFIG ───────────────────────────────────────────────────────
+    async function loadPersonsConfig() {
+        try {
+            const files = await workerGet('config');
+            persons = JSON.parse(files[CONFIG_FILE] || '{}').persons || [];
+            persons.sort((a, b) => a.name.localeCompare(b.name));
+            const sel = document.getElementById('fault-person-select');
+            sel.innerHTML = '<option value="">— select —</option>'
+                + persons.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.designation ? ' — ' + p.designation : ''}</option>`).join('');
+            sel.addEventListener('change', onFaultPersonChange);
+        } catch(e) {
+            console.warn('Config load failed:', e.message);
+        }
+    }
+
+    // ─── FAULT STATE FROM RECORDS ─────────────────────────────────────────────
+    // Reads records.csv and derives the latest fault state per edge.
+    async function loadFaultState() {
+        try {
+            const files = await workerGet('output');
+            const rows  = csvParseFault(files[RECORDS_FILE] || '');
+            faultState  = {};
+            // Walk rows in order; last write per edge wins
+            rows.forEach(r => {
+                if ((r.action === 'FAULT' || r.action === 'FAULT_CLEAR') && r.assetId)
+                    faultState[r.assetId] = r.action;
+            });
+        } catch(e) {
+            console.warn('Fault state load failed:', e.message);
+        }
+    }
+
+    // Apply faultState onto the current cy instance
+    function applyFaultOverlay() {
+        if (!cy) return;
+        Object.entries(faultState).forEach(([edgeId, action]) => {
+            const el = cy.getElementById(edgeId);
+            if (!el.length) return;
+            if (action === 'FAULT')
+                el.data('flow', 'fault');
+            else if (action === 'FAULT_CLEAR' && el.data('flow') === 'fault')
+                el.data('flow', '');
+        });
+    }
+
+    function csvParseFault(text) {
+        if (!text?.trim()) return [];
+        return Papa.parse(text.trim(), { header: true, skipEmptyLines: true }).data;
+    }
+
+    const FAULT_CSV_COLS = ['sn','deviceId','personId','personName','assetId','assetName',
+                            'action','timestamp','date','time','lat','lng','distance','zone'];
+    function pad2(n) { return n < 10 ? '0'+n : ''+n; }
+    function todayStrFault() {
+        const d = new Date();
+        return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    }
+    function timeStrFault(d) {
+        return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+    }
+    function esc(s) { return String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+
+    // ─── EDGE TAP → FAULT PANEL ───────────────────────────────────────────────
+    // Called from initCytoscape after cy is ready
+    function bindEdgeTap() {
+        cy.on('tap', 'edge', function(evt) {
+            showEdgeFaultPanel(evt.target);
+        });
+    }
+
+    let _geoPos = null;
+    function ensureGeoWatch() {
+        if (_geoPos !== null || !navigator.geolocation) return;
+        _geoPos = 'pending';
+        navigator.geolocation.watchPosition(
+            pos => { _geoPos = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }; },
+            ()  => { _geoPos = null; },
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+        );
+    }
+
+    function showEdgeFaultPanel(edge) {
+        const panel  = document.getElementById('node-info-panel');
+        const title  = document.getElementById('nip-title');
+        const fields = document.getElementById('nip-fields');
+        const bar    = document.getElementById('nip-fault-bar');
+
+        _currentFaultEdgeId = edge.id();
+        const src   = edge.data('source') || '';
+        const tgt   = edge.data('target') || '';
+        const flow  = edge.data('flow')   || '';
+        const isFaulted = (faultState[edge.id()] === 'FAULT') || (flow === 'fault');
+
+        title.textContent = `Pipe: ${src} → ${tgt}`;
+
+        function field(key, val, cls) {
+            const isEmpty = val === '' || val == null;
+            return `<div class="nip-field">
+                <span class="nip-key">${key}</span>
+                <span class="nip-val${isEmpty?' empty':''}${cls?' '+cls:''}">${isEmpty?'—':val}</span>
+            </div>`;
+        }
+
+        const flowLabel = flow === 'fault' ? '⚠ FAULT' : flow === 'active' ? '▶ Active' : flow === '' ? 'Idle' : flow;
+        const flowCls   = flow === 'fault' ? 'state-off' : flow === 'active' ? 'state-on' : '';
+        fields.innerHTML = field('Edge ID', edge.id())
+                         + field('From', src)
+                         + field('To', tgt)
+                         + field('Flow', flowLabel, flowCls);
+
+        // Fault bar
+        bar.style.display = 'flex';
+        bar.style.flexDirection = 'column';
+        setFaultStatus('');
+        onFaultPersonChange();   // update button states
+
+        // Mark faulted state on Clear button
+        document.getElementById('btn-fault-clear').style.display = isFaulted ? '' : 'none';
+        document.getElementById('btn-fault-report').textContent  = isFaulted ? '⚠ Re-report Fault' : '⚠ Report Fault';
+
+        panel.classList.add('visible');
+        ensureGeoWatch();
+    }
+
+    function onFaultPersonChange() {
+        const pid = document.getElementById('fault-person-select').value;
+        const ok  = !!pid;
+        document.getElementById('btn-fault-report').disabled = !ok;
+        document.getElementById('btn-fault-clear').disabled  = !ok;
+    }
+
+    function setFaultStatus(msg, cls) {
+        const el = document.getElementById('nip-fault-status');
+        el.textContent = msg;
+        el.className   = 'nip-fault-status' + (cls ? ' ' + cls : '');
+    }
+
+    async function submitFault(action) {
+        const pid    = document.getElementById('fault-person-select').value;
+        const person = persons.find(p => p.id === pid);
+        if (!person) { setFaultStatus('Select your name first', 'err'); return; }
+        if (!_currentFaultEdgeId) { setFaultStatus('No edge selected', 'err'); return; }
+
+        // Location check — must have a GPS fix
+        if (_geoPos === null || _geoPos === 'pending') {
+            setFaultStatus('⏳ Waiting for GPS…', 'warn');
+            ensureGeoWatch();
+            return;
+        }
+
+        // Find the zone this edge belongs to (from currentZone)
+        const zoneId = currentZone?.id || '';
+
+        document.getElementById('btn-fault-report').disabled = true;
+        document.getElementById('btn-fault-clear').disabled  = true;
+        setFaultStatus('Saving…', '');
+
+        try {
+            const edge     = cy.getElementById(_currentFaultEdgeId);
+            const edgeName = `${edge.data('source') || ''} → ${edge.data('target') || ''}`;
+            const now      = new Date();
+
+            const allFiles   = await workerGet('output');
+            const allRecs    = csvParseFault(allFiles[RECORDS_FILE] || '');
+            const rec = {
+                sn:         allRecs.length + 1,
+                deviceId:   deviceId,
+                personId:   person.id,
+                personName: person.name,
+                assetId:    _currentFaultEdgeId,
+                assetName:  edgeName,
+                action:     action,
+                timestamp:  now.toISOString(),
+                date:       todayStrFault(),
+                time:       timeStrFault(now),
+                lat:        _geoPos.lat.toFixed(7),
+                lng:        _geoPos.lng.toFixed(7),
+                distance:   '',
+                zone:       zoneId
+            };
+            allRecs.push(rec);
+            await workerPatch({ [RECORDS_FILE]: Papa.unparse(allRecs, { columns: FAULT_CSV_COLS }) });
+
+            // Update local fault state and overlay on graph
+            faultState[_currentFaultEdgeId] = action;
+            if (edge.length) {
+                if (action === 'FAULT')
+                    edge.data('flow', 'fault');
+                else if (action === 'FAULT_CLEAR')
+                    edge.data('flow', '');
+            }
+
+            const msg = action === 'FAULT' ? '⚠ Fault reported' : '✓ Fault cleared';
+            setFaultStatus(msg, action === 'FAULT' ? 'err' : 'ok');
+
+            // Refresh panel state
+            document.getElementById('btn-fault-clear').style.display = action === 'FAULT' ? '' : 'none';
+            document.getElementById('btn-fault-report').textContent  = action === 'FAULT' ? '⚠ Re-report Fault' : '⚠ Report Fault';
+        } catch(e) {
+            setFaultStatus('Error: ' + e.message, 'err');
+        } finally {
+            const pid2 = document.getElementById('fault-person-select').value;
+            document.getElementById('btn-fault-report').disabled = !pid2;
+            document.getElementById('btn-fault-clear').disabled  = !pid2;
+        }
+    }
+
+    // Extend refreshStatus to also re-apply fault overlay after each sync
+    const _origRefreshStatus = refreshStatus;
+    // (fault overlay applied inside loadZone after initial load)
+
+
 
     // ─── BOOT ─────────────────────────────────────────────────────────────────
-    loadManifest();
+    (async () => {
+        deviceId = await getDeviceId();
+        await loadPersonsConfig();
+        loadManifest();
+    })();
 </script>
 </body>
 </html>
