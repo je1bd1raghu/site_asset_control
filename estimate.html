@@ -35,19 +35,16 @@
   .section-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--text3); margin-bottom:14px; }
   .field-label   { font-size:13px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
 
-  /* Asset context banner */
   .asset-banner { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:var(--radius-sm); background:var(--warning-light); border:2px solid #FDE68A; }
   .asset-banner .ab-icon  { font-size:26px; flex-shrink:0; }
   .asset-banner .ab-title { font-size:14px; font-weight:800; color:var(--warning); }
   .asset-banner .ab-sub   { font-size:12px; font-weight:600; color:#92400E; margin-top:2px; }
 
-  /* Existing estimate banner */
   .est-existing { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:var(--radius-sm); background:var(--success-light); border:2px solid #BBF7D0; margin-bottom:14px; }
   .est-existing .ee-icon  { font-size:24px; flex-shrink:0; }
   .est-existing .ee-title { font-size:14px; font-weight:800; color:var(--success); }
   .est-existing .ee-sub   { font-size:12px; font-weight:600; color:#166534; margin-top:2px; }
 
-  /* Table */
   .tbl-wrap { overflow-x:auto; border-radius:var(--radius-sm); border:2px solid var(--border); margin-bottom:14px; }
   table { width:100%; border-collapse:collapse; min-width:520px; font-size:14px; }
   thead th { background:var(--surface2); color:var(--text2); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.7px; padding:9px 10px; text-align:left; border-bottom:2px solid var(--border); white-space:nowrap; }
@@ -65,7 +62,6 @@
   .btn-del { background:none; border:none; font-size:15px; cursor:pointer; color:var(--text3); padding:3px 6px; border-radius:6px; transition:background .12s; }
   .btn-del:hover { background:var(--danger-light); color:var(--danger); }
 
-  /* Buttons */
   .btn-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .btn { padding:11px 20px; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:800; cursor:pointer; transition:background .2s; white-space:nowrap; display:inline-flex; align-items:center; gap:7px; }
   .btn-primary { background:var(--primary); color:#fff; }
@@ -74,27 +70,8 @@
   .btn-success:hover { background:#15803d; }
   .btn-outline { background:var(--surface2); color:var(--text2); border:2px solid var(--border); }
   .btn-outline:hover { background:var(--primary-light); border-color:var(--primary); color:var(--primary); }
-  .btn-danger  { background:var(--danger); color:#fff; }
-  .btn-danger:hover { background:#b91c1c; }
   .btn:disabled { opacity:.45; cursor:not-allowed; }
 
-  /* Drop zone */
-  .drop-zone { border:2px dashed var(--border); border-radius:var(--radius-sm); padding:24px 20px; text-align:center; cursor:pointer; transition:border-color .2s, background .2s; }
-  .drop-zone:hover, .drop-zone.drag-over { border-color:var(--primary); background:var(--primary-light); }
-  .dz-icon  { font-size:32px; margin-bottom:6px; }
-  .dz-label { font-size:14px; font-weight:700; color:var(--text2); }
-  .dz-sub   { font-size:12px; font-weight:600; color:var(--text3); margin-top:3px; }
-  #fileInput { display:none; }
-
-  /* Download section */
-  .dl-card { background:var(--surface2); border-radius:var(--radius-sm); padding:14px 16px; }
-  .dl-btn { padding:9px 16px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-family:'Nunito',sans-serif; font-size:13px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:background .2s; }
-  .dl-btn:hover { background:var(--primary-dark); }
-  .dl-btn.warn { background:var(--warning); }
-  .dl-btn.warn:hover { background:#b45309; }
-  .dl-select { padding:9px 10px; border:2px solid var(--border); border-radius:8px; font-family:'Nunito',sans-serif; font-size:13px; font-weight:600; color:var(--text); background:#fff; cursor:pointer; outline:none; }
-
-  .divider { height:1px; background:var(--border); margin:16px 0; }
   .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--text); color:#fff; padding:14px 24px; border-radius:50px; font-size:14px; font-weight:700; z-index:9999; transition:transform .35s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; max-width:88vw; text-align:center; }
   .toast.show    { transform:translateX(-50%) translateY(0); }
   .toast.success { background:var(--success); }
@@ -188,20 +165,9 @@
       </table>
     </div>
 
-    <div class="btn-row" style="margin-bottom:16px;">
+    <div class="btn-row" style="margin-bottom:20px;">
       <button class="btn btn-outline" onclick="addRow()">＋ Add Row</button>
     </div>
-
-    <div class="divider"></div>
-    <div class="field-label">Import from JSON File</div>
-    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
-         ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
-      <div class="dz-icon">📂</div>
-      <div class="dz-label">Tap to choose or drag a JSON file</div>
-      <div class="dz-sub">Array of items with: particulars, quantity, unit, rate</div>
-    </div>
-    <input type="file" id="fileInput" accept=".json,application/json" onchange="onFile(event)">
-    <div class="divider"></div>
 
     <div class="btn-row">
       <button class="btn btn-success" id="btnSave" onclick="saveEstimate()">💾 Save Estimate</button>
@@ -210,44 +176,20 @@
     <div id="saveStatus" style="font-size:12px;font-weight:600;color:var(--text3);margin-top:10px;"></div>
   </div>
 
-  <!-- Download section (all estimates, month/year) -->
-  <div class="card">
-    <div class="section-title">Download Estimates</div>
-    <div class="dl-card">
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select id="dlMonth" class="dl-select">
-          <option value="01">January</option><option value="02">February</option>
-          <option value="03">March</option><option value="04">April</option>
-          <option value="05">May</option><option value="06">June</option>
-          <option value="07">July</option><option value="08">August</option>
-          <option value="09">September</option><option value="10">October</option>
-          <option value="11">November</option><option value="12">December</option>
-        </select>
-        <select id="dlYear" class="dl-select" style="width:90px;"></select>
-        <button class="dl-btn warn" onclick="downloadEstimates()">⬇ Download JSON</button>
-      </div>
-      <div id="dlStatus" style="font-size:12px;font-weight:600;color:var(--text3);margin-top:8px;min-height:16px;"></div>
-    </div>
-  </div>
-
 </div><!-- /card-wrapper -->
 
 <script>
-// ── CONSTANTS ────────────────────────────────────────────────────────────────
 const WORKER         = 'https://scada-visualizer.je1-bd1-raghu.workers.dev';
 const ESTIMATES_FILE = 'estimates.json';
 
-// ── STATE ────────────────────────────────────────────────────────────────────
 let assetId   = '';
 let assetName = '';
-let estimates = [];   // all estimates keyed by assetId
+let estimates = [];
 let rows      = [{ particulars:'', quantity:'', unit:'', rate:'' }];
 
-// ── BOOT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   updateClock();
   setInterval(updateClock, 1000);
-  populateYears();
 
   const params = new URLSearchParams(location.search);
   assetId   = params.get('asset') || '';
@@ -261,12 +203,8 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('assetBannerSub').textContent   = 'Open this page from the fault report section in Asset Control';
   }
 
-  boot();
+  loadEstimates();
 });
-
-async function boot() {
-  await loadEstimates();
-}
 
 function updateClock() {
   const now = new Date();
@@ -276,18 +214,6 @@ function updateClock() {
     `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
 }
 
-function populateYears() {
-  const sel = document.getElementById('dlYear');
-  const now = new Date();
-  for (let y = now.getFullYear(); y >= 2024; y--) {
-    const o = document.createElement('option');
-    o.value = y; o.textContent = y;
-    sel.appendChild(o);
-  }
-  document.getElementById('dlMonth').value = ('0' + (now.getMonth() + 1)).slice(-2);
-}
-
-// ── WORKER ───────────────────────────────────────────────────────────────────
 async function workerGet(endpoint) {
   const r = await fetch(`${WORKER}/${endpoint}`);
   if (!r.ok) throw new Error(`Worker ${endpoint} HTTP ${r.status}`);
@@ -309,7 +235,6 @@ async function workerPatch(fileMap) {
   if (!d.ok) throw new Error(d.error || 'Gist write failed');
 }
 
-// ── LOAD ─────────────────────────────────────────────────────────────────────
 async function loadEstimates() {
   try {
     const files = await workerGet('output');
@@ -329,7 +254,6 @@ function getForAsset() {
 function renderPage() {
   const existing = getForAsset();
   if (existing) {
-    // Show existing estimate
     document.getElementById('existingCard').style.display = '';
     document.getElementById('existingTitle').textContent  = existing.name || assetName;
     document.getElementById('existingSub').textContent    =
@@ -343,7 +267,6 @@ function renderPage() {
         <td style="text-align:right;font-weight:800;color:var(--primary);">₹${fmtNum(it.amount)}</td>
       </tr>`).join('');
     document.getElementById('existingTotal').textContent = '₹' + fmtNum(existing.total);
-    // Hide form by default; user can revise
     document.getElementById('formCard').style.display = 'none';
   } else {
     document.getElementById('existingCard').style.display = 'none';
@@ -353,7 +276,6 @@ function renderPage() {
   }
 }
 
-// ── REVISE ───────────────────────────────────────────────────────────────────
 function showReviseForm() {
   const existing = getForAsset();
   if (existing) {
@@ -379,10 +301,9 @@ function cancelRevise() {
   document.getElementById('btnCancel').style.display = 'none';
 }
 
-// ── FORM ─────────────────────────────────────────────────────────────────────
 function resetForm() {
   rows = [{ particulars:'', quantity:'', unit:'', rate:'' }];
-  document.getElementById('estName').value   = '';
+  document.getElementById('estName').value          = '';
   document.getElementById('saveStatus').textContent = '';
   document.getElementById('formTitle').textContent  = 'Upload Estimate for This Fault';
   renderEditTable();
@@ -428,33 +349,6 @@ function updateTotal() {
   document.getElementById('grandTotal').textContent = '₹' + fmtNum(t);
 }
 
-// ── FILE IMPORT ──────────────────────────────────────────────────────────────
-function dzOver(e)  { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
-function dzLeave()  { document.getElementById('dropZone').classList.remove('drag-over'); }
-function dzDrop(e)  { e.preventDefault(); dzLeave(); const f=e.dataTransfer.files[0]; if(f) parseFile(f); }
-function onFile(e)  { const f=e.target.files[0]; if(f) parseFile(f); }
-
-function parseFile(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      let data = JSON.parse(e.target.result);
-      if (!Array.isArray(data)) data = data.items || data.data || [];
-      if (!data.length) { showToast('No items found in JSON','warning'); return; }
-      rows = data.map(it => ({
-        particulars: it.particulars || it.description || it.particular || it.item || '',
-        quantity:    it.quantity    || it.qty         || it.qnty       || 0,
-        unit:        it.unit        || it.uom         || '',
-        rate:        it.rate        || it.unitRate     || it.price      || 0,
-      }));
-      renderEditTable();
-      showToast(`✓ Imported ${rows.length} items`, 'success');
-    } catch { showToast('Invalid JSON file','error'); }
-  };
-  reader.readAsText(file);
-}
-
-// ── SAVE ─────────────────────────────────────────────────────────────────────
 async function saveEstimate() {
   if (!assetId) { showToast('No fault asset — open from fault section','warning'); return; }
   const name = (document.getElementById('estName').value||'').trim();
@@ -477,10 +371,9 @@ async function saveEstimate() {
 
   const est = { id: Date.now().toString(), assetId, assetName, name, date: dateStr, items, total };
 
-  document.getElementById('btnSave').disabled  = true;
-  document.getElementById('saveStatus').textContent = 'Saving…';
+  document.getElementById('btnSave').disabled        = true;
+  document.getElementById('saveStatus').textContent  = 'Saving…';
 
-  // Replace existing estimate for this asset (or push new)
   const idx = estimates.findIndex(e => e.assetId === assetId);
   if (idx >= 0) estimates[idx] = est; else estimates.push(est);
 
@@ -491,7 +384,6 @@ async function saveEstimate() {
     cancelRevise();
     renderPage();
   } catch(e) {
-    // rollback
     if (idx >= 0) estimates[idx] = estimates[idx]; else estimates.pop();
     document.getElementById('saveStatus').textContent = 'Error: ' + e.message;
     showToast('Save failed','error');
@@ -500,40 +392,6 @@ async function saveEstimate() {
   }
 }
 
-// ── DOWNLOAD ─────────────────────────────────────────────────────────────────
-async function downloadEstimates() {
-  const month  = document.getElementById('dlMonth').value;
-  const year   = document.getElementById('dlYear').value;
-  const status = document.getElementById('dlStatus');
-  status.style.color = 'var(--text3)';
-  status.textContent = 'Fetching…';
-  try {
-    const files = await workerGet('output');
-    const raw   = files[ESTIMATES_FILE];
-    const all   = raw ? JSON.parse(raw) : [];
-    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const mName  = MONTHS[parseInt(month,10)-1];
-    const filtered = all.filter(e => (e.date||'').includes(mName) && (e.date||'').includes(year));
-    if (!filtered.length) {
-      status.style.color = 'var(--warning)';
-      status.textContent = `No estimates for ${mName} ${year}.`;
-      return;
-    }
-    const compact = '[\n' + filtered.map(e => '  ' + JSON.stringify(e)).join(',\n') + '\n]';
-    const blob = new Blob([compact], { type:'application/json;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = `estimates_${year}_${month}.json`; a.click();
-    URL.revokeObjectURL(url);
-    status.style.color = 'var(--success)';
-    status.textContent = `✓ Downloaded ${filtered.length} estimate(s) for ${mName} ${year}.`;
-  } catch(e) {
-    status.style.color = 'var(--danger)';
-    status.textContent = 'Error: ' + e.message;
-  }
-}
-
-// ── UTILS ─────────────────────────────────────────────────────────────────────
 function fmtNum(n, dec=true) {
   return (parseFloat(n)||0).toLocaleString('en-IN', { minimumFractionDigits: dec?2:0, maximumFractionDigits:2 });
 }

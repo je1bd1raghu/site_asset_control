@@ -162,6 +162,38 @@
   .toast.error   { background:var(--danger); }
   .toast.warning { background:var(--warning); }
 
+  /* CSV Download Modal */
+  .modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:1000; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity .25s; }
+  .modal-backdrop.open { opacity:1; pointer-events:auto; }
+  .modal-sheet { background:var(--surface); border-radius:24px 24px 0 0; width:100%; max-width:540px; padding:24px 20px 32px; transform:translateY(100%); transition:transform .3s cubic-bezier(.34,1.2,.64,1); box-shadow:0 -8px 40px rgba(0,0,0,.15); }
+  .modal-backdrop.open .modal-sheet { transform:translateY(0); }
+  .modal-handle { width:40px; height:4px; border-radius:2px; background:var(--border); margin:0 auto 20px; }
+  .modal-title { font-size:15px; font-weight:800; color:var(--text); margin-bottom:4px; }
+  .modal-sub   { font-size:12px; font-weight:600; color:var(--text3); margin-bottom:18px; }
+  .modal-est-list { display:flex; flex-direction:column; gap:8px; max-height:40vh; overflow-y:auto; margin-bottom:18px; }
+  .modal-est-item { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:var(--radius-sm); border:2px solid var(--border); cursor:pointer; transition:border-color .15s, background .15s; user-select:none; }
+  .modal-est-item:hover { border-color:var(--primary); background:var(--primary-light); }
+  .modal-est-item.selected { border-color:var(--primary); background:var(--primary-light); }
+  .modal-est-item .mei-check { width:20px; height:20px; border-radius:6px; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; transition:background .15s, border-color .15s; }
+  .modal-est-item.selected .mei-check { background:var(--primary); border-color:var(--primary); color:#fff; }
+  .modal-est-item .mei-body { flex:1; min-width:0; }
+  .modal-est-item .mei-name { font-size:13px; font-weight:800; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .modal-est-item .mei-meta { font-size:11px; font-weight:600; color:var(--text3); margin-top:1px; }
+  .modal-divider { height:1px; background:var(--border); margin:4px 0 14px; }
+  .modal-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .modal-btn { flex:1; min-width:120px; padding:12px 10px; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:800; cursor:pointer; transition:background .2s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+  .modal-btn-primary { background:var(--primary); color:#fff; }
+  .modal-btn-primary:hover { background:var(--primary-dark); }
+  .modal-btn-success { background:var(--success); color:#fff; }
+  .modal-btn-success:hover { background:#15803d; }
+  .modal-btn-outline { background:var(--surface2); color:var(--text2); border:2px solid var(--border); }
+  .modal-btn-outline:hover { background:var(--primary-light); border-color:var(--primary); color:var(--primary); }
+  .modal-btn:disabled { opacity:.4; cursor:not-allowed; }
+  .modal-select-all { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:var(--radius-sm); background:var(--surface2); border:2px solid var(--border); cursor:pointer; margin-bottom:10px; font-size:13px; font-weight:700; color:var(--text2); user-select:none; transition:border-color .15s; }
+  .modal-select-all:hover { border-color:var(--primary); color:var(--primary); }
+  .modal-select-all .msa-check { width:20px; height:20px; border-radius:6px; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; transition:background .15s, border-color .15s; }
+  .modal-select-all.all-selected .msa-check { background:var(--primary); border-color:var(--primary); color:#fff; }
+
   @keyframes spin { to { transform:rotate(360deg); } }
   .loading-screen { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; gap:14px; transition:opacity .4s; }
   .loading-screen.hide { opacity:0; pointer-events:none; }
@@ -172,6 +204,7 @@
 </style>
 <script src="libs/fp.min.js"></script>
 <script src="libs/papaparse.min.js"></script>
+<script src="libs/fflate.js"></script>
 </head>
 <body>
 
@@ -287,13 +320,36 @@
         </select>
         <select id="dlYear" class="dl-select"></select>
         <button class="btn-download" onclick="downloadRecords()">⬇ Records CSV</button>
-        <button class="btn-download" onclick="downloadEstimates()" style="background:var(--warning);white-space:nowrap;">📋 Estimates JSON</button>
+        <button class="btn-download" onclick="openDownloadModal()" style="background:var(--warning);white-space:nowrap;">📋 Download Estimates</button>
       </div>
       <div id="dlStatus" style="font-size:12px;font-weight:600;color:var(--text3);margin-top:8px;min-height:18px"></div>
     </div>
   </div>
 
   <div style="height:24px"></div>
+</div>
+
+<!-- CSV Download Modal -->
+<div class="modal-backdrop" id="csvModal" onclick="modalBackdropClick(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Download Estimates as CSV</div>
+    <div class="modal-sub" id="modalSub">Select estimates to download</div>
+
+    <div class="modal-select-all" id="modalSelectAll" onclick="toggleSelectAll()">
+      <div class="msa-check" id="msaCheck"></div>
+      <span>Select all &amp; download summary CSV</span>
+    </div>
+
+    <div class="modal-est-list" id="modalEstList"></div>
+
+    <div class="modal-divider"></div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-primary" id="btnDownloadSelected" onclick="downloadSelected()" disabled>⬇ Download Selected</button>
+      <button class="modal-btn modal-btn-success" id="btnDownloadZip" onclick="downloadAllZip()" disabled>📦 Download All (ZIP)</button>
+      <button class="modal-btn modal-btn-outline" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1107,12 +1163,15 @@ async function downloadRecords() {
   }
 }
 
-async function downloadEstimates() {
+// ── CSV DOWNLOAD MODAL ────────────────────────────────────────────────────────
+let _modalEstimates = [];
+let _selectedIds    = new Set();
+
+async function openDownloadModal() {
   const month  = $('dlMonth').value;
   const year   = $('dlYear').value;
   const status = $('dlStatus');
   const btn    = document.querySelectorAll('.btn-download')[1];
-
   btn.disabled = true;
   status.style.color = 'var(--text3)';
   status.textContent = 'Fetching estimates…';
@@ -1120,51 +1179,147 @@ async function downloadEstimates() {
   try {
     const files = await workerGet('output');
     const raw   = files[ESTIMATES_FILE];
-    if (!raw) {
-      status.style.color = 'var(--warning)';
-      status.textContent = 'No estimates file found on server.';
-      return;
-    }
+    if (!raw) { status.style.color='var(--warning)'; status.textContent='No estimates file found.'; return; }
     const all = JSON.parse(raw);
-    if (!Array.isArray(all) || !all.length) {
-      status.style.color = 'var(--warning)';
-      status.textContent = 'No estimates saved yet.';
-      return;
-    }
+    if (!Array.isArray(all) || !all.length) { status.style.color='var(--warning)'; status.textContent='No estimates saved yet.'; return; }
 
-    // Filter by month+year using the date string stored on each estimate
-    // date format: "22 May 2026, 04:30 pm" — match year and month name
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const monthName = MONTHS[parseInt(month, 10) - 1];
-    const filtered  = all.filter(e => {
-      const d = e.date || '';
-      return d.includes(monthName) && d.includes(year);
-    });
+    const monthName = MONTHS[parseInt(month,10)-1];
+    _modalEstimates = all.filter(e => { const d=e.date||''; return d.includes(monthName)&&d.includes(year); });
 
-    if (!filtered.length) {
+    if (!_modalEstimates.length) {
       status.style.color = 'var(--warning)';
       status.textContent = `No estimates found for ${monthName} ${year}.`;
       return;
     }
-
-    // Compact single-line-per-entry JSON
-    const compact = '[\n' + filtered.map(e => '  ' + JSON.stringify(e)).join(',\n') + '\n]';
-    const blob    = new Blob([compact], { type: 'application/json;charset=utf-8;' });
-    const url     = URL.createObjectURL(blob);
-    const a       = document.createElement('a');
-    a.href        = url;
-    a.download    = `estimates_${year}_${month}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    status.style.color = 'var(--success)';
-    status.textContent = `✓ Downloaded ${filtered.length} estimate${filtered.length > 1 ? 's' : ''} for ${monthName} ${year}.`;
+    status.textContent = '';
+    document.getElementById('modalSub').textContent = `${_modalEstimates.length} estimate(s) found for ${monthName} ${year}`;
+    _selectedIds.clear();
+    renderModalList();
+    document.getElementById('csvModal').classList.add('open');
   } catch(e) {
     status.style.color = 'var(--danger)';
     status.textContent = 'Error: ' + e.message;
   } finally {
     btn.disabled = false;
   }
+}
+
+function renderModalList() {
+  const list = document.getElementById('modalEstList');
+  list.innerHTML = _modalEstimates.map((e,i) => {
+    const id  = e.assetId || ('est_'+i);
+    const sel = _selectedIds.has(id);
+    const nm  = (e.name||e.assetId||'Unnamed estimate').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const aid = (e.assetId||'').replace(/</g,'&lt;');
+    const dt  = (e.date||'').replace(/</g,'&lt;');
+    const tot = (parseFloat(e.total)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+    return `<div class="modal-est-item${sel?' selected':''}" onclick="toggleEstItem('${id.replace(/'/g,"\\'")}')">
+      <div class="mei-check">${sel?'✓':''}</div>
+      <div class="mei-body">
+        <div class="mei-name">${nm}</div>
+        <div class="mei-meta">${aid} · ${dt} · ₹${tot}</div>
+      </div>
+    </div>`;
+  }).join('');
+  updateModalButtons();
+}
+
+function toggleEstItem(id) {
+  if (_selectedIds.has(id)) _selectedIds.delete(id); else _selectedIds.add(id);
+  renderModalList();
+  const allSel = _selectedIds.size === _modalEstimates.length;
+  const sa = document.getElementById('modalSelectAll');
+  sa.classList.toggle('all-selected', allSel);
+  document.getElementById('msaCheck').textContent = allSel ? '✓' : '';
+}
+
+function toggleSelectAll() {
+  const allSel = _selectedIds.size === _modalEstimates.length;
+  _selectedIds.clear();
+  if (!allSel) _modalEstimates.forEach((e,i) => _selectedIds.add(e.assetId||('est_'+i)));
+  const sa = document.getElementById('modalSelectAll');
+  sa.classList.toggle('all-selected', !allSel);
+  document.getElementById('msaCheck').textContent = !allSel ? '✓' : '';
+  renderModalList();
+}
+
+function updateModalButtons() {
+  const n = _selectedIds.size;
+  const bSel = document.getElementById('btnDownloadSelected');
+  const bZip = document.getElementById('btnDownloadZip');
+  bSel.disabled = (n === 0);
+  bSel.textContent = n > 0 ? `⬇ Download ${n} CSV${n>1?'s':''}` : '⬇ Download Selected';
+  bZip.disabled = (n < 2);
+  bZip.textContent = n >= 2 ? `📦 Download All as ZIP (${n})` : '📦 Download All (ZIP)';
+}
+
+function closeModal() { document.getElementById('csvModal').classList.remove('open'); }
+function modalBackdropClick(e) { if (e.target===document.getElementById('csvModal')) closeModal(); }
+
+// CSV helpers
+function estToCsv(e) {
+  const lines = [];
+  lines.push(['Estimate Name', csvCell(e.name||'')].join(','));
+  lines.push(['Asset ID',      csvCell(e.assetId||'')].join(','));
+  lines.push(['Date',          csvCell(e.date||'')].join(','));
+  lines.push('');
+  lines.push(['Sl.','Particulars','Qty','Unit','Rate (₹)','Amount (₹)'].join(','));
+  (e.items||[]).forEach((it,i) => {
+    lines.push([i+1, csvCell(it.particulars), it.quantity, csvCell(it.unit), it.rate, it.amount].join(','));
+  });
+  lines.push(['','','','','Grand Total (₹)', e.total||0].join(','));
+  return lines.join('\r\n');
+}
+function summaryCsv(ests) {
+  const lines = [['Sl.','Asset ID','Estimate Name','Date','Items','Grand Total (₹)'].join(',')];
+  ests.forEach((e,i) => lines.push([i+1, csvCell(e.assetId||''), csvCell(e.name||''), csvCell(e.date||''), (e.items||[]).length, e.total||0].join(',')));
+  return lines.join('\r\n');
+}
+function csvCell(s) {
+  s = String(s||'');
+  return (s.includes(',')||s.includes('"')||s.includes('\n')) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function triggerCsvDownload(csv, filename) {
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a'); a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadSelected() {
+  const sel = _modalEstimates.filter((e,i) => _selectedIds.has(e.assetId||('est_'+i)));
+  if (!sel.length) return;
+  if (sel.length === 1) {
+    triggerCsvDownload(estToCsv(sel[0]), `estimate_${(sel[0].assetId||'unknown').replace(/\s+/g,'_')}.csv`);
+    showToast('✓ CSV downloaded','success');
+  } else {
+    triggerCsvDownload(summaryCsv(sel), `estimates_summary_${sel.length}items.csv`);
+    showToast(`✓ Summary CSV downloaded (${sel.length} estimates)`,'success');
+  }
+  closeModal();
+  $('dlStatus').style.color='var(--success)';
+  $('dlStatus').textContent=`✓ Downloaded CSV for ${sel.length} estimate(s).`;
+}
+
+async function downloadAllZip() {
+  const sel = _modalEstimates.filter((e,i) => _selectedIds.has(e.assetId||('est_'+i)));
+  if (sel.length < 2) return;
+  const enc = new TextEncoder();
+  const zipData = {};
+  sel.forEach((e,i) => {
+    const fname = `estimate_${(e.assetId||('est_'+(i+1))).replace(/[^\w\-]/g,'_')}.csv`;
+    zipData[fname] = enc.encode(estToCsv(e));
+  });
+  const zipped = fflate.zipSync(zipData, { level: 6 });
+  const blob = new Blob([zipped], { type:'application/zip' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a'); a.href=url; a.download=`estimates_${sel.length}files.zip`; a.click();
+  URL.revokeObjectURL(url);
+  closeModal();
+  showToast(`✓ ZIP with ${sel.length} CSVs downloaded`, 'success');
+  $('dlStatus').style.color='var(--success)';
+  $('dlStatus').textContent=`✓ Downloaded ${sel.length} CSV file(s).`;
 }
 function $(id) { return document.getElementById(id); }
 function pad(n) { return n < 10 ? '0'+n : ''+n; }
