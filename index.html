@@ -976,9 +976,17 @@ async function loadAllEdges() {
 function deriveFaultStateFromRecords() {
   faultEdgeState = {};
   const recs = (window._allFaultRecs || todayRecs);
+  // Track the latest timestamp per assetId so a newer FAULT_CLEAR doesn't get
+  // overwritten by an older FAULT that appears later in the array.
+  const latestTs = {};
   recs.forEach(r => {
-    if ((r.action === 'FAULT' || r.action === 'FAULT_CLEAR') && r.assetId)
-      faultEdgeState[r.assetId] = r.action;
+    if ((r.action === 'FAULT' || r.action === 'FAULT_CLEAR') && r.assetId) {
+      const ts = r.timestamp || '';
+      if (!latestTs[r.assetId] || ts > latestTs[r.assetId]) {
+        latestTs[r.assetId] = ts;
+        faultEdgeState[r.assetId] = r.action;
+      }
+    }
   });
 }
 
