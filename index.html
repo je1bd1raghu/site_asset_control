@@ -944,7 +944,7 @@ function setFaultSubmitStatus(msg, color) {
 }
 
 // ── CSV ────────────────────────────────────────────────────────────────────────
-const CSV_COLS = ['sn','deviceId','personId','personName','assetId','assetName','action','timestamp','date','time','lat','lng','distance','zone'];
+const CSV_COLS = ['sn','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','deviceId'];
 function csvParse(text) {
   if (!text?.trim()) return [];
   return Papa.parse(text.trim(), { header: true, skipEmptyLines: true }).data;

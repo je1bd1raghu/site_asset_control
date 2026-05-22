@@ -949,8 +949,8 @@
         return Papa.parse(text.trim(), { header: true, skipEmptyLines: true }).data;
     }
 
-    const FAULT_CSV_COLS = ['sn','deviceId','personId','personName','assetId','assetName',
-                            'action','timestamp','date','time','lat','lng','distance','zone'];
+    const FAULT_CSV_COLS = ['sn','personId','personName','zone','assetId','assetName',
+                            'action','timestamp','date','time','lat','lng','distance','deviceId'];
     function pad2(n) { return n < 10 ? '0'+n : ''+n; }
     function todayStrFault() {
         const d = new Date();
