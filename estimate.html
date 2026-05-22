@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Fault Estimate — SCADA Asset Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F4F6FA; --surface: #FFFFFF; --surface2: #F0F4FF;
+    --primary: #2563EB; --primary-dark: #1D4ED8; --primary-light: #EFF6FF;
+    --success: #16A34A; --success-light: #F0FDF4;
+    --danger: #DC2626;  --danger-light: #FEF2F2;
+    --warning: #D97706; --warning-light: #FFFBEB;
+    --text: #1E293B; --text2: #475569; --text3: #94A3B8; --border: #E2E8F0;
+    --radius: 16px; --radius-sm: 10px;
+    --shadow: 0 2px 12px rgba(0,0,0,.07); --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
+  }
+  body { font-family:'Nunito','Noto Sans Bengali',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:16px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+
+  .header { background:var(--primary); color:#fff; padding:20px 20px 60px; text-align:center; position:relative; }
+  .header h1 { font-size:20px; font-weight:800; letter-spacing:-.3px; }
+  .header p  { font-size:12px; opacity:.8; margin-top:2px; }
+  .header-left  { position:absolute; left:16px; top:20px; }
+  .header-right { position:absolute; right:16px; top:20px; }
+  .scada-link { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.15); border:1.5px solid rgba(255,255,255,.35); border-radius:10px; color:#fff; padding:6px 12px; font-size:12px; font-weight:800; text-decoration:none; letter-spacing:.4px; transition:background .2s; white-space:nowrap; }
+  .scada-link:hover { background:rgba(255,255,255,.28); }
+
+  .card-wrapper { padding:0 16px; margin-top:-40px; position:relative; z-index:10; }
+  .card { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow-lg); padding:24px; margin-bottom:16px; }
+
+  .section-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--text3); margin-bottom:14px; }
+  .field-label   { font-size:13px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
+
+  /* Asset context banner */
+  .asset-banner { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:var(--radius-sm); background:var(--warning-light); border:2px solid #FDE68A; }
+  .asset-banner .ab-icon  { font-size:26px; flex-shrink:0; }
+  .asset-banner .ab-title { font-size:14px; font-weight:800; color:var(--warning); }
+  .asset-banner .ab-sub   { font-size:12px; font-weight:600; color:#92400E; margin-top:2px; }
+
+  /* Existing estimate banner */
+  .est-existing { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:var(--radius-sm); background:var(--success-light); border:2px solid #BBF7D0; margin-bottom:14px; }
+  .est-existing .ee-icon  { font-size:24px; flex-shrink:0; }
+  .est-existing .ee-title { font-size:14px; font-weight:800; color:var(--success); }
+  .est-existing .ee-sub   { font-size:12px; font-weight:600; color:#166534; margin-top:2px; }
+
+  /* Table */
+  .tbl-wrap { overflow-x:auto; border-radius:var(--radius-sm); border:2px solid var(--border); margin-bottom:14px; }
+  table { width:100%; border-collapse:collapse; min-width:520px; font-size:14px; }
+  thead th { background:var(--surface2); color:var(--text2); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.7px; padding:9px 10px; text-align:left; border-bottom:2px solid var(--border); white-space:nowrap; }
+  thead th.r { text-align:right; }
+  tbody tr { border-bottom:1px solid var(--border); transition:background .12s; }
+  tbody tr:last-child { border-bottom:none; }
+  tbody tr:hover { background:var(--primary-light); }
+  tbody td { padding:8px 10px; color:var(--text); font-weight:600; vertical-align:middle; }
+  tbody td input { width:100%; border:none; outline:none; background:transparent; font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:600; color:var(--text); }
+  tbody td input.ri { text-align:right; }
+  tbody td input:focus { background:var(--primary-light); border-radius:4px; padding:2px 4px; }
+  tfoot td { padding:9px 10px; background:var(--surface2); font-weight:800; font-size:14px; border-top:2px solid var(--border); }
+  tfoot .total-val { text-align:right; color:var(--primary); font-size:16px; }
+  .sno { color:var(--text3); font-size:12px; font-weight:700; }
+  .btn-del { background:none; border:none; font-size:15px; cursor:pointer; color:var(--text3); padding:3px 6px; border-radius:6px; transition:background .12s; }
+  .btn-del:hover { background:var(--danger-light); color:var(--danger); }
+
+  /* Buttons */
+  .btn-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .btn { padding:11px 20px; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:800; cursor:pointer; transition:background .2s; white-space:nowrap; display:inline-flex; align-items:center; gap:7px; }
+  .btn-primary { background:var(--primary); color:#fff; }
+  .btn-primary:hover { background:var(--primary-dark); }
+  .btn-success { background:var(--success); color:#fff; }
+  .btn-success:hover { background:#15803d; }
+  .btn-outline { background:var(--surface2); color:var(--text2); border:2px solid var(--border); }
+  .btn-outline:hover { background:var(--primary-light); border-color:var(--primary); color:var(--primary); }
+  .btn-danger  { background:var(--danger); color:#fff; }
+  .btn-danger:hover { background:#b91c1c; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+
+  /* Drop zone */
+  .drop-zone { border:2px dashed var(--border); border-radius:var(--radius-sm); padding:24px 20px; text-align:center; cursor:pointer; transition:border-color .2s, background .2s; }
+  .drop-zone:hover, .drop-zone.drag-over { border-color:var(--primary); background:var(--primary-light); }
+  .dz-icon  { font-size:32px; margin-bottom:6px; }
+  .dz-label { font-size:14px; font-weight:700; color:var(--text2); }
+  .dz-sub   { font-size:12px; font-weight:600; color:var(--text3); margin-top:3px; }
+  #fileInput { display:none; }
+
+  /* Download section */
+  .dl-card { background:var(--surface2); border-radius:var(--radius-sm); padding:14px 16px; }
+  .dl-btn { padding:9px 16px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-family:'Nunito',sans-serif; font-size:13px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:background .2s; }
+  .dl-btn:hover { background:var(--primary-dark); }
+  .dl-btn.warn { background:var(--warning); }
+  .dl-btn.warn:hover { background:#b45309; }
+  .dl-select { padding:9px 10px; border:2px solid var(--border); border-radius:8px; font-family:'Nunito',sans-serif; font-size:13px; font-weight:600; color:var(--text); background:#fff; cursor:pointer; outline:none; }
+
+  .divider { height:1px; background:var(--border); margin:16px 0; }
+  .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--text); color:#fff; padding:14px 24px; border-radius:50px; font-size:14px; font-weight:700; z-index:9999; transition:transform .35s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; max-width:88vw; text-align:center; }
+  .toast.show    { transform:translateX(-50%) translateY(0); }
+  .toast.success { background:var(--success); }
+  .toast.error   { background:var(--danger); }
+  .toast.warning { background:var(--warning); }
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<div class="header">
+  <div class="header-left"><a href="index.html" class="scada-link">← Asset Control</a></div>
+  <p id="headerDate">Loading…</p>
+  <h1>📋 Fault Estimate</h1>
+  <div class="header-right"><a href="scada-visualizer.html" class="scada-link">🌊 SCADA View</a></div>
+</div>
+
+<div class="card-wrapper">
+
+  <!-- Asset context banner -->
+  <div class="card" id="assetBannerCard">
+    <div class="asset-banner" id="assetBanner">
+      <div class="ab-icon">⚠️</div>
+      <div>
+        <div class="ab-title" id="assetBannerTitle">Loading fault…</div>
+        <div class="ab-sub"   id="assetBannerSub">Fetching asset information</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Existing estimate (if any) -->
+  <div class="card" id="existingCard" style="display:none">
+    <div class="section-title">Current Estimate for This Fault</div>
+    <div class="est-existing">
+      <div class="ee-icon">✅</div>
+      <div>
+        <div class="ee-title" id="existingTitle">Estimate already uploaded</div>
+        <div class="ee-sub"   id="existingSub"></div>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table id="existingTable">
+        <thead><tr>
+          <th style="width:36px">Sl.</th>
+          <th>Particulars</th>
+          <th class="r" style="width:90px">Qty / Unit</th>
+          <th class="r" style="width:90px">Rate (₹)</th>
+          <th class="r" style="width:100px">Amount (₹)</th>
+        </tr></thead>
+        <tbody id="existingBody"></tbody>
+        <tfoot><tr>
+          <td colspan="4" style="padding:9px 10px;font-weight:800;font-size:14px;color:var(--text2);">Grand Total</td>
+          <td class="total-val" id="existingTotal">₹ 0</td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="showReviseForm()">✏ Revise Estimate</button>
+    </div>
+  </div>
+
+  <!-- Upload / Edit form -->
+  <div class="card" id="formCard">
+    <div class="section-title" id="formTitle">Upload Estimate for This Fault</div>
+
+    <div class="field-label">Estimate Title / Reference</div>
+    <div style="margin-bottom:16px;">
+      <input type="text" id="estName" placeholder="e.g. Zone-B Pipe Burst Repair — June 2026"
+        style="width:100%;border:2px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;font-size:15px;font-family:'Nunito',sans-serif;font-weight:600;color:var(--text);outline:none;transition:border-color .2s;"
+        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+    </div>
+
+    <div class="field-label">Line Items</div>
+    <div class="tbl-wrap">
+      <table id="editTable">
+        <thead><tr>
+          <th style="width:36px">Sl.</th>
+          <th>Particulars</th>
+          <th class="r" style="width:70px">Qty</th>
+          <th style="width:70px">Unit</th>
+          <th class="r" style="width:90px">Rate (₹)</th>
+          <th class="r" style="width:100px">Amount (₹)</th>
+          <th style="width:36px"></th>
+        </tr></thead>
+        <tbody id="editBody"></tbody>
+        <tfoot><tr>
+          <td colspan="5" style="padding:9px 10px;background:var(--surface2);font-weight:800;font-size:14px;border-top:2px solid var(--border);color:var(--text2);">Grand Total</td>
+          <td style="padding:9px 10px;background:var(--surface2);font-weight:800;font-size:16px;border-top:2px solid var(--border);color:var(--primary);text-align:right;" id="grandTotal">₹ 0</td>
+          <td style="background:var(--surface2);border-top:2px solid var(--border);"></td>
+        </tr></tfoot>
+      </table>
+    </div>
+
+    <div class="btn-row" style="margin-bottom:16px;">
+      <button class="btn btn-outline" onclick="addRow()">＋ Add Row</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="field-label">Import from JSON File</div>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+         ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
+      <div class="dz-icon">📂</div>
+      <div class="dz-label">Tap to choose or drag a JSON file</div>
+      <div class="dz-sub">Array of items with: particulars, quantity, unit, rate</div>
+    </div>
+    <input type="file" id="fileInput" accept=".json,application/json" onchange="onFile(event)">
+    <div class="divider"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-success" id="btnSave" onclick="saveEstimate()">💾 Save Estimate</button>
+      <button class="btn btn-outline"  id="btnCancel" onclick="cancelRevise()" style="display:none">Cancel</button>
+    </div>
+    <div id="saveStatus" style="font-size:12px;font-weight:600;color:var(--text3);margin-top:10px;"></div>
+  </div>
+
+  <!-- Download section (all estimates, month/year) -->
+  <div class="card">
+    <div class="section-title">Download Estimates</div>
+    <div class="dl-card">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="dlMonth" class="dl-select">
+          <option value="01">January</option><option value="02">February</option>
+          <option value="03">March</option><option value="04">April</option>
+          <option value="05">May</option><option value="06">June</option>
+          <option value="07">July</option><option value="08">August</option>
+          <option value="09">September</option><option value="10">October</option>
+          <option value="11">November</option><option value="12">December</option>
+        </select>
+        <select id="dlYear" class="dl-select" style="width:90px;"></select>
+        <button class="dl-btn warn" onclick="downloadEstimates()">⬇ Download JSON</button>
+      </div>
+      <div id="dlStatus" style="font-size:12px;font-weight:600;color:var(--text3);margin-top:8px;min-height:16px;"></div>
+    </div>
+  </div>
+
+</div><!-- /card-wrapper -->
+
+<script>
+// ── CONSTANTS ────────────────────────────────────────────────────────────────
+const WORKER         = 'https://scada-visualizer.je1-bd1-raghu.workers.dev';
+const ESTIMATES_FILE = 'estimates.json';
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let assetId   = '';
+let assetName = '';
+let estimates = [];   // all estimates keyed by assetId
+let rows      = [{ particulars:'', quantity:'', unit:'', rate:'' }];
+
+// ── BOOT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  updateClock();
+  setInterval(updateClock, 1000);
+  populateYears();
+
+  const params = new URLSearchParams(location.search);
+  assetId   = params.get('asset') || '';
+  assetName = params.get('name')  || assetId;
+
+  if (assetId) {
+    document.getElementById('assetBannerTitle').textContent = '⚠ Fault: ' + assetName;
+    document.getElementById('assetBannerSub').textContent   = 'Estimate will be linked to asset: ' + assetId;
+  } else {
+    document.getElementById('assetBannerTitle').textContent = 'No fault asset specified';
+    document.getElementById('assetBannerSub').textContent   = 'Open this page from the fault report section in Asset Control';
+  }
+
+  boot();
+});
+
+async function boot() {
+  await loadEstimates();
+}
+
+function updateClock() {
+  const now = new Date();
+  const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('headerDate').textContent =
+    `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+}
+
+function populateYears() {
+  const sel = document.getElementById('dlYear');
+  const now = new Date();
+  for (let y = now.getFullYear(); y >= 2024; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    sel.appendChild(o);
+  }
+  document.getElementById('dlMonth').value = ('0' + (now.getMonth() + 1)).slice(-2);
+}
+
+// ── WORKER ───────────────────────────────────────────────────────────────────
+async function workerGet(endpoint) {
+  const r = await fetch(`${WORKER}/${endpoint}`);
+  if (!r.ok) throw new Error(`Worker ${endpoint} HTTP ${r.status}`);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return d.files;
+}
+
+async function workerPatch(fileMap) {
+  const files = {};
+  for (const [k, v] of Object.entries(fileMap))
+    files[k] = { content: typeof v === 'string' ? v : JSON.stringify(v) };
+  const r = await fetch(`${WORKER}/output`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ files })
+  });
+  if (!r.ok) throw new Error(`Worker write HTTP ${r.status}`);
+  const d = await r.json();
+  if (!d.ok) throw new Error(d.error || 'Gist write failed');
+}
+
+// ── LOAD ─────────────────────────────────────────────────────────────────────
+async function loadEstimates() {
+  try {
+    const files = await workerGet('output');
+    const raw   = files[ESTIMATES_FILE];
+    estimates   = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(estimates)) estimates = [];
+  } catch(e) {
+    estimates = [];
+  }
+  renderPage();
+}
+
+function getForAsset() {
+  return estimates.find(e => e.assetId === assetId) || null;
+}
+
+function renderPage() {
+  const existing = getForAsset();
+  if (existing) {
+    // Show existing estimate
+    document.getElementById('existingCard').style.display = '';
+    document.getElementById('existingTitle').textContent  = existing.name || assetName;
+    document.getElementById('existingSub').textContent    =
+      `${existing.items.length} items · ₹${fmtNum(existing.total)} · Saved ${existing.date}`;
+    document.getElementById('existingBody').innerHTML = existing.items.map((it, i) => `
+      <tr>
+        <td class="sno">${i+1}</td>
+        <td>${esc(it.particulars)}</td>
+        <td style="text-align:right;">${fmtNum(it.quantity, false)} ${esc(it.unit)}</td>
+        <td style="text-align:right;">₹${fmtNum(it.rate)}</td>
+        <td style="text-align:right;font-weight:800;color:var(--primary);">₹${fmtNum(it.amount)}</td>
+      </tr>`).join('');
+    document.getElementById('existingTotal').textContent = '₹' + fmtNum(existing.total);
+    // Hide form by default; user can revise
+    document.getElementById('formCard').style.display = 'none';
+  } else {
+    document.getElementById('existingCard').style.display = 'none';
+    document.getElementById('formCard').style.display     = '';
+    document.getElementById('btnCancel').style.display    = 'none';
+    resetForm();
+  }
+}
+
+// ── REVISE ───────────────────────────────────────────────────────────────────
+function showReviseForm() {
+  const existing = getForAsset();
+  if (existing) {
+    rows = existing.items.map(it => ({
+      particulars: it.particulars,
+      quantity:    it.quantity,
+      unit:        it.unit,
+      rate:        it.rate
+    }));
+    document.getElementById('estName').value = existing.name;
+  } else {
+    resetForm();
+  }
+  document.getElementById('formTitle').textContent      = 'Revise Estimate';
+  document.getElementById('formCard').style.display     = '';
+  document.getElementById('btnCancel').style.display    = '';
+  renderEditTable();
+  document.getElementById('formCard').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function cancelRevise() {
+  document.getElementById('formCard').style.display  = 'none';
+  document.getElementById('btnCancel').style.display = 'none';
+}
+
+// ── FORM ─────────────────────────────────────────────────────────────────────
+function resetForm() {
+  rows = [{ particulars:'', quantity:'', unit:'', rate:'' }];
+  document.getElementById('estName').value   = '';
+  document.getElementById('saveStatus').textContent = '';
+  document.getElementById('formTitle').textContent  = 'Upload Estimate for This Fault';
+  renderEditTable();
+}
+
+function addRow() {
+  rows.push({ particulars:'', quantity:'', unit:'', rate:'' });
+  renderEditTable();
+  const inputs = document.querySelectorAll('#editBody input.pi');
+  if (inputs.length) inputs[inputs.length-1].focus();
+}
+
+function delRow(i) {
+  if (rows.length <= 1) { showToast('At least one row required','warning'); return; }
+  rows.splice(i, 1);
+  renderEditTable();
+}
+
+function renderEditTable() {
+  document.getElementById('editBody').innerHTML = rows.map((r,i) => `
+    <tr>
+      <td class="sno">${i+1}</td>
+      <td><input class="pi" type="text" value="${esc(r.particulars)}" placeholder="Description…" oninput="rowChange(${i},'particulars',this.value)"></td>
+      <td><input class="ri" type="number" min="0" step="any" value="${r.quantity||''}" placeholder="0" style="width:100%;border:none;outline:none;background:transparent;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;text-align:right;" oninput="rowChange(${i},'quantity',this.value)"></td>
+      <td><input type="text" value="${esc(r.unit)}" placeholder="m/nos…" oninput="rowChange(${i},'unit',this.value)" style="width:100%;border:none;outline:none;background:transparent;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;"></td>
+      <td><input class="ri" type="number" min="0" step="any" value="${r.rate||''}" placeholder="0" style="width:100%;border:none;outline:none;background:transparent;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;text-align:right;" oninput="rowChange(${i},'rate',this.value)"></td>
+      <td style="text-align:right;font-weight:800;color:var(--primary);" id="amt${i}">${fmtNum(rowAmt(r))}</td>
+      <td><button class="btn-del" onclick="delRow(${i})">🗑</button></td>
+    </tr>`).join('');
+  updateTotal();
+}
+
+function rowChange(i, field, val) {
+  rows[i][field] = val;
+  const cell = document.getElementById('amt'+i);
+  if (cell) cell.textContent = fmtNum(rowAmt(rows[i]));
+  updateTotal();
+}
+
+function rowAmt(r) { return (parseFloat(r.quantity)||0) * (parseFloat(r.rate)||0); }
+function updateTotal() {
+  const t = rows.reduce((s,r) => s + rowAmt(r), 0);
+  document.getElementById('grandTotal').textContent = '₹' + fmtNum(t);
+}
+
+// ── FILE IMPORT ──────────────────────────────────────────────────────────────
+function dzOver(e)  { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
+function dzLeave()  { document.getElementById('dropZone').classList.remove('drag-over'); }
+function dzDrop(e)  { e.preventDefault(); dzLeave(); const f=e.dataTransfer.files[0]; if(f) parseFile(f); }
+function onFile(e)  { const f=e.target.files[0]; if(f) parseFile(f); }
+
+function parseFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) data = data.items || data.data || [];
+      if (!data.length) { showToast('No items found in JSON','warning'); return; }
+      rows = data.map(it => ({
+        particulars: it.particulars || it.description || it.particular || it.item || '',
+        quantity:    it.quantity    || it.qty         || it.qnty       || 0,
+        unit:        it.unit        || it.uom         || '',
+        rate:        it.rate        || it.unitRate     || it.price      || 0,
+      }));
+      renderEditTable();
+      showToast(`✓ Imported ${rows.length} items`, 'success');
+    } catch { showToast('Invalid JSON file','error'); }
+  };
+  reader.readAsText(file);
+}
+
+// ── SAVE ─────────────────────────────────────────────────────────────────────
+async function saveEstimate() {
+  if (!assetId) { showToast('No fault asset — open from fault section','warning'); return; }
+  const name = (document.getElementById('estName').value||'').trim();
+  if (!name)   { showToast('Enter an estimate title','warning'); document.getElementById('estName').focus(); return; }
+  const hasContent = rows.some(r => r.particulars || r.rate || r.quantity);
+  if (!hasContent) { showToast('Add at least one line item','warning'); return; }
+
+  const items = rows.map((r,i) => ({
+    slNo:        i+1,
+    particulars: r.particulars,
+    quantity:    parseFloat(r.quantity)||0,
+    unit:        r.unit,
+    rate:        parseFloat(r.rate)||0,
+    amount:      rowAmt(r)
+  }));
+  const total = items.reduce((s,it) => s+it.amount, 0);
+  const now   = new Date();
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateStr = `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  const est = { id: Date.now().toString(), assetId, assetName, name, date: dateStr, items, total };
+
+  document.getElementById('btnSave').disabled  = true;
+  document.getElementById('saveStatus').textContent = 'Saving…';
+
+  // Replace existing estimate for this asset (or push new)
+  const idx = estimates.findIndex(e => e.assetId === assetId);
+  if (idx >= 0) estimates[idx] = est; else estimates.push(est);
+
+  try {
+    const compact = '[\n' + estimates.map(e => '  ' + JSON.stringify(e)).join(',\n') + '\n]';
+    await workerPatch({ [ESTIMATES_FILE]: compact });
+    showToast('💾 Estimate saved', 'success');
+    cancelRevise();
+    renderPage();
+  } catch(e) {
+    // rollback
+    if (idx >= 0) estimates[idx] = estimates[idx]; else estimates.pop();
+    document.getElementById('saveStatus').textContent = 'Error: ' + e.message;
+    showToast('Save failed','error');
+  } finally {
+    document.getElementById('btnSave').disabled = false;
+  }
+}
+
+// ── DOWNLOAD ─────────────────────────────────────────────────────────────────
+async function downloadEstimates() {
+  const month  = document.getElementById('dlMonth').value;
+  const year   = document.getElementById('dlYear').value;
+  const status = document.getElementById('dlStatus');
+  status.style.color = 'var(--text3)';
+  status.textContent = 'Fetching…';
+  try {
+    const files = await workerGet('output');
+    const raw   = files[ESTIMATES_FILE];
+    const all   = raw ? JSON.parse(raw) : [];
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const mName  = MONTHS[parseInt(month,10)-1];
+    const filtered = all.filter(e => (e.date||'').includes(mName) && (e.date||'').includes(year));
+    if (!filtered.length) {
+      status.style.color = 'var(--warning)';
+      status.textContent = `No estimates for ${mName} ${year}.`;
+      return;
+    }
+    const compact = '[\n' + filtered.map(e => '  ' + JSON.stringify(e)).join(',\n') + '\n]';
+    const blob = new Blob([compact], { type:'application/json;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `estimates_${year}_${month}.json`; a.click();
+    URL.revokeObjectURL(url);
+    status.style.color = 'var(--success)';
+    status.textContent = `✓ Downloaded ${filtered.length} estimate(s) for ${mName} ${year}.`;
+  } catch(e) {
+    status.style.color = 'var(--danger)';
+    status.textContent = 'Error: ' + e.message;
+  }
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function fmtNum(n, dec=true) {
+  return (parseFloat(n)||0).toLocaleString('en-IN', { minimumFractionDigits: dec?2:0, maximumFractionDigits:2 });
+}
+function pad(n) { return n < 10 ? '0'+n : ''+n; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let _tt;
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast' + (type ? ' '+type : '');
+  void t.offsetWidth;
+  t.classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

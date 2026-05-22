@@ -186,8 +186,9 @@
 <div class="header">
   <p id="headerDate">Loading…</p>
   <h1>SCADA Asset Control</h1>
-  <div class="header-right">
+  <div class="header-right" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
     <a href="scada-visualizer.html" class="scada-link">🌊 SCADA View</a>
+    <a href="estimate.html" class="scada-link" id="estimateNavLink">📋 Estimates</a>
   </div>
 </div>
 
@@ -233,7 +234,7 @@
 
   <div class="card" id="faultCard">
     <div class="section-header">
-      <div class="section-title" style="margin-bottom:0">⚠ Report Edge Fault</div>
+      <div class="section-title" style="margin-bottom:0">⚠ Report Fault</div>
     </div>
 
     <!-- Zone filter tabs -->
@@ -259,6 +260,11 @@
       <button class="btn-fault-clr" id="btnFaultClear"  onclick="submitEdgeFault('FAULT_CLEAR')" disabled>✓ Clear</button>
     </div>
     <div class="fault-submit-status" id="faultSubmitStatus"></div>
+
+    <!-- Inline estimate panel — shown only when a FAULTED pipe is selected -->
+    <div id="estimatePanel" style="display:none;margin-top:14px;border-top:2px solid var(--border);padding-top:14px;">
+      <div id="estimatePanelContent"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -280,7 +286,8 @@
           <option value="11">November</option><option value="12">December</option>
         </select>
         <select id="dlYear" class="dl-select"></select>
-        <button class="btn-download" onclick="downloadRecords()">⬇ Download CSV</button>
+        <button class="btn-download" onclick="downloadRecords()">⬇ Records CSV</button>
+        <button class="btn-download" onclick="downloadEstimates()" style="background:var(--warning);white-space:nowrap;">📋 Estimates JSON</button>
       </div>
       <div id="dlStatus" style="font-size:12px;font-weight:600;color:var(--text3);margin-top:8px;min-height:18px"></div>
     </div>
@@ -328,6 +335,7 @@ async function initApp() {
 
   setProgress(90); setLoadText('Loading pipe network…');
   await loadAllEdges();
+  await checkEstimate();
 
   setProgress(100); setLoadText('Ready!');
   populateYears();
@@ -779,6 +787,21 @@ function renderRecords() {
 // ── FAULT EDGE REPORT ──────────────────────────────────────────────────────────
 let allEdges       = [];    // [{ id, source, target, zone, zoneName }]
 let faultEdgeState = {};    // edgeId → 'FAULT' | 'FAULT_CLEAR'
+let estimateMap    = {};    // assetId → estimate object (from estimates.json)
+const ESTIMATES_FILE = 'estimates.json';
+
+// ── ESTIMATE LOAD ────────────────────────────────────────────────────────────
+async function checkEstimate() {
+  try {
+    const files = await workerGet('output');
+    const raw   = files[ESTIMATES_FILE];
+    if (raw) {
+      const ests = JSON.parse(raw);
+      estimateMap = {};
+      if (Array.isArray(ests)) ests.forEach(e => { if (e.assetId) estimateMap[e.assetId] = e; });
+    }
+  } catch(e) { estimateMap = {}; }
+}
 let selectedEdgeId = null;
 let activeFaultZone = null; // null = all zones
 
@@ -870,20 +893,90 @@ function renderFaultEdgeList() {
 
 function selectFaultEdge(edgeId) {
   selectedEdgeId = edgeId;
-  const edge = allEdges.find(e => e.id === edgeId);
+  const edge      = allEdges.find(e => e.id === edgeId);
   const isFaulted = faultEdgeState[edgeId] === 'FAULT';
+  const hasEst    = !!estimateMap[edgeId];
 
   const lbl = $('faultSelectedLabel');
   lbl.textContent = edge ? `${edge.id}  (${edge.source} → ${edge.target})` : edgeId;
   lbl.className   = 'fault-selected-label' + (isFaulted ? ' has-fault' : '');
 
   $('btnFaultReport').disabled = false;
-  $('btnFaultClear').disabled  = false;
   $('btnFaultReport').textContent = isFaulted ? '⚠ Re-report' : '⚠ Report';
-  $('btnFaultClear').style.display = isFaulted ? '' : 'none';
+
+  if (isFaulted) {
+    $('btnFaultClear').style.display = '';
+    $('btnFaultClear').disabled = !hasEst;
+    $('btnFaultClear').title    = hasEst ? '' : 'Upload an estimate for this fault first';
+  } else {
+    $('btnFaultClear').style.display = 'none';
+  }
+
   $('faultSubmitStatus').textContent = '';
-  renderFaultEdgeList();   // re-render to show selection highlight
+  renderEstimatePanel(edgeId, edge, isFaulted, hasEst);
+  renderFaultEdgeList();
 }
+
+function renderEstimatePanel(edgeId, edge, isFaulted, hasEst) {
+  const panel   = $('estimatePanel');
+  const content = $('estimatePanelContent');
+  if (!isFaulted) { panel.style.display = 'none'; content.innerHTML = ''; return; }
+
+  panel.style.display = '';
+  const assetLabel = edge ? `${edge.id} (${edge.source} → ${edge.target})` : edgeId;
+  const encId   = encodeURIComponent(edgeId);
+  const encName = encodeURIComponent(assetLabel);
+
+  if (hasEst) {
+    const est = estimateMap[edgeId];
+    const total = (est.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+    const rows  = (est.items || []).map((it, i) => `
+      <tr>
+        <td style="padding:7px 10px;color:#94A3B8;font-size:12px;font-weight:700;">${i+1}</td>
+        <td style="padding:7px 10px;font-size:13px;font-weight:600;">${escHtml(it.particulars)}</td>
+        <td style="padding:7px 10px;font-size:13px;text-align:right;">${it.quantity} ${escHtml(it.unit)}</td>
+        <td style="padding:7px 10px;font-size:13px;text-align:right;">₹${(it.rate||0).toLocaleString('en-IN')}</td>
+        <td style="padding:7px 10px;font-size:13px;font-weight:800;text-align:right;color:#2563EB;">₹${(it.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+      </tr>`).join('');
+    content.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#16A34A;">✅ Estimate Uploaded</div>
+        <a href="estimate.html?asset=${encId}&name=${encName}" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px;border:1.5px solid #E2E8F0;background:#F0F4FF;color:#2563EB;text-decoration:none;">✏ Revise</a>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:8px;">📋 ${escHtml(est.name || assetLabel)} &nbsp;·&nbsp; ${escHtml(est.date||'')}</div>
+      <div style="overflow-x:auto;border-radius:8px;border:2px solid #E2E8F0;margin-bottom:10px;">
+        <table style="width:100%;border-collapse:collapse;min-width:400px;">
+          <thead><tr style="background:#F0F4FF;">
+            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94A3B8;text-align:left;">Sl.</th>
+            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94A3B8;text-align:left;">Particulars</th>
+            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94A3B8;text-align:right;">Qty / Unit</th>
+            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94A3B8;text-align:right;">Rate</th>
+            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94A3B8;text-align:right;">Amount</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr style="background:#F0F4FF;border-top:2px solid #E2E8F0;">
+            <td colspan="4" style="padding:9px 10px;font-weight:800;font-size:14px;color:#475569;">Grand Total</td>
+            <td style="padding:9px 10px;font-weight:800;font-size:16px;color:#2563EB;text-align:right;">₹${total}</td>
+          </tr></tfoot>
+        </table>
+      </div>`;
+  } else {
+    content.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;padding:14px;background:#FFFBEB;border-radius:10px;border:2px solid #FDE68A;margin-bottom:10px;">
+        <div style="font-size:26px;flex-shrink:0;">📋</div>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#D97706;">No Estimate for This Fault</div>
+          <div style="font-size:12px;font-weight:600;color:#92400E;margin-top:2px;">Upload an estimate to enable fault clearance</div>
+        </div>
+      </div>
+      <a href="estimate.html?asset=${encId}&name=${encName}"
+         style="display:inline-flex;align-items:center;gap:8px;padding:11px 20px;background:#2563EB;color:#fff;border-radius:10px;font-size:14px;font-weight:800;text-decoration:none;font-family:'Nunito',sans-serif;">
+        📋 Upload Estimate for This Fault
+      </a>`;
+  }
+}
+
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 async function submitEdgeFault(action) {
   const pid    = getPersonId();
@@ -891,6 +984,11 @@ async function submitEdgeFault(action) {
   if (!person) { setFaultSubmitStatus('Select your name above first', 'var(--warning)'); return; }
   if (!selectedEdgeId)  { setFaultSubmitStatus('Select a pipe first', 'var(--warning)'); return; }
   if (!currentPos) { setFaultSubmitStatus('⏳ Waiting for GPS location…', 'var(--warning)'); return; }
+  if (action === 'FAULT_CLEAR' && !estimateMap[selectedEdgeId]) {
+    setFaultSubmitStatus('⚠ Upload an estimate for this fault before clearing', 'var(--danger)');
+    showToast('Upload an estimate for this fault first', 'warning');
+    return;
+  }
 
   const edge = allEdges.find(e => e.id === selectedEdgeId);
 
@@ -924,7 +1022,8 @@ async function submitEdgeFault(action) {
     todayRecs.push(rec);
     renderRecords();
     renderFaultEdgeList();
-    selectFaultEdge(selectedEdgeId);   // refresh label/buttons
+    await checkEstimate();          // refresh per-asset estimate map
+    selectFaultEdge(selectedEdgeId);   // refresh label/buttons + estimate panel
 
     const msg = action === 'FAULT' ? '⚠ Fault reported' : '✓ Fault cleared';
     setFaultSubmitStatus(msg, action === 'FAULT' ? 'var(--danger)' : 'var(--success)');
@@ -1008,7 +1107,65 @@ async function downloadRecords() {
   }
 }
 
-// ── UTILITIES ──────────────────────────────────────────────────────────────────
+async function downloadEstimates() {
+  const month  = $('dlMonth').value;
+  const year   = $('dlYear').value;
+  const status = $('dlStatus');
+  const btn    = document.querySelectorAll('.btn-download')[1];
+
+  btn.disabled = true;
+  status.style.color = 'var(--text3)';
+  status.textContent = 'Fetching estimates…';
+
+  try {
+    const files = await workerGet('output');
+    const raw   = files[ESTIMATES_FILE];
+    if (!raw) {
+      status.style.color = 'var(--warning)';
+      status.textContent = 'No estimates file found on server.';
+      return;
+    }
+    const all = JSON.parse(raw);
+    if (!Array.isArray(all) || !all.length) {
+      status.style.color = 'var(--warning)';
+      status.textContent = 'No estimates saved yet.';
+      return;
+    }
+
+    // Filter by month+year using the date string stored on each estimate
+    // date format: "22 May 2026, 04:30 pm" — match year and month name
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const monthName = MONTHS[parseInt(month, 10) - 1];
+    const filtered  = all.filter(e => {
+      const d = e.date || '';
+      return d.includes(monthName) && d.includes(year);
+    });
+
+    if (!filtered.length) {
+      status.style.color = 'var(--warning)';
+      status.textContent = `No estimates found for ${monthName} ${year}.`;
+      return;
+    }
+
+    // Compact single-line-per-entry JSON
+    const compact = '[\n' + filtered.map(e => '  ' + JSON.stringify(e)).join(',\n') + '\n]';
+    const blob    = new Blob([compact], { type: 'application/json;charset=utf-8;' });
+    const url     = URL.createObjectURL(blob);
+    const a       = document.createElement('a');
+    a.href        = url;
+    a.download    = `estimates_${year}_${month}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    status.style.color = 'var(--success)';
+    status.textContent = `✓ Downloaded ${filtered.length} estimate${filtered.length > 1 ? 's' : ''} for ${monthName} ${year}.`;
+  } catch(e) {
+    status.style.color = 'var(--danger)';
+    status.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
 function $(id) { return document.getElementById(id); }
 function pad(n) { return n < 10 ? '0'+n : ''+n; }
 function todayStr() { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
