@@ -194,7 +194,20 @@
   .modal-select-all .msa-check { width:20px; height:20px; border-radius:6px; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; transition:background .15s, border-color .15s; }
   .modal-select-all.all-selected .msa-check { background:var(--primary); border-color:var(--primary); color:#fff; }
 
-  @keyframes spin { to { transform:rotate(360deg); } }
+  /* ── Pending Estimates section ── */
+  .pending-count-badge { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 6px; border-radius:11px; font-size:12px; font-weight:800; background:var(--danger); color:#fff; margin-left:8px; }
+  .pending-count-badge.zero { background:var(--success); }
+  .pend-item { display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid var(--border); }
+  .pend-item:last-child { border-bottom:none; }
+  .pend-icon { width:40px; height:40px; border-radius:10px; background:#fff3cd; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+  .pend-info { flex:1; min-width:0; }
+  .pend-id   { font-size:14px; font-weight:800; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pend-route{ font-size:11px; color:var(--text3); font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pend-zone { font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px; background:var(--surface2); color:var(--text3); display:inline-block; margin-top:4px; }
+  .btn-upload-est { flex-shrink:0; padding:8px 13px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:12px; font-weight:800; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; transition:background .2s; }
+  .btn-upload-est:hover { background:var(--primary-dark); }
+
+
   .loading-screen { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:200; gap:14px; transition:opacity .4s; }
   .loading-screen.hide { opacity:0; pointer-events:none; }
   .loading-screen .l-icon { font-size:52px; }
@@ -219,9 +232,8 @@
 <div class="header">
   <p id="headerDate">Loading…</p>
   <h1>SCADA Asset Control</h1>
-  <div class="header-right" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+  <div class="header-right">
     <a href="scada-visualizer.html" class="scada-link">🌊 SCADA View</a>
-    <a href="estimate.html" class="scada-link" id="estimateNavLink">📋 Estimates</a>
   </div>
 </div>
 
@@ -300,6 +312,20 @@
     </div>
   </div>
 
+  <!-- Pending Estimates -->
+  <div class="card" id="pendingEstCard">
+    <div class="section-header">
+      <div class="section-title" style="margin-bottom:0">
+        📋 Pending Estimates
+        <span class="pending-count-badge" id="pendingCount">0</span>
+      </div>
+      <button class="btn-refresh" onclick="refreshPendingEstimates()">↻ Refresh</button>
+    </div>
+    <div id="pendingEstList">
+      <div class="empty-state"><div class="e-icon">⏳</div>Loading…</div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="section-header">
       <div class="section-title" style="margin-bottom:0">Today's Toggle Records</div>
@@ -362,10 +388,11 @@ const COOLDOWN_MS  = 5 * 60 * 1000;
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
 let persons    = [];
-let deviceId   = '';    // FingerprintJS visitor ID, resolved once on boot
-let assets     = [];      // [{ id, name, type, state, lat, lng, tolerance }]
-let assetMap   = {};      // id → asset
-let assetStatus = {};     // id → { status, lastPersonId, lastPersonName, lastChangedAt }
+let deviceId   = '';
+let assets     = [];
+let assetMap   = {};
+let assetStatus = {};
+let zoneMap    = {};  // zoneId → manifest entry (id, name, gistFile)
 let todayRecs  = [];
 let currentPos = null;
 let watchId    = null;
@@ -409,7 +436,7 @@ function updateClock() {
   $('headerDate').textContent = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
 }
 
-// ── WORKER API ─────────────────────────────────────────────────────────────────
+// ── WORKER API ────────────────────────────────────────────────────────────────
 async function workerGet(endpoint) {
   const r = await fetch(`${WORKER}/${endpoint}`);
   if (!r.ok) throw new Error(`Worker ${endpoint} failed: HTTP ${r.status}`);
@@ -450,34 +477,24 @@ async function fetchConfig() {
   } catch(e) { showToast('Config error: ' + e.message, 'error'); return false; }
 }
 
-// ── ASSETS FROM GIST ──────────────────────────────────────────────────────────
-// Two sources, combined:
-//   Gist status files → id, label, type, state  (one entry per asset)
-//   Zone JSON files   → lat, lng                (repo-hosted, per node)
-//
-// Uses asset.zone from config.json to fetch only the zone JSON files that are
-// actually referenced — avoids fetching every zone on every load.
+// ── ASSETS FROM GIST ─────────────────────────────────────────────────────────
 async function loadAssetsFromGist() {
   try {
     const mRes = await fetch('manifest.json?t=' + Date.now());
     if (!mRes.ok) throw new Error('manifest.json not found');
-    const zones    = await mRes.json();
-    const zoneMap  = Object.fromEntries(zones.map(z => [z.id, z])); // id → manifest entry
+    const zones = await mRes.json();
+    zoneMap = Object.fromEntries(zones.map(z => [z.id, z])); // id → manifest entry (global)
 
-    // Collect only the zone ids actually used by any person's assets in config.
-    // Falls back to all zones if config hasn't loaded yet or zone field is absent.
+    // Fetch only zones actually used by any person's assets; fall back to all
     const usedZoneIds = new Set(
       persons.flatMap(p => (p.assets || []).map(a => a.zone).filter(Boolean))
     );
-    const zonesToFetch = usedZoneIds.size > 0
-      ? zones.filter(z => usedZoneIds.has(z.id))
-      : zones;  // fallback: fetch all (pre-config or legacy data without zone field)
+    const zonesToFetch = usedZoneIds.size > 0 ? zones.filter(z => usedZoneIds.has(z.id)) : zones;
 
     const seen = new Set();
     const raw  = [];
 
-    // 1. Build asset list from gist status files (label / type / state).
-    //    Only fetch status files for zones we actually need.
+    // 1. Build asset list from gist status files (label / type / state)
     for (const zone of zonesToFetch) {
       if (!zone.gistFile) continue;
       try {
@@ -486,15 +503,7 @@ async function loadAssetsFromGist() {
         for (const entry of await res.json()) {
           if (!entry.id || seen.has(entry.id)) continue;
           seen.add(entry.id);
-          raw.push({
-            id:        entry.id,
-            name:      (entry.label || entry.id).replace(/\n/g, ' '),
-            type:      entry.type  || '',
-            state:     entry.state || 'OFF',
-            lat:       null,
-            lng:       null,
-            tolerance: 50
-          });
+          raw.push({ id: entry.id, name: (entry.label || entry.id).replace(/\n/g, ' '), type: entry.type || '', state: entry.state || 'OFF', lat: null, lng: null, tolerance: 50 });
         }
       } catch { /* skip unreadable gist file */ }
     }
@@ -502,47 +511,31 @@ async function loadAssetsFromGist() {
     assets   = raw;
     assetMap = Object.fromEntries(assets.map(a => [a.id, a]));
 
-    // 2. Overlay lat/lng from zone JSON files (zones/zone_a.json etc.).
-    //    Build a per-zone asset lookup so each zone file is fetched at most once.
-    const assetsByZone = {};  // zoneId → [assetId, ...]
-    for (const person of persons) {
-      for (const pa of (person.assets || [])) {
-        if (!pa.zone || !pa.id) continue;
-        (assetsByZone[pa.zone] = assetsByZone[pa.zone] || new Set()).add(pa.id);
-      }
-    }
+    // 2. Overlay lat/lng from zone JSON files
+    const assetsByZone = {};
+    for (const person of persons)
+      for (const pa of (person.assets || []))
+        if (pa.zone && pa.id) (assetsByZone[pa.zone] = assetsByZone[pa.zone] || new Set()).add(pa.id);
 
-    if (Object.keys(assetsByZone).length > 0) {
-      // Targeted fetch: only load zone JSON files referenced in config.
-      for (const [zoneId, assetIdSet] of Object.entries(assetsByZone)) {
-        try {
-          const res = await fetch(`zones/${zoneId}.json?t=${Date.now()}`);
-          if (!res.ok) continue;
-          for (const node of (await res.json()).nodes || []) {
-            const d = node.data || {};
-            if (!assetIdSet.has(d.id)) continue;   // skip nodes not in this person's list
-            const a = assetMap[d.id];
-            if (a && typeof d.lat === 'number') { a.lat = d.lat; a.lng = d.lng; }
-          }
-        } catch { /* skip unreadable zone JSON */ }
-      }
-    } else {
-      // Fallback: no zone field in config — scan all zone JSONs as before.
-      for (const zone of zones) {
-        if (!zone.id) continue;
-        try {
-          const res = await fetch(`zones/${zone.id}.json?t=${Date.now()}`);
-          if (!res.ok) continue;
-          for (const node of (await res.json()).nodes || []) {
-            const d = node.data || {};
-            const a = assetMap[d.id];
-            if (a && typeof d.lat === 'number') { a.lat = d.lat; a.lng = d.lng; }
-          }
-        } catch { /* skip unreadable zone JSON */ }
-      }
-    }
+    const fetchZone = async (zoneId, assetIdSet) => {
+      try {
+        const res = await fetch(`zones/${zoneId}.json?t=${Date.now()}`);
+        if (!res.ok) return;
+        for (const node of (await res.json()).nodes || []) {
+          const d = node.data || {};
+          if (assetIdSet && !assetIdSet.has(d.id)) continue;
+          const a = assetMap[d.id];
+          if (a && typeof d.lat === 'number') { a.lat = d.lat; a.lng = d.lng; }
+        }
+      } catch { /* skip unreadable zone JSON */ }
+    };
 
-    // Seed ON/OFF from gist state; CSV records will override per-asset below
+    if (Object.keys(assetsByZone).length > 0)
+      for (const [zoneId, assetIdSet] of Object.entries(assetsByZone)) await fetchZone(zoneId, assetIdSet);
+    else
+      for (const zone of zones) await fetchZone(zone.id, null);
+
+    // Seed ON/OFF from gist state; CSV records override per-asset below
     assets.forEach(a => {
       assetStatus[a.id] = { status: a.state, lastPersonId: null, lastPersonName: null, lastChangedAt: null };
     });
@@ -553,15 +546,15 @@ async function loadAssetsFromGist() {
   }
 }
 
-// ── RECORDS ────────────────────────────────────────────────────────────────────
+// ── RECORDS ───────────────────────────────────────────────────────────────────
 async function fetchRecords() {
   try {
     const files   = await workerGet('output');
     const allRecs = csvParse(files[RECORDS_FILE] || '');
-    window._allFaultRecs = allRecs;   // used by deriveFaultStateFromRecords
-    todayRecs     = allRecs.filter(r => r.date === todayStr());
+    window._allFaultRecs = allRecs;
+    todayRecs = allRecs.filter(r => r.date === todayStr());
 
-    // Latest record per asset wins over gist state seed
+    // Latest record per asset wins over gist state
     allRecs.forEach(r => {
       const cur = assetStatus[r.assetId];
       if (!cur?.lastChangedAt || r.timestamp > cur.lastChangedAt)
@@ -582,6 +575,9 @@ async function fetchRecords() {
 async function refreshAll() {
   showToast('Refreshing…');
   await fetchRecords();
+  await checkEstimate();
+  deriveFaultStateFromRecords();
+  renderPendingEstimates();
   const person = persons.find(p => p.id === getPersonId());
   if (person && currentPos) renderAssets(person);
   showToast('Refreshed ✓', 'success');
@@ -779,16 +775,21 @@ async function doToggle(assetId) {
 
     assetStatus[assetId] = { status: newStatus, lastPersonId: person.id, lastPersonName: person.name, lastChangedAt: now.toISOString() };
 
+    const personAsset = (person.assets || []).find(a => a.id === assetId);
+    const zoneName    = (personAsset?.zone && zoneMap[personAsset.zone]?.name) || personAsset?.zone || '';
+
     const allExisting = csvParse((await workerGet('output'))[RECORDS_FILE] || '');
     const rec = {
-      sn:       allExisting.length + 1,
-      deviceId: deviceId,
-      personId: person.id, personName: person.name,
-      assetId:  asset.id,  assetName:  asset.name,
-      action: newStatus,   timestamp:  now.toISOString(),
-      date: todayStr(),    time:       timeStr(now),
-      lat: currentPos.lat.toFixed(7), lng: currentPos.lng.toFixed(7),
-      distance: dist ?? ''
+      sn:         allExisting.length + 1,
+      deviceId:   deviceId,
+      personId:   person.id, personName: person.name,
+      assetId:    asset.id,  assetName:  asset.name,
+      action:     newStatus,
+      timestamp:  now.toISOString(),
+      date:       todayStr(), time: timeStr(now),
+      lat:        currentPos.lat.toFixed(7), lng: currentPos.lng.toFixed(7),
+      distance:   dist ?? '',
+      zone:       zoneName
     };
 
     allExisting.push(rec);
@@ -840,10 +841,12 @@ function renderRecords() {
   }).join('');
 }
 
-// ── FAULT EDGE REPORT ──────────────────────────────────────────────────────────
-let allEdges       = [];    // [{ id, source, target, zone, zoneName }]
-let faultEdgeState = {};    // edgeId → 'FAULT' | 'FAULT_CLEAR'
-let estimateMap    = {};    // assetId → estimate object (from estimates.json)
+// ── FAULT EDGE REPORT ─────────────────────────────────────────────────────────
+let allEdges       = [];   // [{ id, source, target, zone, zoneName }]
+let faultEdgeState = {};   // edgeId → 'FAULT' | 'FAULT_CLEAR'
+let estimateMap    = {};   // assetId → estimate object
+let selectedEdgeId = null;
+let activeFaultZone = null;
 const ESTIMATES_FILE = 'estimates.json';
 
 // ── ESTIMATE LOAD ────────────────────────────────────────────────────────────
@@ -851,15 +854,13 @@ async function checkEstimate() {
   try {
     const files = await workerGet('output');
     const raw   = files[ESTIMATES_FILE];
+    estimateMap = {};
     if (raw) {
       const ests = JSON.parse(raw);
-      estimateMap = {};
       if (Array.isArray(ests)) ests.forEach(e => { if (e.assetId) estimateMap[e.assetId] = e; });
     }
-  } catch(e) { estimateMap = {}; }
+  } catch { estimateMap = {}; }
 }
-let selectedEdgeId = null;
-let activeFaultZone = null; // null = all zones
 
 async function loadAllEdges() {
   try {
@@ -880,6 +881,7 @@ async function loadAllEdges() {
     buildFaultZoneTabs(zones);
     deriveFaultStateFromRecords();
     renderFaultEdgeList();
+    renderPendingEstimates();
   } catch(e) {
     $('faultEdgeList').innerHTML = `<div class="fault-empty">Could not load edges: ${esc(e.message)}</div>`;
   }
@@ -887,7 +889,6 @@ async function loadAllEdges() {
 
 function deriveFaultStateFromRecords() {
   faultEdgeState = {};
-  // todayRecs may not have all records — use the full allRecs if available, else fallback to todayRecs
   const recs = (window._allFaultRecs || todayRecs);
   recs.forEach(r => {
     if ((r.action === 'FAULT' || r.action === 'FAULT_CLEAR') && r.assetId)
@@ -895,23 +896,61 @@ function deriveFaultStateFromRecords() {
   });
 }
 
+// ── PENDING ESTIMATES ─────────────────────────────────────────────────────────
+function renderPendingEstimates() {
+  // Active faults with no estimate uploaded yet
+  const pending = allEdges.filter(e =>
+    faultEdgeState[e.id] === 'FAULT' && !estimateMap[e.id]
+  );
+
+  const badge = $('pendingCount');
+  badge.textContent = pending.length;
+  badge.className   = 'pending-count-badge' + (pending.length === 0 ? ' zero' : '');
+
+  const el = $('pendingEstList');
+  if (!pending.length) {
+    el.innerHTML = '<div class="empty-state"><div class="e-icon">✅</div>All active faults have estimates</div>';
+    return;
+  }
+
+  el.innerHTML = pending.map(e => {
+    const encId   = encodeURIComponent(e.id);
+    const encName = encodeURIComponent(`${e.id} (${e.source} → ${e.target})`);
+    return `<div class="pend-item">
+  <div class="pend-icon">⚠️</div>
+  <div class="pend-info">
+    <div class="pend-id">${esc(e.id)}</div>
+    <div class="pend-route">${esc(e.source)} → ${esc(e.target)}</div>
+    <span class="pend-zone">${esc(e.zoneName || e.zone)}</span>
+  </div>
+  <a class="btn-upload-est" href="estimate.html?asset=${encId}&name=${encName}">📋 Upload</a>
+</div>`;
+  }).join('');
+}
+
+async function refreshPendingEstimates() {
+  await checkEstimate();
+  deriveFaultStateFromRecords();
+  renderPendingEstimates();
+  showToast('Pending estimates refreshed', 'success');
+}
+
 function buildFaultZoneTabs(zones) {
   const wrap = $('faultZoneTabs');
-  const all = `<button class="btn-refresh" id="fztab-all" onclick="setFaultZone(null)" style="background:var(--primary);color:#fff;border-color:var(--primary)">All Zones</button>`;
-  const tabs = zones.map(z =>
+  wrap.innerHTML = zones.map(z =>
     `<button class="btn-refresh" id="fztab-${esc(z.id)}" onclick="setFaultZone('${esc(z.id)}')">${esc(z.name || z.id)}</button>`
   ).join('');
-  wrap.innerHTML = all + tabs;
+  // Auto-select the first zone
+  if (zones.length) setFaultZone(zones[0].id);
 }
 
 function setFaultZone(zoneId) {
   activeFaultZone = zoneId;
-  // Update tab highlight
   $('faultZoneTabs').querySelectorAll('button').forEach(btn => {
-    const isActive = (zoneId === null && btn.id === 'fztab-all') || btn.id === `fztab-${zoneId}`;
-    btn.style.background    = isActive ? 'var(--primary)' : '';
-    btn.style.color         = isActive ? '#fff' : '';
-    btn.style.borderColor   = isActive ? 'var(--primary)' : '';
+    const isActive = btn.id === `fztab-${zoneId}`;
+    btn.style.background  = isActive ? 'var(--primary)' : '';
+    btn.style.color       = isActive ? '#fff' : '';
+    btn.style.borderColor = isActive ? 'var(--primary)' : '';
   });
   renderFaultEdgeList();
 }
@@ -941,7 +980,7 @@ function renderFaultEdgeList() {
         <div class="fei-id">${hi(e.id, q)}</div>
         <div class="fei-route">${hi(e.source, q)} → ${hi(e.target, q)}</div>
       </div>
-      <span class="fei-zone">${esc(e.zone)}</span>
+      <span class="fei-zone">${esc(e.zoneName || e.zone)}</span>
       ${isFaulted ? '<span class="fei-fault-badge">⚠ FAULT</span>' : ''}
     </div>`;
   }).join('');
@@ -1069,7 +1108,7 @@ async function submitEdgeFault(action) {
       lat:        currentPos.lat.toFixed(7),
       lng:        currentPos.lng.toFixed(7),
       distance:   '',
-      zone:       edge?.zone || ''
+      zone:       edge?.zoneName || ''
     };
     existing.push(rec);
     await workerPatch({ [RECORDS_FILE]: csvStringify(existing) });
@@ -1078,8 +1117,9 @@ async function submitEdgeFault(action) {
     todayRecs.push(rec);
     renderRecords();
     renderFaultEdgeList();
-    await checkEstimate();          // refresh per-asset estimate map
-    selectFaultEdge(selectedEdgeId);   // refresh label/buttons + estimate panel
+    await checkEstimate();
+    renderPendingEstimates();
+    selectFaultEdge(selectedEdgeId);
 
     const msg = action === 'FAULT' ? '⚠ Fault reported' : '✓ Fault cleared';
     setFaultSubmitStatus(msg, action === 'FAULT' ? 'var(--danger)' : 'var(--success)');
