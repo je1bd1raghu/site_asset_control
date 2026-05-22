@@ -1,34 +1,5 @@
 // ─── SHARED HELPERS ───────────────────────────────────────────────────────────
-
-function updateClock() {
-    const now    = new Date();
-    const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const hd = document.getElementById('headerDate');
-    if (hd) hd.textContent =
-        DAYS[now.getDay()] + ', ' + MONTHS[now.getMonth()] + ' ' +
-        now.getDate() + ', ' + now.getFullYear();
-}
-
-function esc(s) {
-    return String(s).replace(/[<>&"]/g, c =>
-        ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
-}
-
-let _toastTmr;
-function showToast(msg, type) {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.className   = 'toast ' + (type || '');
-    void el.offsetWidth;
-    el.classList.add('show');
-    clearTimeout(_toastTmr);
-    _toastTmr = setTimeout(() => el.classList.remove('show'), 3400);
-
-    // Mirror to the screen-reader live region so AT users hear status messages
-    const sr = document.getElementById('sr-announcer');
-    if (sr) { sr.textContent = ''; requestAnimationFrame(() => { sr.textContent = msg; }); }
-}
+// updateClock, esc, showToast come from common.js (loaded before this file).
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 
@@ -684,26 +655,6 @@ function downloadFile(content, filename, mimeType) {
     URL.revokeObjectURL(url);
 }
 
-function copyToClipboard(text, successMsg) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text)
-            .then(() => showToast(successMsg, 'success'))
-            .catch(() => _fallbackCopy(text, successMsg));
-    } else {
-        _fallbackCopy(text, successMsg);
-    }
-}
-
-function _fallbackCopy(text, successMsg) {
-    const ta = Object.assign(document.createElement('textarea'),
-        { value: text, style: 'position:fixed;opacity:0' });
-    document.body.appendChild(ta);
-    ta.focus(); ta.select();
-    try   { document.execCommand('copy'); showToast(successMsg, 'success'); }
-    catch (e) { showToast('Could not copy — check console.', 'error'); console.error(e); }
-    document.body.removeChild(ta);
-}
-
 // ─── EXPORTS ──────────────────────────────────────────────────────────────────
 
 function exportZoneJSON() {
@@ -823,9 +774,8 @@ function compareAndRenderGraphs() {
 }
 
 // ─── HELP MODAL ───────────────────────────────────────────────────────────────
-
-function openHelp()  { document.getElementById('helpModal').classList.add('open'); }
-function closeHelp() { document.getElementById('helpModal').classList.remove('open'); }
+// openHelp()/closeHelp() and the backdrop-click handler live in graph-analyzer.html
+// (they include focus-trapping); defining them here too would just shadow those.
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 
@@ -843,11 +793,6 @@ window.addEventListener('DOMContentLoaded', () => {
             ta.value = ta.value.slice(0, s) + '\t' + ta.value.slice(end);
             ta.selectionStart = ta.selectionEnd = s + 1;
         });
-    });
-
-    // Close help modal on backdrop click
-    document.getElementById('helpModal').addEventListener('click', e => {
-        if (e.target === e.currentTarget) closeHelp();
     });
 
     // Loading screen

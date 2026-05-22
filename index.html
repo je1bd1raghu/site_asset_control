@@ -252,6 +252,7 @@
 <script src="libs/fp.min.js"></script>
 <script src="libs/papaparse.min.js"></script>
 <script src="libs/fflate.js"></script>
+<script src="common.js"></script>
 </head>
 <body>
 
@@ -466,10 +467,8 @@
 
 <script>
 // ── CONSTANTS ──────────────────────────────────────────────────────────────────
-const WORKER      = 'https://scada-visualizer.je1-bd1-raghu.workers.dev';
+// WORKER, RECORDS_FILE, CONFIG_FILE, ESTIMATES_FILE come from common.js
 const GIST_BASE   = 'https://gist.githubusercontent.com/je1bd1raghu/b92c304c7c56c5a76916600d35b55d67/raw';
-const RECORDS_FILE = 'records.csv';
-const CONFIG_FILE  = 'config.json';
 const COOLDOWN_MS  = 5 * 60 * 1000;
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -511,47 +510,7 @@ async function initApp() {
   setTimeout(hideLoading, 500);
 }
 
-// ── CLOCK ──────────────────────────────────────────────────────────────────────
-function updateClock() {
-  const now = new Date();
-  const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  $('dispDate').textContent   = `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
-  $('dispTime').textContent   = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  $('dispDay').textContent    = DAYS[now.getDay()].slice(0, 3);
-  $('headerDate').textContent = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
-}
-
-// ── WORKER API ────────────────────────────────────────────────────────────────
-async function workerGet(endpoint) {
-  const r = await fetch(`${WORKER}/${endpoint}`);
-  if (!r.ok) throw new Error(`Worker ${endpoint} failed: HTTP ${r.status}`);
-  const d = await r.json();
-  if (d.error) throw new Error(d.error);
-  return d.files;  // { filename: rawString }
-}
-
-async function workerPatch(fileMap) {
-  const files = {};
-  for (const [k, v] of Object.entries(fileMap))
-    files[k] = { content: typeof v === 'string' ? v : JSON.stringify(v, null, 2) };
-  const r = await fetch(`${WORKER}/output`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ files })
-  });
-  if (!r.ok) throw new Error(`Worker write failed: HTTP ${r.status}`);
-  const d = await r.json();
-  if (!d.ok) throw new Error(d.error || 'Gist write failed');
-}
-
-// ── DEVICE ID ─────────────────────────────────────────────────────────────────
-async function getDeviceId() {
-  try {
-    const fp = await FingerprintJS.load();
-    return (await fp.get()).visitorId;
-  } catch { return 'unknown'; }
-}
+// updateClock, workerGet, workerPatch, getDeviceId come from common.js
 
 // ── CONFIG ─────────────────────────────────────────────────────────────────────
 async function fetchConfig() {
@@ -678,7 +637,7 @@ function populatePersons() {
   renderDropdown('');
 }
 
-function esc(s) { return String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+// esc comes from common.js
 function hi(s, q) {
   if (!q) return esc(s);
   try { return esc(s).replace(new RegExp(q.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&'), 'gi'), m => `<mark>${m}</mark>`); }
@@ -933,7 +892,6 @@ let faultEdgeState = {};   // edgeId → 'FAULT' | 'FAULT_CLEAR'
 let estimateMap    = {};   // assetId → estimate object
 let selectedEdgeId = null;
 let activeFaultZone = null;
-const ESTIMATES_FILE = 'estimates.json';
 
 // ── ESTIMATE LOAD ────────────────────────────────────────────────────────────
 async function checkEstimate(files) {
@@ -1471,20 +1429,10 @@ function toggleSection(bodyId, btn) {
 }
 
 function $(id) { return document.getElementById(id); }
-function pad(n) { return n < 10 ? '0'+n : ''+n; }
-function todayStr() { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
-function timeStr(d) { return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
 function setProgress(p) { $('loadingBar').style.width = p+'%'; }
 function setLoadText(t) { $('loadingText').textContent = t; }
 function hideLoading()  { const el=$('loadingScreen'); el.classList.add('hide'); setTimeout(()=>el.style.display='none', 450); }
-
-let toastTmr;
-function showToast(msg, type='') {
-  const el = $('toast');
-  el.textContent = msg; el.className = 'toast '+type;
-  void el.offsetWidth; el.classList.add('show');
-  clearTimeout(toastTmr); toastTmr = setTimeout(() => el.classList.remove('show'), 3400);
-}
+// pad, todayStr, timeStr, showToast come from common.js
 </script>
 </body>
 </html>
