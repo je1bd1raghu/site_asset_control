@@ -503,8 +503,8 @@ async function initApp() {
   await fetchRecords();
 
   setProgress(90); setLoadText('Loading pipe network…');
+  await checkEstimate();   // load estimates BEFORE edges so the first pending render is correct
   await loadAllEdges();
-  await checkEstimate();
 
   setProgress(100); setLoadText('Ready!');
   populateYears();
@@ -633,9 +633,9 @@ async function loadAssetsFromGist() {
 }
 
 // ── RECORDS ───────────────────────────────────────────────────────────────────
-async function fetchRecords() {
+async function fetchRecords(files) {
   try {
-    const files   = await workerGet('output');
+    if (!files) files = await workerGet('output');
     const allRecs = csvParse(files[RECORDS_FILE] || '');
     window._allFaultRecs = allRecs;
     todayRecs = allRecs.filter(r => r.date === todayStr());
@@ -660,7 +660,9 @@ async function fetchRecords() {
 
 async function refreshAll() {
   showToast('Refreshing…');
-  await Promise.all([fetchRecords(), checkEstimate()]);
+  const files = await workerGet('output');
+  await fetchRecords(files);
+  await checkEstimate(files);
   await loadAllEdges();   // re-derives fault state and re-renders pending list
   const person = persons.find(p => p.id === getPersonId());
   if (person && currentPos) renderAssets(person);
@@ -934,10 +936,10 @@ let activeFaultZone = null;
 const ESTIMATES_FILE = 'estimates.json';
 
 // ── ESTIMATE LOAD ────────────────────────────────────────────────────────────
-async function checkEstimate() {
+async function checkEstimate(files) {
   try {
-    const files = await workerGet('output');
-    const raw   = files[ESTIMATES_FILE];
+    if (!files) files = await workerGet('output');
+    const raw = files[ESTIMATES_FILE];
     estimateMap = {};
     if (raw) {
       const ests = JSON.parse(raw);
@@ -1023,10 +1025,12 @@ function renderPendingEstimates() {
 }
 
 async function refreshPendingEstimates() {
-  // Reload records, estimates AND edges, then rebuild the list from fresh data.
-  // (Refreshing only records/estimates left allEdges stale, which could empty the list.)
-  await Promise.all([fetchRecords(), checkEstimate()]);
-  await loadAllEdges();   // re-derives fault state and re-renders pending list
+  // Fetch the gist output once and share it between both loaders (avoids a
+  // concurrent-request race), then reload edges and re-render the list.
+  const files = await workerGet('output');
+  await fetchRecords(files);
+  await checkEstimate(files);
+  await loadAllEdges();
   showToast('Pending estimates refreshed', 'success');
 }
 
