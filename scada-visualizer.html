@@ -458,7 +458,8 @@
 
     // ─── NODE SIZE CONTROLS ───────────────────────────────────────────────────
     // Typed-node baselines at step 0 (mirror scada-core.js static sizes)
-    const NSC_DOT_SZ    = 6;    // untyped junction dot (fixed, does not scale)
+    const NSC_DOT_BASE  = 4;    // untyped junction dot size at step 0
+    const NSC_DOT_STEP  = 1;    // dot px change per step (smaller than typed nodes)
     const NSC_VALVE_SZ  = 44;   // valve baseline px
     const NSC_PUMP_SZ   = 48;   // pump baseline px
     const NSC_ZONE_W    = 56;   // zone width baseline px
@@ -485,10 +486,12 @@
         // Edge + arrowhead proportional to typed-node midpoint
         const edgeW      = Math.min(10, Math.max(1, 4 + s * 0.8));
         const arrowScale = Math.min(2.5, Math.max(0.4, 1.0 + s * 0.15));
+        // Untyped dot scales with steps; min 0 so it vanishes at smallest step
+        const dotSz      = Math.max(0, NSC_DOT_BASE + s * NSC_DOT_STEP);
         cy.style()
-          // Untyped dot stays fixed regardless of step
+          // Untyped dot scales and can reach 0 (hidden)
           .selector('node')
-          .style({ 'width': NSC_DOT_SZ, 'height': NSC_DOT_SZ, 'font-size': '0px', 'min-zoomed-font-size': 0 })
+          .style({ 'width': dotSz, 'height': dotSz, 'font-size': '0px', 'min-zoomed-font-size': 0 })
           // Typed nodes each scale from their own baselines
           .selector('node[type]')
           .style({ 'font-size': font, 'min-zoomed-font-size': 6 })
@@ -655,12 +658,7 @@
             wheelSensitivity: 0.2
         });
 
-        cy.fit(undefined, 40);   // auto-fit after layout with 40px padding
-
-        // Zoom floor — prevents GPS-spread diagrams from rendering too small
-        if (cy.zoom() < 0.9) {
-            cy.zoom({ level: 0.9, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
-        }
+        cy.center();   // centre graph at true size without fitting to canvas
 
         cy.on('tap', 'node', function(evt) {
             const n = evt.target;

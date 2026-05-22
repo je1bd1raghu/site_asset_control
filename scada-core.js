@@ -37,8 +37,8 @@ const CY_STYLE = [
     style: {
         'label': '',
         'shape': 'ellipse',
-        'width': 6,
-        'height': 6,
+        'width': 4,
+        'height': 4,
         'background-color': '#b0bec5',
         'border-width': 0,
         'font-size': '0px',
