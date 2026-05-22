@@ -62,6 +62,12 @@ function _applyNodeSizeStyle() {
     const maxSz = Math.max(20, NSC_BASE_MAX  + s * NSC_STEP_PX);
     const font  = Math.max(6,  NSC_BASE_FONT + s * NSC_STEP_FONT) + 'px';
 
+    // Scale edge width and arrowhead proportionally with node size.
+    // Baseline edge width = 2px at step 0; clamp to [1, 8].
+    const edgeW       = Math.min(8, Math.max(1, 2 + s * 0.5));
+    // arrow-scale: 1.0 at step 0, scales ±0.15 per step, clamped [0.4, 2.5]
+    const arrowScale  = Math.min(2.5, Math.max(0.4, 1.0 + s * 0.15));
+
     cy.style()
       .selector('node')
       .style({
@@ -69,6 +75,11 @@ function _applyNodeSizeStyle() {
           'height': 'mapData(nameCount, 1, 5, ' + minSz + ', ' + maxSz + ')',
           'font-size': font,
           'min-zoomed-font-size': 0
+      })
+      .selector('edge')
+      .style({
+          'width':       edgeW,
+          'arrow-scale': arrowScale
       })
       .update();
 }
@@ -98,7 +109,9 @@ const CY_BASE_STYLE = [
             'shape': 'ellipse',
             'width':  'mapData(nameCount, 1, 5, 40, 100)',
             'height': 'mapData(nameCount, 1, 5, 40, 100)',
-            'font-size': '10px'
+            'font-size': '10px',
+            'min-zoomed-font-size': 6,
+            'overlay-padding': 4
         }
     },
     // Only map label data field on nodes that actually have a label set —
@@ -136,7 +149,10 @@ function initCy(containerId, elements, layout, extraStyles) {
         container: document.getElementById(containerId),
         elements,
         layout,
-        style: extraStyles ? CY_BASE_STYLE.concat(extraStyles) : CY_BASE_STYLE
+        style: extraStyles ? CY_BASE_STYLE.concat(extraStyles) : CY_BASE_STYLE,
+        minZoom: 0.05,
+        maxZoom: 6,
+        wheelSensitivity: 0.2
     });
     return cy;
 }

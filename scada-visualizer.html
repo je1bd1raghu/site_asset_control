@@ -382,10 +382,14 @@
     let stopAnims     = null;   // teardown handle returned by startAnimations()
 
     // ─── NODE SIZE CONTROLS ───────────────────────────────────────────────────
-    const NSC_BASE_MIN  = 28;   // min node px at step 0
-    const NSC_BASE_MAX  = 56;   // max node px at step 0
-    const NSC_BASE_FONT = 10;   // label font px at step 0
-    const NSC_STEP_PX   = 6;    // px change per step
+    // Typed-node baselines at step 0 (mirror scada-core.js static sizes)
+    const NSC_DOT_SZ    = 6;    // untyped junction dot (fixed, does not scale)
+    const NSC_VALVE_SZ  = 44;   // valve baseline px
+    const NSC_PUMP_SZ   = 48;   // pump baseline px
+    const NSC_ZONE_W    = 56;   // zone width baseline px
+    const NSC_ZONE_H    = 44;   // zone height baseline px
+    const NSC_BASE_FONT = 11;   // typed label font px at step 0
+    const NSC_STEP_PX   = 6;    // px change per step for typed nodes
     const NSC_STEP_FONT = 1.5;  // font px change per step
     let _nodeSizeStep   = 0;
 
@@ -395,13 +399,32 @@
     }
     function _applyNodeSizeStyle() {
         if (!cy) return;
-        const s    = _nodeSizeStep;
-        const minSz = Math.max(10, NSC_BASE_MIN  + s * NSC_STEP_PX);
-        const maxSz = Math.max(20, NSC_BASE_MAX  + s * NSC_STEP_PX);
-        const font  = Math.max(6,  NSC_BASE_FONT + s * NSC_STEP_FONT) + 'px';
+        const s        = _nodeSizeStep;
+        const dSz      = s * NSC_STEP_PX;   // signed delta for typed nodes
+        const font     = Math.max(6, NSC_BASE_FONT + s * NSC_STEP_FONT) + 'px';
+        // Each typed node type scales from its own baseline
+        const valveSz  = Math.max(20, NSC_VALVE_SZ + dSz);
+        const pumpSz   = Math.max(22, NSC_PUMP_SZ  + dSz);
+        const zoneW    = Math.max(24, NSC_ZONE_W   + dSz);
+        const zoneH    = Math.max(20, NSC_ZONE_H   + dSz);
+        // Edge + arrowhead proportional to typed-node midpoint
+        const edgeW      = Math.min(10, Math.max(1, 4 + s * 0.8));
+        const arrowScale = Math.min(2.5, Math.max(0.4, 1.0 + s * 0.15));
         cy.style()
+          // Untyped dot stays fixed regardless of step
           .selector('node')
-          .style({ 'width': minSz, 'height': minSz, 'font-size': font, 'min-zoomed-font-size': 0 })
+          .style({ 'width': NSC_DOT_SZ, 'height': NSC_DOT_SZ, 'font-size': '0px', 'min-zoomed-font-size': 0 })
+          // Typed nodes each scale from their own baselines
+          .selector('node[type]')
+          .style({ 'font-size': font, 'min-zoomed-font-size': 6 })
+          .selector('node[type="valve"]')
+          .style({ 'width': valveSz, 'height': valveSz })
+          .selector('node[type="pump"]')
+          .style({ 'width': pumpSz, 'height': pumpSz })
+          .selector('node[type="zone"]')
+          .style({ 'width': zoneW, 'height': zoneH })
+          .selector('edge')
+          .style({ 'width': edgeW, 'arrow-scale': arrowScale })
           .update();
     }
     function _resetNodeSizeStep() { _nodeSizeStep = 0; }
@@ -551,7 +574,10 @@
             },
             layout: { name: 'preset' },
             userZoomingEnabled: true,
-            userPanningEnabled: true
+            userPanningEnabled: true,
+            minZoom: 0.15,
+            maxZoom: 8,
+            wheelSensitivity: 0.2
         });
 
         cy.fit(undefined, 40);   // auto-fit after layout with 40px padding

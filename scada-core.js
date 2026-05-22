@@ -37,23 +37,24 @@ const CY_STYLE = [
     style: {
         'label': '',
         'shape': 'ellipse',
-        'width': 10,
-        'height': 10,
+        'width': 6,
+        'height': 6,
         'background-color': '#b0bec5',
         'border-width': 0,
-        'font-size': '9px',
+        'font-size': '0px',
         'font-weight': 'bold',
         'color': '#555e68',
         'text-valign': 'bottom',
         'text-margin-y': 4,
-        'min-zoomed-font-size': 7,
+        'min-zoomed-font-size': 0,
+        'overlay-padding': 6,
         'events': 'yes'
     }
 },
 
 // ── Untyped node with a label — show it when explicitly set ───────────────
 {
-    selector: 'node[label]',
+    selector: 'node[type][label]',
     style: {
         'label': 'data(label)'
     }
@@ -71,7 +72,7 @@ const CY_STYLE = [
         'text-valign': 'bottom',
         'text-margin-y': 8,
         'color': '#2c3e50',
-        'min-zoomed-font-size': 8,
+        'min-zoomed-font-size': 6,
         'events': 'yes'
     }
 },
