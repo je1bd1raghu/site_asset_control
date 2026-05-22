@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <link rel="icon" href="data:,">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -148,19 +149,76 @@
         }
         #loading.hidden { display: none; }
 
+        /* Legend - collapsible on mobile */
         .legend {
             position: absolute;
             bottom: 20px;
-            left: 20px;
+            left: 12px;
             background: white;
             border-radius: 8px;
-            padding: 12px 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            font-size: 0.8rem;
-            z-index: 10;
+            padding: 10px 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            font-size: 0.78rem;
+            z-index: 15;
+            max-width: calc(100vw - 100px);
         }
-        .legend h4 { margin-bottom: 8px; color: #333; font-size: 0.85rem; }
+        .legend-toggle {
+            display: none;
+            background: none; border: none; cursor: pointer;
+            font-size: 0.75rem; font-weight: 800;
+            color: #2c3e50; padding: 0; line-height: 1;
+        }
+        .legend h4 {
+            margin-bottom: 8px; color: #333; font-size: 0.83rem;
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        }
+        .legend-body { display: block; }
+        .legend.collapsed .legend-body { display: none; }
         .legend-item { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+
+        /* Mobile breakpoint (<=480px) */
+        @media (max-width: 480px) {
+            .header { padding: 8px 10px; gap: 8px; }
+            .header h1 { font-size: 0.8rem; }
+            #zone-select { min-width: 0; width: 100%; font-size: 0.8rem; }
+            #sync-status { font-size: 0.7rem; padding: 3px 8px; }
+            #cy-container { height: calc(100vh - 44px); }
+
+            /* Controls: move to top-right, horizontal row */
+            .node-size-controls {
+                bottom: auto; top: 10px; right: 10px;
+                flex-direction: row; gap: 6px;
+            }
+            .node-size-controls .nsc-label { display: none; }
+            .nsc-btn { width: 36px; height: 36px; font-size: 22px; }
+
+            /* Legend: bottom-left, collapsible */
+            .legend {
+                bottom: 10px; left: 8px;
+                padding: 8px 10px;
+                max-width: calc(100vw - 24px);
+                font-size: 0.72rem;
+            }
+            .legend-toggle { display: inline; }
+
+            /* Compass: smaller, top-left */
+            #compass { width: 44px; height: 44px; top: 10px; left: 10px; right: auto; }
+            #layout-badge { top: 56px; font-size: 0.62rem; }
+
+            /* Node panel: scrollable */
+            #node-info-panel { max-height: 45vh; overflow-y: auto; }
+            .nip-fields { gap: 5px 12px; }
+            .nip-comment-block { min-width: 0; width: 100%; }
+        }
+
+        /* Tablet breakpoint (481-767px) */
+        @media (min-width: 481px) and (max-width: 767px) {
+            .header { padding: 8px 14px; gap: 10px; }
+            #zone-select { min-width: 160px; font-size: 0.82rem; }
+            .node-size-controls { bottom: 16px; right: 12px; }
+            .legend { bottom: 16px; left: 10px; font-size: 0.75rem; padding: 9px 12px; }
+            .legend-toggle { display: inline; }
+        }
 
         /* Shape swatches — mirror Cytoscape native shapes exactly */
         .lg-diamond {
@@ -318,8 +376,9 @@
         <button class="nsc-btn" onclick="adjustNodeSize(-1)" title="Decrease node &amp; label size" aria-label="Decrease node size">−</button>
     </div>
 
-    <div class="legend">
-        <h4>Legend</h4>
+    <div class="legend" id="legend">
+        <h4>Legend <button class="legend-toggle" onclick="toggleLegend()" id="legend-toggle-btn" aria-label="Toggle legend">▾</button></h4>
+        <div class="legend-body">
 
         <div class="legend-item">
             <div class="lg-diamond" style="background:#2ecc71; border: 2px solid #27ae60;"></div>
@@ -356,6 +415,7 @@
             <div class="lg-fault"></div>
             Fault
         </div>
+        </div><!-- /legend-body -->
     </div>
     <!-- Node info panel — shown on node click -->
     <div id="node-info-panel" role="complementary" aria-label="Node information">
@@ -370,6 +430,21 @@
 </div>
 
 <script>
+    // Legend collapse toggle
+    function toggleLegend() {
+        const leg = document.getElementById('legend');
+        const btn = document.getElementById('legend-toggle-btn');
+        const collapsed = leg.classList.toggle('collapsed');
+        btn.textContent = collapsed ? '▸' : '▾';  // right / down arrow
+        btn.setAttribute('aria-expanded', String(!collapsed));
+    }
+    // Auto-collapse legend on small screens
+    if (window.innerWidth <= 767) {
+        const leg = document.getElementById('legend');
+        const btn = document.getElementById('legend-toggle-btn');
+        if (leg && btn) { leg.classList.add('collapsed'); btn.textContent = '▸'; }
+    }
+
     // ─── CONFIG ───────────────────────────────────────────────────────────────
     const GITHUB_USERNAME     = 'je1bd1raghu';
     const GIST_ID             = 'b92c304c7c56c5a76916600d35b55d67';
