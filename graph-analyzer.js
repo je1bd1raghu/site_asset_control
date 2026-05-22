@@ -325,12 +325,12 @@ function loadFromZoneJSON() {
     const { applied: gpsApplied, canvasW, canvasH } = applyGpsToElements(elements, 'graph');
 
     // ── Init Cytoscape ────────────────────────────────────────────────────────
-    initCy('graph', elements, gpsApplied ? { name: 'preset' } : { name: 'cose' });
+    initCy('graph', elements, gpsApplied ? { name: 'preset' } : { name: 'cose', fit: false });
+    if (!gpsApplied) cy.center();
     _resetNodeSizeStep();
 
     if (gpsApplied) {
-        cy.fit(undefined, 40);
-        if (cy.zoom() < 0.9) cy.zoom({ level: 0.9, renderedPosition: { x: canvasW / 2, y: canvasH / 2 } });
+        cy.center();
     }
 
     // ── Also run the text-based analysis pipeline for the sidebar report ──────
@@ -577,15 +577,12 @@ function drawGraph(pairs, duplicates, overbranchedSet) {
         applyGpsToElements(elements, 'graph');
     }
 
-    const newCy = initCy('graph', elements, hasCoords ? { name: 'preset' } : { name: 'cose' });
+    const newCy = initCy('graph', elements, hasCoords ? { name: 'preset' } : { name: 'cose', fit: false });
+    if (!hasCoords) newCy.center();
     _resetNodeSizeStep();
 
     if (hasCoords) {
-        const container = document.getElementById('graph');
-        const canvasW = container.offsetWidth  || 800;
-        const canvasH = container.offsetHeight || 600;
-        newCy.fit(undefined, 40);
-        if (newCy.zoom() < 0.9) newCy.zoom({ level: 0.9, renderedPosition: { x: canvasW / 2, y: canvasH / 2 } });
+        newCy.center();
     }
 }
 
