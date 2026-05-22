@@ -113,6 +113,32 @@
   .rec-fault-clear { background:var(--success-light); }
   .chip-fault       { background:#fff3cd; color:var(--warning); }
   .chip-fault-clear { background:var(--success-light); color:var(--success); }
+
+  /* ── Fault Edge Report section ── */
+  .fault-search-wrap { position:relative; margin-bottom:14px; }
+  .fault-search-input { width:100%; border:2px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px 11px 40px; font-size:15px; font-family:'Nunito','Noto Sans Bengali',sans-serif; color:var(--text); outline:none; transition:border-color .2s; }
+  .fault-search-input:focus { border-color:var(--primary); }
+  .fault-search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:15px; pointer-events:none; }
+  .fault-edge-list { max-height:220px; overflow-y:auto; border:2px solid var(--border); border-radius:var(--radius-sm); margin-bottom:14px; }
+  .fault-edge-item { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .12s; gap:10px; }
+  .fault-edge-item:last-child { border-bottom:none; }
+  .fault-edge-item:hover, .fault-edge-item.selected { background:var(--primary-light); }
+  .fault-edge-item.selected { border-left:3px solid var(--primary); }
+  .fei-id { font-size:13px; font-weight:800; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fei-route { font-size:11px; color:var(--text3); font-weight:600; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .fei-zone { font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px; background:var(--surface2); color:var(--text3); flex-shrink:0; }
+  .fei-fault-badge { font-size:10px; font-weight:800; padding:2px 7px; border-radius:5px; background:#fff3cd; color:var(--warning); flex-shrink:0; }
+  .fault-empty { text-align:center; padding:20px; color:var(--text3); font-size:13px; font-weight:700; }
+  .fault-action-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:4px; }
+  .fault-selected-label { font-size:12px; font-weight:700; color:var(--text2); padding:8px 12px; border-radius:var(--radius-sm); background:var(--surface2); border:2px solid var(--border); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .fault-selected-label.has-fault { background:#fff3cd; border-color:#fcd34d; color:var(--warning); }
+  .btn-fault-rpt  { padding:10px 16px; background:#dc2626; color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:800; cursor:pointer; transition:background .2s; white-space:nowrap; }
+  .btn-fault-rpt:hover { background:#b91c1c; }
+  .btn-fault-rpt:disabled { opacity:.45; cursor:not-allowed; }
+  .btn-fault-clr  { padding:10px 16px; background:var(--success); color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:800; cursor:pointer; transition:background .2s; white-space:nowrap; }
+  .btn-fault-clr:hover { background:#15803d; }
+  .btn-fault-clr:disabled { opacity:.45; cursor:not-allowed; }
+  .fault-submit-status { font-size:12px; font-weight:600; color:var(--text3); min-height:18px; margin-top:6px; }
   .record-info { flex:1; min-width:0; }
   .record-name  { font-size:15px; font-weight:700; color:var(--text); }
   .record-asset { font-size:11px; color:var(--primary); font-weight:700; margin-top:1px; }
@@ -205,6 +231,36 @@
     <div id="assetsList"></div>
   </div>
 
+  <div class="card" id="faultCard">
+    <div class="section-header">
+      <div class="section-title" style="margin-bottom:0">⚠ Report Edge Fault</div>
+    </div>
+
+    <!-- Zone filter tabs -->
+    <div id="faultZoneTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+
+    <!-- Search -->
+    <div class="fault-search-wrap">
+      <span class="fault-search-icon">🔍</span>
+      <input type="search" id="faultSearch" class="fault-search-input"
+             placeholder="Search pipe by ID, source or target…"
+             oninput="filterFaultEdges()" autocomplete="off">
+    </div>
+
+    <!-- Edge list -->
+    <div class="fault-edge-list" id="faultEdgeList">
+      <div class="fault-empty">Loading edges…</div>
+    </div>
+
+    <!-- Selected edge + action row -->
+    <div class="fault-action-row">
+      <div class="fault-selected-label" id="faultSelectedLabel">No pipe selected</div>
+      <button class="btn-fault-rpt" id="btnFaultReport" onclick="submitEdgeFault('FAULT')"       disabled>⚠ Report</button>
+      <button class="btn-fault-clr" id="btnFaultClear"  onclick="submitEdgeFault('FAULT_CLEAR')" disabled>✓ Clear</button>
+    </div>
+    <div class="fault-submit-status" id="faultSubmitStatus"></div>
+  </div>
+
   <div class="card">
     <div class="section-header">
       <div class="section-title" style="margin-bottom:0">Today's Toggle Records</div>
@@ -269,6 +325,9 @@ async function initApp() {
 
   setProgress(70); setLoadText('Loading records…');
   await fetchRecords();
+
+  setProgress(90); setLoadText('Loading pipe network…');
+  await loadAllEdges();
 
   setProgress(100); setLoadText('Ready!');
   populateYears();
@@ -435,6 +494,7 @@ async function fetchRecords() {
   try {
     const files   = await workerGet('output');
     const allRecs = csvParse(files[RECORDS_FILE] || '');
+    window._allFaultRecs = allRecs;   // used by deriveFaultStateFromRecords
     todayRecs     = allRecs.filter(r => r.date === todayStr());
 
     // Latest record per asset wins over gist state seed
@@ -714,6 +774,173 @@ function renderRecords() {
   </div>
 </div>`;
   }).join('');
+}
+
+// ── FAULT EDGE REPORT ──────────────────────────────────────────────────────────
+let allEdges       = [];    // [{ id, source, target, zone, zoneName }]
+let faultEdgeState = {};    // edgeId → 'FAULT' | 'FAULT_CLEAR'
+let selectedEdgeId = null;
+let activeFaultZone = null; // null = all zones
+
+async function loadAllEdges() {
+  try {
+    const mRes = await fetch('manifest.json?t=' + Date.now());
+    const zones = await mRes.json();
+    allEdges = [];
+    for (const zone of zones) {
+      try {
+        const res = await fetch(`zones/${zone.id}.json?t=${Date.now()}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        for (const e of (data.edges || [])) {
+          const d = e.data || e;
+          allEdges.push({ id: d.id, source: d.source || '', target: d.target || '', zone: zone.id, zoneName: zone.name || zone.id });
+        }
+      } catch { /* skip */ }
+    }
+    buildFaultZoneTabs(zones);
+    deriveFaultStateFromRecords();
+    renderFaultEdgeList();
+  } catch(e) {
+    $('faultEdgeList').innerHTML = `<div class="fault-empty">Could not load edges: ${esc(e.message)}</div>`;
+  }
+}
+
+function deriveFaultStateFromRecords() {
+  faultEdgeState = {};
+  // todayRecs may not have all records — use the full allRecs if available, else fallback to todayRecs
+  const recs = (window._allFaultRecs || todayRecs);
+  recs.forEach(r => {
+    if ((r.action === 'FAULT' || r.action === 'FAULT_CLEAR') && r.assetId)
+      faultEdgeState[r.assetId] = r.action;
+  });
+}
+
+function buildFaultZoneTabs(zones) {
+  const wrap = $('faultZoneTabs');
+  const all = `<button class="btn-refresh" id="fztab-all" onclick="setFaultZone(null)" style="background:var(--primary);color:#fff;border-color:var(--primary)">All Zones</button>`;
+  const tabs = zones.map(z =>
+    `<button class="btn-refresh" id="fztab-${esc(z.id)}" onclick="setFaultZone('${esc(z.id)}')">${esc(z.name || z.id)}</button>`
+  ).join('');
+  wrap.innerHTML = all + tabs;
+}
+
+function setFaultZone(zoneId) {
+  activeFaultZone = zoneId;
+  // Update tab highlight
+  $('faultZoneTabs').querySelectorAll('button').forEach(btn => {
+    const isActive = (zoneId === null && btn.id === 'fztab-all') || btn.id === `fztab-${zoneId}`;
+    btn.style.background    = isActive ? 'var(--primary)' : '';
+    btn.style.color         = isActive ? '#fff' : '';
+    btn.style.borderColor   = isActive ? 'var(--primary)' : '';
+  });
+  renderFaultEdgeList();
+}
+
+function filterFaultEdges() { renderFaultEdgeList(); }
+
+function renderFaultEdgeList() {
+  const q    = ($('faultSearch').value || '').trim().toLowerCase();
+  const list = allEdges.filter(e => {
+    if (activeFaultZone && e.zone !== activeFaultZone) return false;
+    if (!q) return true;
+    return e.id.toLowerCase().includes(q)
+        || e.source.toLowerCase().includes(q)
+        || e.target.toLowerCase().includes(q);
+  });
+
+  if (!list.length) {
+    $('faultEdgeList').innerHTML = '<div class="fault-empty">No pipes match</div>';
+    return;
+  }
+
+  $('faultEdgeList').innerHTML = list.map(e => {
+    const isFaulted = faultEdgeState[e.id] === 'FAULT';
+    const isSelected = e.id === selectedEdgeId;
+    return `<div class="fault-edge-item${isSelected ? ' selected' : ''}" onclick="selectFaultEdge('${esc(e.id)}')">
+      <div style="flex:1;min-width:0">
+        <div class="fei-id">${hi(e.id, q)}</div>
+        <div class="fei-route">${hi(e.source, q)} → ${hi(e.target, q)}</div>
+      </div>
+      <span class="fei-zone">${esc(e.zone)}</span>
+      ${isFaulted ? '<span class="fei-fault-badge">⚠ FAULT</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function selectFaultEdge(edgeId) {
+  selectedEdgeId = edgeId;
+  const edge = allEdges.find(e => e.id === edgeId);
+  const isFaulted = faultEdgeState[edgeId] === 'FAULT';
+
+  const lbl = $('faultSelectedLabel');
+  lbl.textContent = edge ? `${edge.id}  (${edge.source} → ${edge.target})` : edgeId;
+  lbl.className   = 'fault-selected-label' + (isFaulted ? ' has-fault' : '');
+
+  $('btnFaultReport').disabled = false;
+  $('btnFaultClear').disabled  = false;
+  $('btnFaultReport').textContent = isFaulted ? '⚠ Re-report' : '⚠ Report';
+  $('btnFaultClear').style.display = isFaulted ? '' : 'none';
+  $('faultSubmitStatus').textContent = '';
+  renderFaultEdgeList();   // re-render to show selection highlight
+}
+
+async function submitEdgeFault(action) {
+  const pid    = getPersonId();
+  const person = persons.find(p => p.id === pid);
+  if (!person) { setFaultSubmitStatus('Select your name above first', 'var(--warning)'); return; }
+  if (!selectedEdgeId)  { setFaultSubmitStatus('Select a pipe first', 'var(--warning)'); return; }
+  if (!currentPos) { setFaultSubmitStatus('⏳ Waiting for GPS location…', 'var(--warning)'); return; }
+
+  const edge = allEdges.find(e => e.id === selectedEdgeId);
+
+  $('btnFaultReport').disabled = true;
+  $('btnFaultClear').disabled  = true;
+  setFaultSubmitStatus('Saving…', 'var(--text3)');
+
+  try {
+    const now      = new Date();
+    const existing = csvParse((await workerGet('output'))[RECORDS_FILE] || '');
+    const rec = {
+      sn:         existing.length + 1,
+      deviceId:   deviceId,
+      personId:   person.id,
+      personName: person.name,
+      assetId:    selectedEdgeId,
+      assetName:  edge ? `${edge.source} → ${edge.target}` : selectedEdgeId,
+      action:     action,
+      timestamp:  now.toISOString(),
+      date:       todayStr(),
+      time:       timeStr(now),
+      lat:        currentPos.lat.toFixed(7),
+      lng:        currentPos.lng.toFixed(7),
+      distance:   '',
+      zone:       edge?.zone || ''
+    };
+    existing.push(rec);
+    await workerPatch({ [RECORDS_FILE]: csvStringify(existing) });
+
+    faultEdgeState[selectedEdgeId] = action;
+    todayRecs.push(rec);
+    renderRecords();
+    renderFaultEdgeList();
+    selectFaultEdge(selectedEdgeId);   // refresh label/buttons
+
+    const msg = action === 'FAULT' ? '⚠ Fault reported' : '✓ Fault cleared';
+    setFaultSubmitStatus(msg, action === 'FAULT' ? 'var(--danger)' : 'var(--success)');
+    showToast(msg, action === 'FAULT' ? 'error' : 'success');
+  } catch(e) {
+    setFaultSubmitStatus('Error: ' + e.message, 'var(--danger)');
+  } finally {
+    $('btnFaultReport').disabled = false;
+    $('btnFaultClear').disabled  = false;
+  }
+}
+
+function setFaultSubmitStatus(msg, color) {
+  const el = $('faultSubmitStatus');
+  el.textContent   = msg;
+  el.style.color   = color || 'var(--text3)';
 }
 
 // ── CSV ────────────────────────────────────────────────────────────────────────
