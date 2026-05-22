@@ -632,6 +632,15 @@
                 select.appendChild(opt);
             });
 
+            // Wire up zone switching
+            select.addEventListener('change', () => {
+                const val = select.value;
+                if (!val) return;
+                const zone = JSON.parse(val);
+                currentZone = null;   // clear guard so same zone can reload
+                loadZone(zone);
+            });
+
             // Restore the last-viewed zone (or fall back to first)
             if (zones.length > 0) {
                 const savedId = localStorage.getItem('scada_last_zone');
@@ -1105,11 +1114,6 @@
             document.getElementById('btn-fault-clear').disabled  = !pid2;
         }
     }
-
-    // Extend refreshStatus to also re-apply fault overlay after each sync
-    const _origRefreshStatus = refreshStatus;
-    // (fault overlay applied inside loadZone after initial load)
-
 
 
     // ─── BOOT ─────────────────────────────────────────────────────────────────
