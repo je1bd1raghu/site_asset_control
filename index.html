@@ -1015,9 +1015,12 @@ function renderPendingEstimates() {
 }
 
 async function refreshPendingEstimates() {
+  await fetchRecords();
   await checkEstimate();
+
   deriveFaultStateFromRecords();
   renderPendingEstimates();
+
   showToast('Pending estimates refreshed', 'success');
 }
 
