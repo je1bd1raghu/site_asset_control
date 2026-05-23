@@ -656,11 +656,24 @@
         });
     }
 
-    // Attach map move/zoom handlers (once per cy instance).
+    // Attach map move/zoom handlers. Idempotent: always removes existing
+    // handlers first, then adds exactly one of each, so repeated calls (across
+    // zone loads or within an instance) never stack or drop listeners.
     function bindMapSync() {
-        if (!map || mapSyncBound) return;
+        if (!map) return;
+        map.off('move zoom moveend zoomend', syncNodesToMap);
+        map.off('zoomend', _onZoomResize);
         map.on('move zoom moveend zoomend', syncNodesToMap);
+        map.on('zoomend', _onZoomResize);
         mapSyncBound = true;
+    }
+
+    // Recompute density-based size after a zoom gesture settles. Preserves the
+    // user's manual offset (only the auto baseline changes).
+    function _onZoomResize() {
+        if (!cy || !mapVisible || !zoneHasGps()) return;
+        recomputeAutoStep(cy.nodes().length);
+        _applyNodeSizeStyle();
     }
 
     // Fit the Leaflet map to all GPS nodes, then sync node positions.
@@ -800,25 +813,99 @@
     const NSC_STEP_FONT = 1.5;  // font px change per step
 
     // ── Adaptive (scale-aware) sizing ────────────────────────────────────────
-    // The icon size auto-scales with node count: small graphs get large icons,
-    // dense graphs get progressively smaller ones. Screen area per node ~ 1/N and
-    // linear size ~ 1/sqrt(N), so a log curve maps count → size step smoothly.
-    //   step = AUTO_A − AUTO_B·log10(N), rounded to 0.5 and clamped to [-4, +5].
-    // Reference points: N=50→+1, N=200→0, N=500→-1.5, N=1000→-2.5, N≥5000→-4.
-    const AUTO_A = 5.4;
-    const AUTO_B = 2.6;
+    // Icon size adapts to how crowded the view actually is. Two regimes:
+    //
+    //  • MAP MODE (GPS nodes on the satellite map): size is driven by on-screen
+    //    DENSITY, not raw count. We measure the median nearest-neighbour pixel
+    //    distance between nodes and size icons as a fraction of that spacing.
+    //    Because the projection depends on zoom, this means the SAME nodes grow
+    //    when you zoom in (more map area per node) and shrink when you zoom out.
+    //
+    //  • DIAGRAM MODE (no map / no GPS): no geographic area exists, so we fall
+    //    back to a log-of-count curve: step = CNT_A − CNT_B·log10(N).
+    //
+    // Both regimes emit a "step" on your existing scale (valve baseline 44px,
+    // ±6px per step), clamped to [-4, +5].
+    const CNT_A = 5.4;          // count-mode curve intercept
+    const CNT_B = 2.6;          // count-mode curve slope
+    const TARGET_FRAC = 0.55;   // map-mode: icon diameter ÷ nearest-neighbour spacing
     // Above this node count, per-frame animations are skipped to avoid memory /
     // main-thread freeze (each anim loop iterates pump/valve nodes every frame).
     const ANIM_NODE_LIMIT = 1000;
 
-    let _autoStep     = 0;   // baseline derived from node count
+    let _autoStep     = 0;   // baseline derived from density (map) or count (diagram)
     let _manualOffset = 0;   // user's +/- nudges, applied on top of the baseline
 
-    // Compute the automatic baseline step for a given node count.
-    function computeAutoStep(n) {
-        if (!n || n <= 0) return 0;
-        const raw = AUTO_A - AUTO_B * Math.log10(n);
+    // Convert a desired icon diameter (px) into the nearest valid size step.
+    function _pxToStep(targetPx) {
+        const raw = (targetPx - NSC_VALVE_SZ) / NSC_STEP_PX;
         return Math.max(-4, Math.min(5, Math.round(raw * 2) / 2));
+    }
+
+    // Count-based fallback (diagram mode).
+    function computeAutoStepByCount(n) {
+        if (!n || n <= 0) return 0;
+        const raw = CNT_A - CNT_B * Math.log10(n);
+        return Math.max(-4, Math.min(5, Math.round(raw * 2) / 2));
+    }
+
+    // Density-based step (map mode): median nearest-neighbour spacing in px.
+    // Returns null if it can't measure (e.g. <2 GPS nodes), so caller falls back.
+    function computeAutoStepByDensity() {
+        if (!cy || !map) return null;
+        // Collect current on-screen pixel positions of GPS nodes.
+        const pts = [];
+        cy.nodes().forEach(n => {
+            const lat = n.data('lat'), lng = n.data('lng');
+            if (lat != null && lng != null) {
+                const p = map.latLngToContainerPoint([lat, lng]);
+                pts.push([p.x, p.y]);
+            }
+        });
+        const N = pts.length;
+        if (N < 2) return null;
+
+        // For each node, nearest-neighbour distance. O(N²) is fine for a few
+        // thousand nodes on a one-off recompute (not per animation frame).
+        // For very large N we sample to keep it snappy.
+        const SAMPLE = 400;
+        const idxs = N <= SAMPLE
+            ? pts.map((_, i) => i)
+            : Array.from({ length: SAMPLE }, () => (Math.random() * N) | 0);
+
+        const nn = [];
+        for (const i of idxs) {
+            let best = Infinity;
+            const [xi, yi] = pts[i];
+            for (let j = 0; j < N; j++) {
+                if (j === i) continue;
+                const dx = pts[j][0] - xi, dy = pts[j][1] - yi;
+                const d2 = dx * dx + dy * dy;
+                if (d2 < best) best = d2;
+            }
+            if (best < Infinity) nn.push(Math.sqrt(best));
+        }
+        if (nn.length === 0) return null;
+
+        // Median is robust against a few outliers (isolated far-off nodes).
+        nn.sort((a, b) => a - b);
+        const spacing = nn[(nn.length / 2) | 0];
+        const targetPx = spacing * TARGET_FRAC;
+        return _pxToStep(targetPx);
+    }
+
+    // Pick the right regime and update _autoStep. Pass the node count so diagram
+    // mode works even before/without a map.
+    function recomputeAutoStep(nodeCount) {
+        let step = null;
+        if (mapVisible && map && zoneHasGps()) {
+            step = computeAutoStepByDensity();   // may return null if unmeasurable
+        }
+        if (step === null) {
+            const n = (nodeCount != null) ? nodeCount : (cy ? cy.nodes().length : 0);
+            step = computeAutoStepByCount(n);
+        }
+        _autoStep = step;
     }
 
     function adjustNodeSize(delta) {
@@ -941,13 +1028,15 @@
             // doesn't crash with "nonexistent source" errors.
             repairDiagramIds(diagram);
 
-            // ── Adaptive sizing: derive baseline icon size from node count ───
+            // ── Adaptive sizing (initial): start from a count-based baseline.
+            // If this zone uses the map, we refine to density-based sizing right
+            // after the map view is fitted (positions known only then).
             const nodeCount = (diagram.nodes && diagram.nodes.length) || 0;
-            _autoStep     = computeAutoStep(nodeCount);
-            _manualOffset = 0;   // reset manual nudges on each zone load
+            _manualOffset = 0;                       // reset manual nudges per zone
+            _autoStep = computeAutoStepByCount(nodeCount);
 
             initCytoscape(diagram);
-            _applyNodeSizeStyle();   // apply adaptive baseline to the fresh instance
+            _applyNodeSizeStyle();   // apply provisional baseline to fresh instance
 
             // ── Engage satellite-map mode if this zone has GPS-tagged nodes ──
             mapSyncBound = false;       // new cy instance → handlers must rebind
@@ -955,7 +1044,9 @@
             const useMap = mapVisible && zoneHasGps();
             document.getElementById('map-container').style.display = useMap ? 'block' : 'none';
             if (useMap) {
-                enterMapMode();
+                enterMapMode();                 // fits map + positions nodes
+                recomputeAutoStep(nodeCount);   // now refine using on-screen density
+                _applyNodeSizeStyle();
             } else {
                 cy.userZoomingEnabled(true);
                 cy.userPanningEnabled(true);
