@@ -6,7 +6,6 @@
     <link rel="icon" href="data:,">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <title>SCADA View</title>
     <script src="libs/cytoscape.min.js"></script>
   <script src="libs/fp.min.js"></script>
@@ -105,42 +104,7 @@
             width: 100vw;
             height: calc(100vh - 50px);
         }
-        /* Leaflet satellite map sits behind the Cytoscape canvas */
-        #map-container {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 1;
-            background: #1a1a1a;
-        }
-        /* Cytoscape overlays the map; transparent background lets imagery show through */
-        #cy {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            display: block;
-            z-index: 2;
-            background: transparent;
-        }
-        /* Map toggle button */
-        #map-toggle-btn {
-            position: absolute;
-            top: 16px; right: 90px;
-            width: 36px; height: 36px;
-            border-radius: 8px;
-            border: 2px solid rgba(127,219,202,0.5);
-            background: rgba(26,37,47,0.82);
-            color: #7fdbca;
-            font-size: 16px; cursor: pointer;
-            z-index: 12;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-            transition: background 0.15s, border-color 0.15s, opacity 0.15s;
-        }
-        #map-toggle-btn:hover { background: rgba(127,219,202,0.18); border-color: #7fdbca; }
-        #map-toggle-btn.map-off { opacity: 0.5; }
-        /* Leaflet attribution: keep it out of the way */
-        .leaflet-control-attribution { font-size: 9px !important; }
+        #cy { width: 100%; height: 100%; display: block; }
 
         /* Node size controls (+/-) — matches Graph Analyzer style */
         .node-size-controls {
@@ -468,11 +432,8 @@
 </div>
 
 <div id="cy-container">
-    <div id="map-container"></div>
     <div id="cy"></div>
     <div id="loading">Loading zone...</div>
-
-    <button id="map-toggle-btn" title="Toggle satellite map" onclick="toggleMap()">🗺️</button>
 
     <!-- Compass rose — shown only when GPS layout is active -->
     <svg id="compass" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -566,7 +527,6 @@
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
     // Legend collapse toggle
     function toggleLegend() {
@@ -601,115 +561,6 @@
     let refreshTimer  = null;
     let currentZone   = null;
     let stopAnims     = null;   // teardown handle returned by startAnimations()
-
-    // ─── LEAFLET MAP STATE ────────────────────────────────────────────────────
-    let map           = null;   // Leaflet map instance
-    let mapVisible    = true;    // satellite map shown?
-    let mapSyncBound  = false;   // are map move/zoom handlers attached to current cy?
-    let _mapMoveRaf   = null;    // requestAnimationFrame handle for position sync
-
-    // ─── LEAFLET MAP FUNCTIONS ────────────────────────────────────────────────
-    function initializeMap() {
-        if (map) return;
-        map = L.map('map-container', {
-            zoomControl: true,
-            attributionControl: true
-        }).setView([24.19, 88.30], 11);
-
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri',
-            maxZoom: 19
-        }).addTo(map);
-    }
-
-    // Convert GPS lat/lng to a Cytoscape *model* position.
-    // We project to layer point (stable across zoom) then convert to cy model
-    // coords by inverting cy's current pan & zoom, so nodes stick to the map.
-    function gpsToModelPos(lat, lng) {
-        const pt = map.latLngToContainerPoint([lat, lng]);  // screen px in container
-        const pan = cy.pan();
-        const zoom = cy.zoom();
-        // screen = model * zoom + pan  →  model = (screen - pan) / zoom
-        return { x: (pt.x - pan.x) / zoom, y: (pt.y - pan.y) / zoom };
-    }
-
-    // True if at least one node in the current zone has GPS coords.
-    function zoneHasGps() {
-        if (!cy) return false;
-        return cy.nodes().some(n => n.data('lat') != null && n.data('lng') != null);
-    }
-
-    // Reposition all GPS-tagged nodes to match the map. Throttled via rAF.
-    function syncNodesToMap() {
-        if (!cy || !map || !mapVisible) return;
-        if (_mapMoveRaf) cancelAnimationFrame(_mapMoveRaf);
-        _mapMoveRaf = requestAnimationFrame(() => {
-            cy.batch(() => {
-                cy.nodes().forEach(n => {
-                    const lat = n.data('lat'), lng = n.data('lng');
-                    if (lat != null && lng != null) {
-                        n.position(gpsToModelPos(lat, lng));
-                    }
-                });
-            });
-            _mapMoveRaf = null;
-        });
-    }
-
-    // Attach map move/zoom handlers (once per cy instance).
-    function bindMapSync() {
-        if (!map || mapSyncBound) return;
-        map.on('move zoom moveend zoomend', syncNodesToMap);
-        mapSyncBound = true;
-    }
-
-    // Fit the Leaflet map to all GPS nodes, then sync node positions.
-    function fitMapToGpsNodes() {
-        if (!cy || !map) return;
-        const pts = [];
-        cy.nodes().forEach(n => {
-            const lat = n.data('lat'), lng = n.data('lng');
-            if (lat != null && lng != null) pts.push([lat, lng]);
-        });
-        if (pts.length === 0) return;
-        if (pts.length === 1) {
-            map.setView(pts[0], 15);
-        } else {
-            map.fitBounds(L.latLngBounds(pts), { padding: [60, 60] });
-        }
-        // setView/fitBounds fire 'moveend' which triggers syncNodesToMap,
-        // but call once directly in case the view doesn't actually change.
-        syncNodesToMap();
-    }
-
-    // Toggle the satellite map on/off. When off, restore the original
-    // canvas-based layout (preset / GPS-polar) and free panning.
-    function toggleMap() {
-        mapVisible = !mapVisible;
-        const container = document.getElementById('map-container');
-        const btn = document.getElementById('map-toggle-btn');
-        container.style.display = mapVisible ? 'block' : 'none';
-        btn.classList.toggle('map-off', !mapVisible);
-
-        if (!cy) return;
-
-        if (mapVisible && zoneHasGps()) {
-            // Map mode: lock cy pan/zoom (the map drives the view), pin nodes.
-            cy.userZoomingEnabled(false);
-            cy.userPanningEnabled(false);
-            cy.zoom(1);
-            cy.pan({ x: 0, y: 0 });
-            map.invalidateSize();
-            bindMapSync();
-            fitMapToGpsNodes();
-        } else {
-            // Diagram mode: hand control back to Cytoscape.
-            cy.userZoomingEnabled(true);
-            cy.userPanningEnabled(true);
-            cy.fit(undefined, 40);
-        }
-    }
-
 
     // ─── NODE SIZE CONTROLS ───────────────────────────────────────────────────
     // Typed-node baselines at step 0 (mirror scada-core.js static sizes)
@@ -839,23 +690,6 @@
             repairDiagramIds(diagram);
 
             initCytoscape(diagram);
-
-            // ── Engage satellite-map mode if this zone has GPS-tagged nodes ──
-            mapSyncBound = false;   // new cy instance → handlers must rebind
-            if (mapVisible && zoneHasGps()) {
-                cy.userZoomingEnabled(false);
-                cy.userPanningEnabled(false);
-                cy.zoom(1);
-                cy.pan({ x: 0, y: 0 });
-                map.invalidateSize();
-                bindMapSync();
-                fitMapToGpsNodes();
-                document.getElementById('map-container').style.display = 'block';
-            } else {
-                // No GPS data (or map hidden) → plain diagram, hide map.
-                document.getElementById('map-container').style.display =
-                    (mapVisible && zoneHasGps()) ? 'block' : 'none';
-            }
 
             // ── Start all visual animations ────────────────────────────────
             stopAnims = startAnimations(cy);
@@ -1259,7 +1093,6 @@
 
     // ─── BOOT ─────────────────────────────────────────────────────────────────
     (async () => {
-        initializeMap();                 // create Leaflet map first
         deviceId = await getDeviceId();
         await loadPersonsConfig();
         loadManifest();
