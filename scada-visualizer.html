@@ -798,15 +798,38 @@
     const NSC_BASE_FONT = 11;   // typed label font px at step 0
     const NSC_STEP_PX   = 6;    // px change per step for typed nodes
     const NSC_STEP_FONT = 1.5;  // font px change per step
-    let _nodeSizeStep   = 0;
+
+    // ── Adaptive (scale-aware) sizing ────────────────────────────────────────
+    // The icon size auto-scales with node count: small graphs get large icons,
+    // dense graphs get progressively smaller ones. Screen area per node ~ 1/N and
+    // linear size ~ 1/sqrt(N), so a log curve maps count → size step smoothly.
+    //   step = AUTO_A − AUTO_B·log10(N), rounded to 0.5 and clamped to [-4, +5].
+    // Reference points: N=50→+1, N=200→0, N=500→-1.5, N=1000→-2.5, N≥5000→-4.
+    const AUTO_A = 5.4;
+    const AUTO_B = 2.6;
+    // Above this node count, per-frame animations are skipped to avoid memory /
+    // main-thread freeze (each anim loop iterates pump/valve nodes every frame).
+    const ANIM_NODE_LIMIT = 1000;
+
+    let _autoStep     = 0;   // baseline derived from node count
+    let _manualOffset = 0;   // user's +/- nudges, applied on top of the baseline
+
+    // Compute the automatic baseline step for a given node count.
+    function computeAutoStep(n) {
+        if (!n || n <= 0) return 0;
+        const raw = AUTO_A - AUTO_B * Math.log10(n);
+        return Math.max(-4, Math.min(5, Math.round(raw * 2) / 2));
+    }
 
     function adjustNodeSize(delta) {
-        _nodeSizeStep = Math.max(-4, Math.min(5, _nodeSizeStep + delta));
+        // Clamp the *effective* step (auto + manual) to the valid range.
+        const eff = Math.max(-4, Math.min(5, _autoStep + _manualOffset + delta));
+        _manualOffset = eff - _autoStep;
         _applyNodeSizeStyle();
     }
     function _applyNodeSizeStyle() {
         if (!cy) return;
-        const s        = _nodeSizeStep;
+        const s        = Math.max(-4, Math.min(5, _autoStep + _manualOffset));
         const dSz      = s * NSC_STEP_PX;   // signed delta for typed nodes
         const rawFont  = NSC_BASE_FONT + s * NSC_STEP_FONT;
         const font     = (s <= -4 ? '0' : Math.max(6, rawFont)) + 'px';
@@ -836,6 +859,10 @@
           .selector('edge')
           .style({ 'width': edgeW, 'arrow-scale': arrowScale })
           .update();
+
+        // Reflect auto vs manual sizing in the control label.
+        const lbl = document.querySelector('.nsc-label');
+        if (lbl) lbl.innerHTML = (_manualOffset === 0 ? 'Auto' : 'Node') + '<br>Size';
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -914,7 +941,13 @@
             // doesn't crash with "nonexistent source" errors.
             repairDiagramIds(diagram);
 
+            // ── Adaptive sizing: derive baseline icon size from node count ───
+            const nodeCount = (diagram.nodes && diagram.nodes.length) || 0;
+            _autoStep     = computeAutoStep(nodeCount);
+            _manualOffset = 0;   // reset manual nudges on each zone load
+
             initCytoscape(diagram);
+            _applyNodeSizeStyle();   // apply adaptive baseline to the fresh instance
 
             // ── Engage satellite-map mode if this zone has GPS-tagged nodes ──
             mapSyncBound = false;       // new cy instance → handlers must rebind
@@ -929,8 +962,16 @@
                 cy.fit(undefined, 40);
             }
 
-            // ── Start all visual animations ────────────────────────────────
-            stopAnims = startAnimations(cy);
+            // ── Start visual animations — skipped for very large graphs ──────
+            // Each animation loop iterates pump/valve nodes every frame, which
+            // can freeze the main thread on dense graphs. Above the limit we
+            // leave nodes static (state colours still update via refreshStatus).
+            if (nodeCount <= ANIM_NODE_LIMIT) {
+                stopAnims = startAnimations(cy);
+            } else {
+                stopAnims = null;
+                console.info(`[scada] ${nodeCount} nodes > ${ANIM_NODE_LIMIT} limit — animations disabled for performance.`);
+            }
 
             showLoading(false);
 
