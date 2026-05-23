@@ -725,6 +725,8 @@
         bindMapSync();
         bindEventBridge();        // forward scroll/drag from cy → map
         fitMapToGpsNodes();
+        recomputeAutoStep(cy.nodes().length);   // size from map-projected density
+        _applyNodeSizeStyle();
     }
 
     // Diagram mode: hand control back to Cytoscape.
@@ -734,6 +736,8 @@
         cy.userPanningEnabled(true);
         cy.boxSelectionEnabled(false);
         cy.fit(undefined, 40);
+        recomputeAutoStep(cy.nodes().length);   // size from canvas density
+        _applyNodeSizeStyle();
     }
 
     // ─── EVENT BRIDGE: forward wheel + drag from cy canvas to Leaflet ──────────
@@ -842,32 +846,25 @@
         return Math.max(-4, Math.min(5, Math.round(raw * 2) / 2));
     }
 
-    // Count-based fallback (diagram mode).
+    // Count-based fallback — used only when density can't be measured
+    // (fewer than 2 nodes, or positions not yet known).
     function computeAutoStepByCount(n) {
         if (!n || n <= 0) return 0;
         const raw = CNT_A - CNT_B * Math.log10(n);
         return Math.max(-4, Math.min(5, Math.round(raw * 2) / 2));
     }
 
-    // Density-based step (map mode): median nearest-neighbour spacing in px.
-    // Returns null if it can't measure (e.g. <2 GPS nodes), so caller falls back.
-    function computeAutoStepByDensity() {
-        if (!cy || !map) return null;
-        // Collect current on-screen pixel positions of GPS nodes.
-        const pts = [];
-        cy.nodes().forEach(n => {
-            const lat = n.data('lat'), lng = n.data('lng');
-            if (lat != null && lng != null) {
-                const p = map.latLngToContainerPoint([lat, lng]);
-                pts.push([p.x, p.y]);
-            }
-        });
+    // ── Core density math ────────────────────────────────────────────────────
+    // Given an array of [x,y] RENDERED-pixel positions, return a size step from
+    // the median nearest-neighbour spacing. This is mode-agnostic: the caller
+    // supplies pixel coords from the map projection (map mode) or from the
+    // Cytoscape canvas (diagram mode). Returns null if unmeasurable (<2 points).
+    function _stepFromPoints(pts) {
         const N = pts.length;
         if (N < 2) return null;
 
-        // For each node, nearest-neighbour distance. O(N²) is fine for a few
-        // thousand nodes on a one-off recompute (not per animation frame).
-        // For very large N we sample to keep it snappy.
+        // Nearest-neighbour distance per point. O(N²); sampled above SAMPLE so a
+        // one-off recompute stays snappy on dense graphs.
         const SAMPLE = 400;
         const idxs = N <= SAMPLE
             ? pts.map((_, i) => i)
@@ -887,20 +884,46 @@
         }
         if (nn.length === 0) return null;
 
-        // Median is robust against a few outliers (isolated far-off nodes).
+        // Median is robust against a few isolated far-off nodes.
         nn.sort((a, b) => a - b);
         const spacing = nn[(nn.length / 2) | 0];
-        const targetPx = spacing * TARGET_FRAC;
-        return _pxToStep(targetPx);
+        if (!(spacing > 0)) return null;          // all coincident → unmeasurable
+        return _pxToStep(spacing * TARGET_FRAC);
     }
 
-    // Pick the right regime and update _autoStep. Pass the node count so diagram
-    // mode works even before/without a map.
+    // MAP MODE coords: project each GPS node to container (screen) pixels.
+    function _mapPoints() {
+        if (!cy || !map) return [];
+        const pts = [];
+        cy.nodes().forEach(n => {
+            const lat = n.data('lat'), lng = n.data('lng');
+            if (lat != null && lng != null) {
+                const p = map.latLngToContainerPoint([lat, lng]);
+                pts.push([p.x, p.y]);
+            }
+        });
+        return pts;
+    }
+
+    // DIAGRAM MODE coords: node model positions scaled by the current zoom give
+    // rendered (on-screen) pixels — the spacing the user actually perceives.
+    function _canvasPoints() {
+        if (!cy) return [];
+        const z = cy.zoom() || 1;
+        const pts = [];
+        cy.nodes().forEach(n => {
+            const p = n.position();
+            pts.push([p.x * z, p.y * z]);
+        });
+        return pts;
+    }
+
+    // Unified: same density logic for both modes, differing only in coord source.
+    // Falls back to the count curve only if density is genuinely unmeasurable.
     function recomputeAutoStep(nodeCount) {
-        let step = null;
-        if (mapVisible && map && zoneHasGps()) {
-            step = computeAutoStepByDensity();   // may return null if unmeasurable
-        }
+        const useMap = mapVisible && map && zoneHasGps();
+        const pts    = useMap ? _mapPoints() : _canvasPoints();
+        let step     = _stepFromPoints(pts);
         if (step === null) {
             const n = (nodeCount != null) ? nodeCount : (cy ? cy.nodes().length : 0);
             step = computeAutoStepByCount(n);
@@ -1044,13 +1067,13 @@
             const useMap = mapVisible && zoneHasGps();
             document.getElementById('map-container').style.display = useMap ? 'block' : 'none';
             if (useMap) {
-                enterMapMode();                 // fits map + positions nodes
-                recomputeAutoStep(nodeCount);   // now refine using on-screen density
-                _applyNodeSizeStyle();
+                enterMapMode();                 // fits map, positions nodes, sizes icons
             } else {
                 cy.userZoomingEnabled(true);
                 cy.userPanningEnabled(true);
-                cy.fit(undefined, 40);
+                cy.fit(undefined, 40);          // sets the zoom for this view
+                recomputeAutoStep(nodeCount);   // same density logic, canvas coords
+                _applyNodeSizeStyle();
             }
 
             // ── Start visual animations — skipped for very large graphs ──────
@@ -1159,8 +1182,23 @@
             if (evt.target === cy) closeNodePanel();
         });
 
+        // Diagram mode: rescale icons as the user zooms the Cytoscape canvas,
+        // mirroring the map-mode zoomend behaviour. Debounced so it fires once
+        // the gesture settles, not on every wheel tick. (In map mode cy zoom is
+        // locked, so this never triggers there.)
+        cy.on('zoom', function() {
+            if (mapVisible && zoneHasGps()) return;   // map drives sizing instead
+            if (_cyZoomTmr) clearTimeout(_cyZoomTmr);
+            _cyZoomTmr = setTimeout(() => {
+                _cyZoomTmr = null;
+                recomputeAutoStep(cy.nodes().length);
+                _applyNodeSizeStyle();
+            }, 150);
+        });
+
         bindEdgeTap();
     }
+    let _cyZoomTmr = null;
 
     // ─── NODE INFO PANEL ─────────────────────────────────────────────────────
     function showNodePanel(n) {
