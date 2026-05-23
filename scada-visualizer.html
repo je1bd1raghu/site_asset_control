@@ -694,20 +694,96 @@
         if (!cy) return;
 
         if (mapVisible && zoneHasGps()) {
-            // Map mode: lock cy pan/zoom (the map drives the view), pin nodes.
-            cy.userZoomingEnabled(false);
-            cy.userPanningEnabled(false);
-            cy.zoom(1);
-            cy.pan({ x: 0, y: 0 });
-            map.invalidateSize();
-            bindMapSync();
-            fitMapToGpsNodes();
+            enterMapMode();
         } else {
-            // Diagram mode: hand control back to Cytoscape.
-            cy.userZoomingEnabled(true);
-            cy.userPanningEnabled(true);
-            cy.fit(undefined, 40);
+            exitMapMode();
         }
+    }
+
+    // Map mode: Leaflet drives pan/zoom, cy nodes pinned to lat/lng.
+    // cy still handles node/edge taps; wheel + drag are forwarded to the map.
+    function enterMapMode() {
+        cy.userZoomingEnabled(false);
+        cy.userPanningEnabled(false);
+        cy.boxSelectionEnabled(false);
+        cy.zoom(1);
+        cy.pan({ x: 0, y: 0 });
+        map.invalidateSize();
+        bindMapSync();
+        bindEventBridge();        // forward scroll/drag from cy → map
+        fitMapToGpsNodes();
+    }
+
+    // Diagram mode: hand control back to Cytoscape.
+    function exitMapMode() {
+        unbindEventBridge();
+        cy.userZoomingEnabled(true);
+        cy.userPanningEnabled(true);
+        cy.boxSelectionEnabled(false);
+        cy.fit(undefined, 40);
+    }
+
+    // ─── EVENT BRIDGE: forward wheel + drag from cy canvas to Leaflet ──────────
+    // The #cy canvas sits above the map and would otherwise swallow all mouse
+    // input. We listen on the cy container and replay scroll/drag onto the map,
+    // so the user can zoom and pan the satellite layer while nodes stay clickable.
+    let _bridgeEl = null;
+    let _dragging = false;
+    let _dragMoved = false;
+    let _lastXY = null;
+
+    function _onWheel(e) {
+        e.preventDefault();
+        // Zoom the map toward the cursor position.
+        const rect = _bridgeEl.getBoundingClientRect();
+        const pt = L.point(e.clientX - rect.left, e.clientY - rect.top);
+        const latlng = map.containerPointToLatLng(pt);
+        const delta = e.deltaY < 0 ? 1 : -1;
+        const targetZoom = map.getZoom() + delta;
+        map.setZoomAround(latlng, targetZoom);
+    }
+
+    function _onPointerDown(e) {
+        if (e.button !== 0) return;          // left button only
+        _dragging = true;
+        _dragMoved = false;
+        _lastXY = { x: e.clientX, y: e.clientY };
+    }
+
+    function _onPointerMove(e) {
+        if (!_dragging) return;
+        const dx = e.clientX - _lastXY.x;
+        const dy = e.clientY - _lastXY.y;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) _dragMoved = true;
+        _lastXY = { x: e.clientX, y: e.clientY };
+        map.panBy([-dx, -dy], { animate: false });
+    }
+
+    function _onPointerUp() {
+        _dragging = false;
+        _lastXY = null;
+        // Reset shortly after so a genuine click (no move) still reaches cy taps.
+        setTimeout(() => { _dragMoved = false; }, 0);
+    }
+
+    function bindEventBridge() {
+        if (_bridgeEl) return;
+        _bridgeEl = document.getElementById('cy');
+        _bridgeEl.addEventListener('wheel', _onWheel, { passive: false });
+        _bridgeEl.addEventListener('pointerdown', _onPointerDown);
+        window.addEventListener('pointermove', _onPointerMove);
+        window.addEventListener('pointerup', _onPointerUp);
+    }
+
+    function unbindEventBridge() {
+        if (!_bridgeEl) return;
+        _bridgeEl.removeEventListener('wheel', _onWheel, { passive: false });
+        _bridgeEl.removeEventListener('pointerdown', _onPointerDown);
+        window.removeEventListener('pointermove', _onPointerMove);
+        window.removeEventListener('pointerup', _onPointerUp);
+        _bridgeEl = null;
+        _dragging = false;
+        _lastXY = null;
     }
 
 
@@ -841,20 +917,16 @@
             initCytoscape(diagram);
 
             // ── Engage satellite-map mode if this zone has GPS-tagged nodes ──
-            mapSyncBound = false;   // new cy instance → handlers must rebind
-            if (mapVisible && zoneHasGps()) {
-                cy.userZoomingEnabled(false);
-                cy.userPanningEnabled(false);
-                cy.zoom(1);
-                cy.pan({ x: 0, y: 0 });
-                map.invalidateSize();
-                bindMapSync();
-                fitMapToGpsNodes();
-                document.getElementById('map-container').style.display = 'block';
+            mapSyncBound = false;       // new cy instance → handlers must rebind
+            unbindEventBridge();        // drop bridge from previous cy instance
+            const useMap = mapVisible && zoneHasGps();
+            document.getElementById('map-container').style.display = useMap ? 'block' : 'none';
+            if (useMap) {
+                enterMapMode();
             } else {
-                // No GPS data (or map hidden) → plain diagram, hide map.
-                document.getElementById('map-container').style.display =
-                    (mapVisible && zoneHasGps()) ? 'block' : 'none';
+                cy.userZoomingEnabled(true);
+                cy.userPanningEnabled(true);
+                cy.fit(undefined, 40);
             }
 
             // ── Start all visual animations ────────────────────────────────
