@@ -118,25 +118,41 @@
     #graph { height: 100%; flex: 1; position: relative; z-index: 1; }
     #compareGraph { height: 500px; margin-bottom: 25px; }
 
-    /* ── PAGE LAYOUT ── */
+    /* ── PAGE LAYOUT ──
+       Stacked design: a full-width input section on top, then the
+       graph + analysis sidebar below. This gives form controls (and the
+       lat/long table in particular) room to breathe instead of being
+       crammed into a narrow side column. */
     .page-layout {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 20px;
     }
 
-    /* ── LEFT INPUT PANEL ── */
+    /* ── INPUT PANEL (top, full width) ── */
     .input-panel {
       width: 100%;
     }
+    /* Arrange the core inputs in a responsive grid so they don't stack
+       into one long thin column. Mode + search sit side by side; the
+       edge list spans full width; the lat/long panel spans full width. */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0 20px;
+      align-items: start;
+    }
+    .input-grid .field-mode,
+    .input-grid .field-search { min-width: 0; }
+    .input-grid .field-edges,
+    .input-grid .field-latlng,
+    .input-grid .field-actions { grid-column: 1 / -1; }
 
-    /* ── RIGHT CONTENT (graph + sidebar) ── */
+    /* ── GRAPH + SIDEBAR (bottom) ── */
     .graph-content {
       width: 100%;
       min-width: 0;
     }
-
-    /* ── ANALYSIS LAYOUT ── */
     .analysis-container {
       display: flex;
       flex-direction: column;
@@ -145,50 +161,37 @@
     }
     .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
-    #graph { height: 60vw; min-height: 280px; max-height: 480px; }
+    #graph { height: 60vw; min-height: 280px; max-height: 520px; }
 
     /* ── SIDEBAR ── */
     .sidebar {
       width: 100%;
       background: var(--surface); border-radius: var(--radius-sm);
       box-shadow: var(--shadow);
-      padding: 16px; overflow-y: auto; max-height: 320px;
+      padding: 16px; overflow-y: auto; max-height: 340px;
     }
 
-    /* ── TABLET+ (≥ 640px): side-by-side inputs + graph ── */
+    /* ── TABLET+ (≥ 640px) ── */
     @media (min-width: 640px) {
-      #graph { height: 420px; max-height: 420px; }
-      .sidebar { max-height: 420px; }
+      /* Mode selector and search share a row; edge list + lat/long full width. */
+      .input-grid { grid-template-columns: 1fr 1fr; }
+      #graph { height: 460px; max-height: 460px; }
+      .sidebar { max-height: 460px; }
     }
 
-    /* ── DESKTOP (≥ 960px): full two-column layout ── */
+    /* ── DESKTOP (≥ 960px) ── */
     @media (min-width: 960px) {
-      .page-layout {
-        flex-direction: row;
-        gap: 0;
-        align-items: flex-start;
-      }
-      .input-panel {
-        width: 300px;
-        flex-shrink: 0;
-        padding-right: 20px;
-        border-right: 2px solid var(--border);
-        position: sticky;
-        top: 16px;
-      }
-      .graph-content {
-        flex: 1;
-        padding-left: 20px;
-      }
+      /* Inputs remain a full-width band on top; graph and analysis sidebar
+         sit side by side beneath them. */
       .analysis-container {
         flex-direction: row;
-        height: 700px;
+        height: 640px;
       }
       #graph { height: 100%; max-height: none; }
       .sidebar {
-        width: 300px;
+        width: 320px;
         flex-shrink: 0;
-        max-height: 700px;
+        max-height: 640px;
       }
     }
     .report-section { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
@@ -327,7 +330,7 @@
     #latlngPanel { display:none; margin-bottom:14px; }
     .latlng-hint { font-size:13px; color:var(--text3); font-weight:600; margin-bottom:10px; }
     .latlng-table-wrap {
-      height: 220px; overflow-y: auto; overflow-x: auto;
+      height: 300px; overflow-y: auto; overflow-x: auto;
       border: 2px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px;
     }
     .latlng-table {
@@ -340,10 +343,10 @@
       letter-spacing: .6px; padding: 8px 10px;
       border-bottom: 2px solid var(--border); white-space: nowrap;
     }
-    .latlng-table col:nth-child(1) { width: 36px; }
+    .latlng-table col:nth-child(1) { width: 48px; }
     .latlng-table col:nth-child(2) { width: auto; }
-    .latlng-table col:nth-child(3) { width: 130px; }
-    .latlng-table col:nth-child(4) { width: 130px; }
+    .latlng-table col:nth-child(3) { width: 200px; }
+    .latlng-table col:nth-child(4) { width: 200px; }
     .latlng-table td { padding: 3px 6px; border-bottom: 1px solid var(--border); }
     .latlng-table tbody tr:last-child td { border-bottom: none; }
     .latlng-table input {
@@ -353,8 +356,8 @@
     }
     .latlng-table input:focus { background: var(--primary-light); border-radius: 4px; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
     .latlng-table tbody tr:nth-child(even) { background: #fafbff; }
-    .latlng-actions { display:flex; gap:8px; }
-    .latlng-actions button { flex:1; margin-bottom:0; font-size:13px; padding:9px 12px; }
+    .latlng-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .latlng-actions button { flex:0 1 auto; min-width:160px; margin-bottom:0; font-size:13px; padding:9px 16px; }
     .btn-secondary {
       background:var(--surface2) !important; color:var(--primary) !important;
       border:2px solid var(--border) !important;
@@ -537,10 +540,11 @@ WTP       WTP</pre>
 
     <div class="page-layout">
 
-      <!-- LEFT: inputs + controls -->
+      <!-- TOP: inputs + controls (full-width band) -->
       <div class="input-panel">
+        <div class="input-grid">
 
-        <div>
+        <div class="field-mode">
           <label for="preprocessMode">Preprocessing mode</label>
           <select id="preprocessMode" onchange="onPreprocessModeChange()">
             <option value="none">Do Not Alter Input Names</option>
@@ -551,7 +555,13 @@ WTP       WTP</pre>
           </select>
         </div>
 
-        <div>
+        <div class="field-search">
+          <label for="searchBox">Search graph</label>
+          <input type="search" id="searchBox" placeholder="Search node…"
+            aria-label="Search node in graph" oninput="searchNode()">
+        </div>
+
+        <div class="field-edges">
           <label for="inputData">Edge list</label>
           <textarea id="inputData"
             placeholder="Paste your node pairs here — one edge per line:
@@ -562,7 +572,7 @@ WTP       WTP"></textarea>
         </div>
 
         <!-- Lat-lng coordinate panel (shown only in latlng mode) -->
-        <section id="latlngPanel" aria-label="Node coordinates">
+        <section id="latlngPanel" class="field-latlng" aria-label="Node coordinates">
           <p class="latlng-hint">
             Enter lat/long for each node. Nodes without coordinates will use auto-layout.
           </p>
@@ -585,13 +595,7 @@ WTP       WTP"></textarea>
           </div>
         </section>
 
-        <div>
-          <label for="searchBox">Search graph</label>
-          <input type="search" id="searchBox" placeholder="Search node…"
-            aria-label="Search node in graph" oninput="searchNode()">
-        </div>
-
-        <div id="control-panel" role="toolbar" aria-label="Graph actions">
+        <div id="control-panel" class="field-actions" role="toolbar" aria-label="Graph actions">
           <button id="btn-analyze-render" type="button" onclick="analyzeGraph()">🚀 Analyze &amp; Render</button>
           <button type="button" onclick="downloadCSV()">📥 CSV Report</button>
           <button type="button" onclick="exportZoneJSON()">📁 Export zone.json</button>
@@ -599,9 +603,10 @@ WTP       WTP"></textarea>
           <button type="button" class="btn-help" onclick="openHelp()" aria-label="Open help">❓</button>
         </div>
 
+        </div><!-- /.input-grid -->
       </div><!-- /.input-panel -->
 
-      <!-- RIGHT: graph + analysis sidebar -->
+      <!-- BOTTOM: graph + analysis sidebar -->
       <div class="graph-content">
         <div class="analysis-container">
           <div class="graph-overlay-wrap">

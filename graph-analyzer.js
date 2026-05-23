@@ -206,7 +206,17 @@ function applyGpsToElements(elements, containerId) {
 function setupGraphLayout(elements, containerId) {
     const { applied } = applyGpsToElements(elements, containerId);
     initCy(containerId, elements, applied ? { name: 'preset' } : { name: 'cose', fit: false });
-    cy.center();
+    // For GPS (preset) layouts the projected coordinates can span well beyond
+    // the canvas (the projection magnifies for spacing), so cy.center() alone
+    // leaves most nodes off-screen. cy.fit() frames the whole network while
+    // preserving the exact geographic geometry — only the zoom/pan changes,
+    // never the relative node positions. For auto (cose) layouts, fit too so
+    // the result is consistently framed.
+    if (applied) {
+        cy.fit(undefined, 40);   // 40px padding around the geographic extent
+    } else {
+        cy.center();
+    }
     _resetNodeSizeStep();
     return applied;
 }
@@ -834,6 +844,9 @@ function buildLatlngTable() {
             });
         }
     });
+
+    // Sort node IDs A–Z for the coordinate table (natural/numeric-aware).
+    order.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
     // Preserve existing values so edits survive a rebuild
     const existing = {};

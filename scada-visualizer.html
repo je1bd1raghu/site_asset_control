@@ -6,7 +6,7 @@
     <link rel="icon" href="data:,">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <link rel="stylesheet" href="libs/leaflet.min.css" />
     <title>SCADA View</title>
     <script src="libs/cytoscape.min.js"></script>
   <script src="libs/fp.min.js"></script>
@@ -61,23 +61,6 @@
             display: none;
         }
 
-        /* GPS layout mode badge */
-        #layout-badge {
-            position: absolute;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(26,37,47,0.78);
-            color: #7fdbca;
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 0.6px;
-            padding: 3px 10px;
-            border-radius: 10px;
-            z-index: 10;
-            pointer-events: none;
-            display: none;
-        }
         #zone-select {
             padding: 5px 10px;
             border-radius: 6px;
@@ -242,7 +225,6 @@
 
             /* Compass: smaller, top-left */
             #compass { width: 44px; height: 44px; top: 10px; left: 10px; right: auto; }
-            #layout-badge { top: 56px; font-size: 0.62rem; }
 
             /* Node panel: scrollable */
             #node-info-panel { max-height: 45vh; overflow-y: auto; }
@@ -491,9 +473,6 @@
         <text x="10" y="36" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="'Nunito', 'Noto Sans Bengali', sans-serif">W</text>
     </svg>
 
-    <!-- Shown when GPS polar layout is active -->
-    <div id="layout-badge">📡 GPS DIRECTIONAL LAYOUT</div>
-
     <!-- Node size controls -->
     <div class="node-size-controls" aria-label="Node size controls">
         <span class="nsc-label">Node<br>Size</span>
@@ -566,7 +545,7 @@
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="libs/leaflet.min.js"></script>
 <script>
     // Legend collapse toggle
     function toggleLegend() {
@@ -1043,7 +1022,6 @@
 
             // Show/hide GPS indicators
             document.getElementById('compass').style.display      = gpsApplied ? 'block' : 'none';
-            document.getElementById('layout-badge').style.display = gpsApplied ? 'block' : 'none';
 
             // ── Compatibility shim: zone.json files exported by older versions
             // used crypto.randomUUID() as node id, while edges still referenced
