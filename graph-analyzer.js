@@ -227,25 +227,37 @@ function onPreprocessModeChange() {
     const mode   = document.getElementById('preprocessMode').value;
     const ta     = document.getElementById('inputData');
     const llPanel = document.getElementById('latlngPanel');
+    const statusField = document.getElementById('statusJsonField');
+    const edgesLabel  = document.querySelector('label[for="inputData"]');
 
     if (mode === 'from_zone_json') {
-        ta.placeholder = 'Paste zone.json content here…\n{\n  "nodes": […],\n  "edges": […]\n}';
+        ta.placeholder = 'Paste zone.json content here (geometry — required)…\n{\n  "nodes": […],\n  "edges": […]\n}';
         ta.style.fontFamily = 'monospace';
         ta.style.fontSize   = '12px';
+        if (edgesLabel) edgesLabel.innerHTML = 'zone.json <span style="font-weight:600;color:var(--text3)">(geometry — required)</span>';
+        if (statusField) statusField.style.display = '';
         if (llPanel) llPanel.style.display = 'none';
         document.body.classList.remove('mode-latlng');
     } else if (mode === 'latlng') {
         ta.placeholder  = 'Paste your node pairs here — one edge per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
         ta.style.fontFamily = '';
         ta.style.fontSize   = '';
+        if (edgesLabel) edgesLabel.textContent = 'Edge list';
+        if (statusField) statusField.style.display = 'none';
         if (llPanel) { llPanel.style.display = 'block'; onLatlngModeActive(); }
         document.body.classList.add('mode-latlng');
     } else {
         ta.placeholder  = 'Paste your node pairs here — one edge per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
         ta.style.fontFamily = '';
         ta.style.fontSize   = '';
+        if (edgesLabel) edgesLabel.textContent = 'Edge list';
+        if (statusField) statusField.style.display = 'none';
         if (llPanel) llPanel.style.display = 'none';
-        window._latlngCoords = null;
+        // Note: we intentionally do NOT clear window._latlngCoords here. Keeping
+        // it lets coordinates survive a round-trip through other modes (e.g.
+        // latlng → none → latlng) so the table can re-seed them. The coords are
+        // only ever *applied* while in latlng mode, so retaining them is inert
+        // elsewhere.
         document.body.classList.remove('mode-latlng');
     }
     if (cy) cy.nodes().removeClass('search-highlight');
@@ -256,6 +268,18 @@ function onPreprocessModeChange() {
 // Parses the zone.json from the textarea, applies GPS layout via gps-layout.js
 // if ≥2 nodes carry coordinates, then renders directly — bypassing the edge-pair
 // pipeline so canonical IDs, positions, and lat/lng all round-trip correctly.
+
+// Coerce a coordinate that may be a number OR a numeric string ("24.169")
+// into a finite number, or null if it isn't usable. This makes JSON import
+// tolerant of zone files that store lat/lng as strings.
+function coerceCoord(v) {
+    if (typeof v === 'number') return isFinite(v) ? v : null;
+    if (typeof v === 'string' && v.trim() !== '') {
+        const n = parseFloat(v);
+        return isFinite(n) ? n : null;
+    }
+    return null;
+}
 
 function loadFromZoneJSON() {
     const raw = document.getElementById('inputData').value.trim();
@@ -276,6 +300,32 @@ function loadFromZoneJSON() {
         showToast('⚠️ No edges found in zone.json.', 'warning'); return false;
     }
 
+    // ── Parse the OPTIONAL zone_status.json (label / state / type by id). ─────
+    // zone.json carries only geometry; attributes live in a separate status
+    // file. If the user pasted one in the second box, build a lookup by id;
+    // otherwise every node defaults to label = id, state = "", type = "".
+    const statusRaw = (document.getElementById('inputStatus')?.value || '').trim();
+    const statusById = {};
+    if (statusRaw) {
+        try {
+            const statusArr = JSON.parse(statusRaw);
+            const arr = Array.isArray(statusArr) ? statusArr : (statusArr.nodes || []);
+            arr.forEach(s => {
+                const sd = s.data || s;
+                if (sd && sd.id != null) {
+                    statusById[sd.id] = {
+                        label: (sd.label != null) ? String(sd.label) : undefined,
+                        state: (sd.state != null) ? String(sd.state) : undefined,
+                        type:  (sd.type  != null) ? String(sd.type)  : undefined
+                    };
+                }
+            });
+        } catch (e) {
+            showToast('❌ Invalid zone_status.json — ' + e.message, 'error');
+            return false;
+        }
+    }
+
     // ── Build Cytoscape elements directly from zone.json ──────────────────────
     // Nodes: carry id, label, lat, lng so exports round-trip faithfully.
     // Edges: carry source + target directly — no name-cleaning needed.
@@ -284,14 +334,23 @@ function loadFromZoneJSON() {
     diagram.nodes.forEach(n => {
         const d   = n.data || n;
         const pos = n.position || {};
+        const id  = d.id || d.label || crypto.randomUUID();
+        const st  = statusById[id] || {};
+        // Merge precedence: status file → zone.json's own field → default.
+        const label = (st.label != null) ? st.label : (d.label || id);
+        const state = (st.state != null) ? st.state : (d.state != null ? String(d.state) : '');
+        const type  = (st.type  != null) ? st.type  : (d.type  != null ? String(d.type)  : '');
+        const data = {
+            id:        id,
+            label:     label,
+            nameCount: 1,
+            lat:       coerceCoord(d.lat),
+            lng:       coerceCoord(d.lng)
+        };
+        if (type)  data.type  = type;
+        if (state) data.state = state;
         elements.push({
-            data: {
-                id:        d.id || d.label || crypto.randomUUID(),
-                label:     d.label || d.id || null,
-                nameCount: 1,
-                lat:       typeof d.lat === 'number' ? d.lat : null,
-                lng:       typeof d.lng === 'number' ? d.lng : null
-            },
+            data,
             // Preserve any existing position from the JSON so a round-trip
             // doesn't discard manually edited positions.
             ...(pos.x !== undefined ? { position: { x: pos.x, y: pos.y } } : {})
@@ -309,6 +368,24 @@ function loadFromZoneJSON() {
         });
     });
 
+    // ── Capture coordinates + attributes so they flow into the table. ─────────
+    const importedCoords = {};
+    diagram.nodes.forEach(n => {
+        const d = n.data || n;
+        const id = d.id || d.label;
+        if (!id) return;
+        const st = statusById[id] || {};
+        importedCoords[id] = {
+            lat:   coerceCoord(d.lat),
+            lng:   coerceCoord(d.lng),
+            // Default label = id when no status label supplied; state/type = "".
+            label: (st.label != null) ? st.label : (d.label != null ? String(d.label) : id),
+            state: (st.state != null) ? st.state : (d.state != null ? String(d.state) : ''),
+            type:  (st.type  != null) ? st.type  : (d.type  != null ? String(d.type)  : '')
+        };
+    });
+    window._latlngCoords = importedCoords;
+
     // ── Apply Layout and Init Cytoscape ───────────────────────────────────────
     const gpsApplied = setupGraphLayout(elements, 'graph');
 
@@ -318,8 +395,19 @@ function loadFromZoneJSON() {
         const d = e.data || e;
         return (d.source || '') + '\t' + (d.target || '');
     });
-    document.getElementById('preprocessMode').value = 'none';
+    // Switch to lat-long mode and surface the imported coordinates in the table,
+    // so the user can see/edit them and re-render. IDs from JSON are canonical,
+    // so cleanNodeName() already treats latlng mode as a no-op.
+    document.getElementById('preprocessMode').value = 'latlng';
     document.getElementById('inputData').value = lines.join('\n');
+    document.body.classList.add('mode-latlng');
+    const llPanel = document.getElementById('latlngPanel');
+    if (llPanel) llPanel.style.display = 'block';
+    // Clear any rows from a previous import so the freshly-parsed JSON +
+    // status data seed cleanly (stale rows would otherwise be preserved and
+    // block the new label/state/type values).
+    document.getElementById('latlngBody').innerHTML = '';
+    buildLatlngTable();   // reads edge list + seeds from window._latlngCoords
 
     // Re-run analysis only (skip drawGraph — cy is already initialised above)
     const { graph, rawPairs, orphans, selfLoops } = parseInput();
@@ -338,7 +426,7 @@ function loadFromZoneJSON() {
 
     const gpsCount = diagram.nodes.filter(n => {
         const d = n.data || n;
-        return typeof d.lat === 'number' && typeof d.lng === 'number';
+        return coerceCoord(d.lat) != null && coerceCoord(d.lng) != null;
     }).length;
     const layoutMsg = gpsApplied ? ` · 📡 GPS layout (${gpsCount} nodes)` : ' · 🔀 Auto layout';
     showToast(`✅ ${diagram.nodes.length} nodes, ${diagram.edges.length} edges${layoutMsg}`, 'success');
@@ -538,14 +626,20 @@ function drawGraph(pairs, duplicates, overbranchedSet) {
     for (const node of nodeSet) {
         const originalNames = Array.from(nodeNameMap.get(node) || [node]);
         const coord = coordMap[node] || {};
+        const data = {
+            id:        node,
+            // Prefer a label typed in the table; otherwise use the derived names.
+            label:     (coord.label && coord.label.trim()) ? coord.label : originalNames.join('\n'),
+            nameCount: originalNames.length,
+            lat:       typeof coord.lat === 'number' ? coord.lat : null,
+            lng:       typeof coord.lng === 'number' ? coord.lng : null
+        };
+        // Only attach type/state when provided, so untyped nodes keep the
+        // default dot styling (Cytoscape selectors key off node[type]).
+        if (coord.type)  data.type  = coord.type;
+        if (coord.state) data.state = coord.state;
         elements.push({
-            data: {
-                id:        node,
-                label:     originalNames.join('\n'),
-                nameCount: originalNames.length,
-                lat:       typeof coord.lat === 'number' ? coord.lat : null,
-                lng:       typeof coord.lng === 'number' ? coord.lng : null
-            },
+            data,
             classes: overbranchedSet.has(node) ? 'overbranched' : ''
         });
     }
@@ -566,17 +660,7 @@ function analyzeGraph() {
     // then fall through to the normal analysis pipeline.
     if (document.getElementById('preprocessMode').value === 'latlng') {
         buildLatlngTable();
-        const coords = {};
-        document.querySelectorAll('#latlngBody tr').forEach(tr => {
-            const id  = tr.dataset.nodeId;
-            const lat = parseFloat(tr.querySelector('.ll-lat')?.value ?? '');
-            const lng = parseFloat(tr.querySelector('.ll-lng')?.value ?? '');
-            if (id) coords[id] = {
-                lat: isFinite(lat) ? lat : null,
-                lng: isFinite(lng) ? lng : null
-            };
-        });
-        window._latlngCoords = coords;
+        window._latlngCoords = collectLatlngTable();
     }
 
     const { graph, rawPairs, orphans, selfLoops } = parseInput();
@@ -832,18 +916,49 @@ function onLatlngModeActive() {
 // Parse edge textarea → unique node IDs, preserving any lat/lng already typed.
 function buildLatlngTable() {
     const raw   = document.getElementById('inputData').value;
-    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
     const seen  = new Set();
     const order = [];
 
-    lines.forEach(line => {
-        const parts = line.split(/\s+/);
-        if (parts.length === 2) {
-            [parts[0], parts[1]].forEach(id => {
-                if (!seen.has(id)) { seen.add(id); order.push(id); }
-            });
-        }
-    });
+    // The textarea may hold either an edge list OR pasted zone.json (when the
+    // user pastes JSON then switches straight to lat-long mode without first
+    // clicking Analyze). Detect JSON and pull node IDs + coordinates from it so
+    // the table populates correctly in both cases.
+    const jsonCoords = {};
+    let parsedJson = false;
+    const trimmed = raw.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+            const obj = JSON.parse(trimmed);
+            const nodeArr = Array.isArray(obj) ? obj : (obj.nodes || []);
+            if (Array.isArray(nodeArr) && nodeArr.length) {
+                nodeArr.forEach(n => {
+                    const d  = n.data || n;
+                    const id = d.id || d.label;
+                    if (id && !seen.has(id)) { seen.add(id); order.push(id); }
+                    if (id) jsonCoords[id] = {
+                        lat:   coerceCoord(d.lat),
+                        lng:   coerceCoord(d.lng),
+                        label: (d.label != null) ? String(d.label) : '',
+                        state: (d.state != null) ? String(d.state) : '',
+                        type:  (d.type  != null) ? String(d.type)  : ''
+                    };
+                });
+                parsedJson = true;
+            }
+        } catch (_) { /* not valid JSON → fall through to edge-list parsing */ }
+    }
+
+    if (!parsedJson) {
+        const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+        lines.forEach(line => {
+            const parts = line.split(/\s+/);
+            if (parts.length === 2) {
+                [parts[0], parts[1]].forEach(id => {
+                    if (!seen.has(id)) { seen.add(id); order.push(id); }
+                });
+            }
+        });
+    }
 
     // Sort node IDs A–Z for the coordinate table (natural/numeric-aware).
     order.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
@@ -854,14 +969,40 @@ function buildLatlngTable() {
         const id  = tr.dataset.nodeId;
         const lat = tr.querySelector('.ll-lat') ? tr.querySelector('.ll-lat').value.trim() : '';
         const lng = tr.querySelector('.ll-lng') ? tr.querySelector('.ll-lng').value.trim() : '';
-        if (id) existing[id] = { lat, lng };
+        const label = tr.querySelector('.ll-label') ? tr.querySelector('.ll-label').value.trim() : '';
+        const state = tr.querySelector('.ll-state') ? tr.querySelector('.ll-state').value : '';
+        const type  = tr.querySelector('.ll-type')  ? tr.querySelector('.ll-type').value  : '';
+        if (id) existing[id] = { lat, lng, label, state, type };
+    });
+
+    // Seed from coordinates/attributes parsed out of pasted JSON (above) and
+    // from any externally-supplied data (e.g. a prior zone.json import), but
+    // only where the user hasn't already typed/selected a value in the table.
+    const seed = Object.assign({}, window._latlngCoords || {}, parsedJson ? jsonCoords : {});
+    Object.keys(seed).forEach(id => {
+        const s = seed[id] || {};
+        const sLat   = (s.lat   != null) ? String(s.lat)   : '';
+        const sLng   = (s.lng   != null) ? String(s.lng)   : '';
+        const sLabel = (s.label != null) ? String(s.label) : '';
+        const sState = (s.state != null) ? String(s.state) : '';
+        const sType  = (s.type  != null) ? String(s.type)  : '';
+        const cur = existing[id];
+        if (!cur) {
+            existing[id] = { lat: sLat, lng: sLng, label: sLabel, state: sState, type: sType };
+        } else {
+            if (!cur.lat)   cur.lat   = sLat;
+            if (!cur.lng)   cur.lng   = sLng;
+            if (!cur.label) cur.label = sLabel;
+            if (!cur.state) cur.state = sState;
+            if (!cur.type)  cur.type  = sType;
+        }
     });
 
     const tbody = document.getElementById('latlngBody');
     tbody.innerHTML = '';
 
     if (!order.length) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:12px;color:var(--text3)">Paste edges in the textarea above first, then click Rebuild.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:12px;color:var(--text3)">Paste edges in the textarea above first, then click Rebuild.</td></tr>';
         return;
     }
 
@@ -896,24 +1037,68 @@ function buildLatlngTable() {
         inLng.value       = prev.lng || '';
         tdLng.appendChild(inLng);
 
-        tr.append(tdNum, tdId, tdLat, tdLng);
+        // Label — free text (defaults to the node id if none given)
+        const tdLabel = document.createElement('td');
+        const inLabel = document.createElement('input');
+        inLabel.className   = 'll-label';
+        inLabel.type        = 'text';
+        inLabel.placeholder = id;
+        inLabel.value       = prev.label || '';
+        tdLabel.appendChild(inLabel);
+
+        // State — dropdown (blank / ON / OFF)
+        const tdState = document.createElement('td');
+        const selState = document.createElement('select');
+        selState.className = 'll-state';
+        ['', 'ON', 'OFF'].forEach(v => {
+            const o = document.createElement('option');
+            o.value = v; o.textContent = v || '—';
+            if ((prev.state || '') === v) o.selected = true;
+            selState.appendChild(o);
+        });
+        tdState.appendChild(selState);
+
+        // Type — dropdown (blank / valve / pump / zone)
+        const tdType = document.createElement('td');
+        const selType = document.createElement('select');
+        selType.className = 'll-type';
+        ['', 'valve', 'pump', 'zone'].forEach(v => {
+            const o = document.createElement('option');
+            o.value = v; o.textContent = v || '—';
+            if ((prev.type || '') === v) o.selected = true;
+            selType.appendChild(o);
+        });
+        tdType.appendChild(selType);
+
+        tr.append(tdNum, tdId, tdLabel, tdType, tdState, tdLat, tdLng);
         tbody.appendChild(tr);
     });
 }
 
-// Read table coords → store on window → trigger analysis pipeline.
-function applyLatlngAndRender() {
+// Read every field from the lat-long table into a coords map keyed by node id.
+// Used by applyLatlngAndRender() and analyzeGraph() so collection stays in sync.
+function collectLatlngTable() {
     const coords = {};
     document.querySelectorAll('#latlngBody tr').forEach(tr => {
-        const id  = tr.dataset.nodeId;
-        const lat = parseFloat(tr.querySelector('.ll-lat') ? tr.querySelector('.ll-lat').value : '');
-        const lng = parseFloat(tr.querySelector('.ll-lng') ? tr.querySelector('.ll-lng').value : '');
-        if (id) coords[id] = {
+        const id = tr.dataset.nodeId;
+        if (!id) return;
+        const lat   = parseFloat(tr.querySelector('.ll-lat')   ? tr.querySelector('.ll-lat').value   : '');
+        const lng   = parseFloat(tr.querySelector('.ll-lng')   ? tr.querySelector('.ll-lng').value   : '');
+        const label = tr.querySelector('.ll-label') ? tr.querySelector('.ll-label').value.trim() : '';
+        const state = tr.querySelector('.ll-state') ? tr.querySelector('.ll-state').value : '';
+        const type  = tr.querySelector('.ll-type')  ? tr.querySelector('.ll-type').value  : '';
+        coords[id] = {
             lat: isFinite(lat) ? lat : null,
-            lng: isFinite(lng) ? lng : null
+            lng: isFinite(lng) ? lng : null,
+            label, state, type
         };
     });
-    window._latlngCoords = coords;
+    return coords;
+}
+
+// Read table coords → store on window → trigger analysis pipeline.
+function applyLatlngAndRender() {
+    window._latlngCoords = collectLatlngTable();
     analyzeGraph();
 }
 

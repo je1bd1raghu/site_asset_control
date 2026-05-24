@@ -146,7 +146,9 @@
     .input-grid .field-search { min-width: 0; }
     .input-grid .field-edges,
     .input-grid .field-latlng,
+    .input-grid .field-status,
     .input-grid .field-actions { grid-column: 1 / -1; }
+    #inputStatus { height: 110px; font-family: 'Courier New', monospace; font-size: 12px; }
 
     /* ── GRAPH + SIDEBAR (bottom) ── */
     .graph-content {
@@ -334,7 +336,7 @@
       border: 2px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px;
     }
     .latlng-table {
-      width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed;
+      width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto;
     }
     .latlng-table thead th {
       position: sticky; top: 0; z-index: 2;
@@ -343,10 +345,28 @@
       letter-spacing: .6px; padding: 8px 10px;
       border-bottom: 2px solid var(--border); white-space: nowrap;
     }
-    .latlng-table col:nth-child(1) { width: 48px; }
-    .latlng-table col:nth-child(2) { width: auto; }
-    .latlng-table col:nth-child(3) { width: 200px; }
-    .latlng-table col:nth-child(4) { width: 200px; }
+    /* Let the browser size each column to its content; only set minimums */
+    .latlng-table col:nth-child(1) { width: 1px; }   /* # — shrink to fit */
+    .latlng-table col:nth-child(2) { width: auto; }  /* Node ID — expand to content */
+    .latlng-table col:nth-child(3) { width: auto; }  /* Label */
+    .latlng-table col:nth-child(4) { width: 1px; }   /* Type dropdown — shrink to fit */
+    .latlng-table col:nth-child(5) { width: 1px; }   /* State dropdown — shrink to fit */
+    .latlng-table col:nth-child(6) { width: auto; }  /* Lat */
+    .latlng-table col:nth-child(7) { width: auto; }  /* Long */
+    /* Column-specific min widths on the inputs/selects */
+    .latlng-table td:nth-child(1) { white-space: nowrap; }
+    .latlng-table td:nth-child(2) { white-space: nowrap; }
+    .latlng-table td:nth-child(3) input  { min-width: 100px; }
+    .latlng-table td:nth-child(4) select { min-width: 80px; }
+    .latlng-table td:nth-child(5) select { min-width: 70px; }
+    .latlng-table td:nth-child(6) input  { min-width: 110px; }
+    .latlng-table td:nth-child(7) input  { min-width: 110px; }
+    .latlng-table select {
+      width: 100%; border: none; outline: none; padding: 5px 4px;
+      font-family: 'Nunito','Noto Sans Bengali',sans-serif;
+      font-size: 13px; background: transparent; color: var(--text); cursor: pointer;
+    }
+    .latlng-table select:focus { background: var(--primary-light); border-radius: 4px; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
     .latlng-table td { padding: 3px 6px; border-bottom: 1px solid var(--border); }
     .latlng-table tbody tr:last-child td { border-bottom: none; }
     .latlng-table input {
@@ -550,7 +570,7 @@ WTP       WTP</pre>
             <option value="none">Do Not Alter Input Names</option>
             <option value="ignore_prefix_and_symbols">Ignore Prefix and Non-Alphanumerics</option>
             <option value="ignore_symbols_only">Ignore Symbols Only</option>
-            <option value="from_zone_json">↩ Import from zone.json</option>
+            <option value="from_zone_json">↩ Paste from JSON</option>
             <option value="latlng">📍 Add Lat-Long to Nodes</option>
           </select>
         </div>
@@ -571,6 +591,19 @@ V-E1-300  V-AB-350
 WTP       WTP"></textarea>
         </div>
 
+        <!-- Optional zone_status.json input (shown only in Paste-from-JSON mode) -->
+        <div class="field-status" id="statusJsonField" style="display:none;">
+          <label for="inputStatus">
+            zone_status.json <span style="font-weight:600;color:var(--text3)">(optional — adds label, state, type)</span>
+          </label>
+          <textarea id="inputStatus"
+            placeholder='Optional. Paste zone_status.json here to fill label / state / type by id:
+[
+  { "id": "WTP", "type": "pump", "label": "WTP", "state": "OFF" }
+]
+Leave empty to default label = id, state = "", type = "".'></textarea>
+        </div>
+
         <!-- Lat-lng coordinate panel (shown only in latlng mode) -->
         <section id="latlngPanel" class="field-latlng" aria-label="Node coordinates">
           <p class="latlng-hint">
@@ -578,12 +611,15 @@ WTP       WTP"></textarea>
           </p>
           <div class="latlng-table-wrap">
             <table class="latlng-table" id="latlngTable" aria-label="Node coordinate table">
-              <colgroup><col><col><col><col></colgroup>
+              <colgroup><col><col><col><col><col><col><col></colgroup>
               <thead><tr>
                 <th scope="col">#</th>
                 <th scope="col">Node ID</th>
+                <th scope="col">Label</th>
+                <th scope="col">Type</th>
+                <th scope="col">State</th>
                 <th scope="col">Lat</th>
-                <th scope="col">Lng</th>
+                <th scope="col">Long</th>
               </tr></thead>
               <tbody id="latlngBody"></tbody>
             </table>
