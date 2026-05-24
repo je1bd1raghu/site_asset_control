@@ -170,8 +170,12 @@
   .locwarn-icon { font-size:44px; margin-bottom:10px; }
   .locwarn-title { font-size:18px; font-weight:800; color:var(--text); margin-bottom:8px; }
   .locwarn-text { font-size:14px; font-weight:600; color:var(--text2); line-height:1.55; margin-bottom:20px; }
-  .locwarn-btn { width:100%; padding:13px; background:var(--warning); color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:800; cursor:pointer; transition:background .2s; }
-  .locwarn-btn:hover { background:#b45309; }
+  .locwarn-btn-row { display:flex; gap:10px; }
+  .locwarn-btn { flex:1; padding:13px; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:800; cursor:pointer; transition:background .2s; }
+  .locwarn-btn-back    { background:var(--surface2); color:var(--text2); border:2px solid var(--border); }
+  .locwarn-btn-back:hover { background:var(--border); }
+  .locwarn-btn-confirm { background:var(--warning); color:#fff; }
+  .locwarn-btn-confirm:hover { background:#b45309; }
 
   /* docket reference shown on report records */
   .record-docket { font-size:11px; font-weight:800; color:var(--primary); margin-top:2px; letter-spacing:.3px; }
@@ -386,7 +390,7 @@
       <!-- Selected edge + action row -->
       <div class="leakburst-action-row">
         <div class="leakburst-selected-label" id="leakBurstSelectedLabel">No pipe selected</div>
-        <button class="btn-leakburst-rpt" id="btnLeakBurstReport" onclick="submitEdgeLeakBurst('LEAK_BURST')"       disabled>⚠ Report</button>
+        <button class="btn-leakburst-rpt" id="btnLeakBurstReport" onclick="showLocWarn(() => submitEdgeLeakBurst('LEAK_BURST'))"       disabled>⚠ Report</button>
         <button class="btn-leakburst-clr" id="btnLeakBurstClear"  onclick="submitEdgeLeakBurst('LEAK_BURST_CLEAR')" disabled>✓ Clear</button>
       </div>
       <div class="leakburst-submit-status" id="leakBurstSubmitStatus"></div>
@@ -528,7 +532,10 @@
     <div class="locwarn-icon">&#128205;</div>
     <div class="locwarn-title">Report From the Actual Location</div>
     <div class="locwarn-text">Please make sure you are physically at the leak/burst site before reporting. The report records your current GPS coordinates, which the field team relies on to locate the problem.</div>
-    <button class="locwarn-btn" onclick="closeLocWarn()">I understand</button>
+    <div class="locwarn-btn-row">
+      <button class="locwarn-btn locwarn-btn-back" onclick="closeLocWarn()">← Go back</button>
+      <button class="locwarn-btn locwarn-btn-confirm" onclick="confirmLocWarn()">I understand</button>
+    </div>
   </div>
 </div>
 
@@ -666,19 +673,8 @@ async function loadAssetsFromGist() {
 async function fetchRecords(files) {
   try {
     if (!files) files = await workerGet('output');
-    const rawToggle = csvParse(files[RECORDS_FILE]   || '');
-    const rawLb     = csvParse(files[LEAKBURST_FILE] || '');
-
-    // A record is a leak/burst event if its (normalized) action is one of the
-    // leak/burst codes. Older data may have leak/burst rows still sitting in
-    // records.csv, so classify by action rather than trusting the file alone.
-    const isLbAction = a => {
-      const n = normalizeLeakBurstAction(a);
-      return n === 'LEAK_BURST' || n === 'LEAK_BURST_CLEAR';
-    };
-    const legacyLb   = rawToggle.filter(r => isLbAction(r.action));
-    const toggleRecs = rawToggle.filter(r => !isLbAction(r.action));
-    const lbRecs     = rawLb.concat(legacyLb);
+    const toggleRecs = csvParse(files[RECORDS_FILE]   || '');
+    const lbRecs     = csvParse(files[LEAKBURST_FILE] || '');
     window._allLeakBurstRecs = lbRecs;
 
     const today = todayStr();
@@ -952,7 +948,7 @@ function renderRecords() {
   const el = $('recordsList');
   if (!todayRecs.length) { el.innerHTML = '<div class="empty-state"><div class="e-icon">🗒️</div>No records yet today</div>'; return; }
   el.innerHTML = [...todayRecs].sort((a,b) => b.timestamp.localeCompare(a.timestamp)).map(r => {
-    const action    = normalizeLeakBurstAction(r.action);
+    const action    = r.action;
     const isOn      = action === 'ON';
     const isLeakBurst   = action === 'LEAK_BURST';
     const isClear   = action === 'LEAK_BURST_CLEAR';
@@ -1025,15 +1021,6 @@ async function loadAllEdges() {
   }
 }
 
-// Backward-compat: older records were stored with the action codes 'FAULT' /
-// 'FAULT_CLEAR'. Map any legacy code to the current LEAK_BURST equivalents so
-// previously-saved records still register correctly.
-function normalizeLeakBurstAction(a) {
-  if (a === 'FAULT')       return 'LEAK_BURST';
-  if (a === 'FAULT_CLEAR') return 'LEAK_BURST_CLEAR';
-  return a;
-}
-
 function deriveLeakBurstStateFromRecords() {
   leakBurstEdgeState = {};
   const recs = (window._allLeakBurstRecs || todayRecs);
@@ -1041,7 +1028,7 @@ function deriveLeakBurstStateFromRecords() {
   // overwritten by an older LEAK/BURST that appears later in the array.
   const latestTs = {};
   recs.forEach(r => {
-    const action = normalizeLeakBurstAction(r.action);
+    const action = r.action;
     if ((action === 'LEAK_BURST' || action === 'LEAK_BURST_CLEAR') && r.assetId) {
       const ts = r.timestamp || '';
       if (!latestTs[r.assetId] || ts > latestTs[r.assetId]) {
@@ -1280,7 +1267,7 @@ async function submitEdgeLeakBurst(action) {
       docket = makeDocket(now);
     } else if (action === 'LEAK_BURST_CLEAR') {
       const prior = [...existing].reverse().find(r =>
-        r.assetId === selectedEdgeId && normalizeLeakBurstAction(r.action) === 'LEAK_BURST' && r.docket);
+        r.assetId === selectedEdgeId && r.action === 'LEAK_BURST' && r.docket);
       docket = prior ? prior.docket : makeDocket(now);
     }
     const rec = {
@@ -1628,9 +1615,6 @@ function toggleSection(bodyId, btn) {
   const body   = $(bodyId);
   const isOpen = body.classList.toggle('expanded');
   btn.setAttribute('aria-expanded', String(isOpen));
-  // Warn reporters to report from the actual location when they open the
-  // Report Leak/Burst section (once per session).
-  if (bodyId === 'leakBurstBody' && isOpen) maybeShowLocWarn();
 }
 
 // ── LEAK/BURST SHARE ───────────────────────────────────────────────────────────
@@ -1641,7 +1625,7 @@ function latestReportInfo(assetId) {
   const recs = (window._allLeakBurstRecs || todayRecs);
   let best = null;
   recs.forEach(r => {
-    if (r.assetId === assetId && normalizeLeakBurstAction(r.action) === 'LEAK_BURST') {
+    if (r.assetId === assetId && r.action === 'LEAK_BURST') {
       if (!best || (r.timestamp || '') > (best.timestamp || '')) best = r;
     }
   });
@@ -1729,14 +1713,20 @@ async function shareCopyClipboard() {
 }
 
 // ── REPORT-FROM-ACTUAL-LOCATION WARNING ────────────────────────────────────────
-// Shown once per session the first time the Report Leak/Burst section is opened.
-let _locWarnShown = false;
-function maybeShowLocWarn() {
-  if (_locWarnShown) return;
-  _locWarnShown = true;
+// Show the location warning before a leak/burst report.
+// confirmLocWarn() is called by "I understand" — it fires the pending action.
+// closeLocWarn()   is called by "Go back" — it just dismisses.
+let _locWarnCallback = null;
+function showLocWarn(callback) {
+  _locWarnCallback = callback || null;
   $('locWarnBackdrop').classList.add('open');
 }
+function confirmLocWarn() {
+  $('locWarnBackdrop').classList.remove('open');
+  if (_locWarnCallback) { const cb = _locWarnCallback; _locWarnCallback = null; cb(); }
+}
 function closeLocWarn() {
+  _locWarnCallback = null;
   $('locWarnBackdrop').classList.remove('open');
 }
 

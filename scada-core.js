@@ -29,7 +29,6 @@ const COLOR = {
 const CY_STYLE = [
 
 // ── Default (fallback) — untyped nodes are passive junction dots ────────────
-// ── Default (fallback) — untyped nodes are passive junction dots ────────────
 // No label mapping here — avoids Cytoscape's "no mapping for property label"
 // warning on every animation frame for nodes without the field set.
 {
@@ -74,14 +73,6 @@ const CY_STYLE = [
         'color': '#2c3e50',
         'min-zoomed-font-size': 6,
         'events': 'yes'
-    }
-},
-
-// Typed nodes with a label — map the data field (safe: field is guaranteed present)
-{
-    selector: 'node[type][label]',
-    style: {
-        'label': 'data(label)'
     }
 },
 

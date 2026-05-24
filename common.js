@@ -22,7 +22,7 @@ function esc(s) {
     ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 }
 function pad(n) { return n < 10 ? '0' + n : '' + n; }
-const pad2 = pad;   // alias used by scada-visualizer.html
+const pad2 = pad;   // alias kept for inline scripts in scada-visualizer.html
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

@@ -437,6 +437,21 @@
         .nip-leakburst-status.ok   { color: #2ecc71; }
         .nip-leakburst-status.err  { color: #e74c3c; }
         .nip-leakburst-status.warn { color: #f39c12; }
+
+        /* ── Location warning modal ── */
+        .locwarn-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:1200; display:flex; align-items:center; justify-content:center; padding:24px; opacity:0; pointer-events:none; transition:opacity .25s; }
+        .locwarn-backdrop.open { opacity:1; pointer-events:auto; }
+        .locwarn-box { background:#fff; border-radius:16px; width:100%; max-width:360px; padding:26px 22px 22px; box-shadow:0 8px 32px rgba(0,0,0,.18); transform:scale(.92); transition:transform .25s cubic-bezier(.34,1.4,.64,1); text-align:center; }
+        .locwarn-backdrop.open .locwarn-box { transform:scale(1); }
+        .locwarn-icon  { font-size:44px; margin-bottom:10px; }
+        .locwarn-title { font-size:18px; font-weight:800; color:#1e293b; margin-bottom:8px; }
+        .locwarn-text  { font-size:14px; font-weight:600; color:#475569; line-height:1.55; margin-bottom:20px; }
+        .locwarn-btn-row { display:flex; gap:10px; }
+        .locwarn-btn { flex:1; padding:13px; border:none; border-radius:10px; font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:800; cursor:pointer; transition:background .2s; }
+        .locwarn-btn-back    { background:#f0f4ff; color:#475569; border:2px solid #e2e8f0; }
+        .locwarn-btn-back:hover { background:#e2e8f0; }
+        .locwarn-btn-confirm { background:#d97706; color:#fff; }
+        .locwarn-btn-confirm:hover { background:#b45309; }
     </style>
 </head>
 <body>
@@ -536,7 +551,7 @@
                     <select id="leakburst-person-select"><option value="">— select —</option></select>
                 </div>
                 <div class="nip-leakburst-btns">
-                    <button class="btn-leakburst-report" id="btn-leakburst-report" onclick="submitLeakBurst('LEAK_BURST')" disabled>⚠ Report Leak/Burst</button>
+                    <button class="btn-leakburst-report" id="btn-leakburst-report" onclick="showLocWarn(() => submitLeakBurst('LEAK_BURST'))" disabled>⚠ Report Leak/Burst</button>
                     <button class="btn-leakburst-clear"  id="btn-leakburst-clear"  onclick="submitLeakBurst('LEAK_BURST_CLEAR')" disabled>✓ Clear Leak/Burst</button>
                     <span class="nip-leakburst-status" id="nip-leakburst-status"></span>
                 </div>
@@ -1023,12 +1038,6 @@
             // Show/hide GPS indicators
             document.getElementById('compass').style.display      = gpsApplied ? 'block' : 'none';
 
-            // ── Compatibility shim: zone.json files exported by older versions
-            // used crypto.randomUUID() as node id, while edges still referenced
-            // the original string ids (e.g. "R-1"). Detect and remap so Cytoscape
-            // doesn't crash with "nonexistent source" errors.
-            repairDiagramIds(diagram);
-
             // ── Adaptive sizing (initial): start from a count-based baseline.
             // If this zone uses the map, we refine to density-based sizing right
             // after the map view is fitted (positions known only then).
@@ -1079,53 +1088,6 @@
             showLoading(false);
             setStatus('⚠ ' + err.message, '#c0392b');
             console.error(err);
-        }
-    }
-
-    // ─── COMPATIBILITY SHIM ───────────────────────────────────────────────────
-    // zone.json files exported by older graph-analyzer versions stored a
-    // crypto.randomUUID() as the node id, while edge source/target still held
-    // the original topology string (e.g. "R-1"). Detect this mismatch and remap
-    // node ids so that Cytoscape can resolve edge endpoints without crashing.
-    function repairDiagramIds(diagram) {
-        if (!diagram.nodes || !diagram.edges || diagram.edges.length === 0) return;
-
-        // Build set of all node ids currently in the diagram
-        const nodeIdSet = new Set(diagram.nodes.map(n => (n.data || n).id));
-
-        // Collect all unique endpoint ids referenced by edges
-        const edgeEndpoints = new Set();
-        diagram.edges.forEach(e => {
-            const d = e.data || e;
-            if (d.source) edgeEndpoints.add(d.source);
-            if (d.target) edgeEndpoints.add(d.target);
-        });
-
-        // If all edge endpoints resolve to known node ids, nothing to fix
-        const missingEndpoints = [...edgeEndpoints].filter(id => !nodeIdSet.has(id));
-        if (missingEndpoints.length === 0) return;
-
-        // Mismatch detected: node ids are UUIDs, edge endpoints are topology strings.
-        // Attempt to remap by matching on node label (which preserves the original id).
-        const labelToNode = new Map();
-        diagram.nodes.forEach(n => {
-            const d = n.data || n;
-            // The label was set from the original node id in older exports
-            if (d.label) labelToNode.set(d.label, n);
-        });
-
-        let remapped = 0;
-        missingEndpoints.forEach(epId => {
-            const matchedNode = labelToNode.get(epId);
-            if (matchedNode) {
-                const d = matchedNode.data || matchedNode;
-                d.id = epId;   // overwrite UUID with topology id
-                remapped++;
-            }
-        });
-
-        if (remapped > 0) {
-            console.warn(`[repairDiagramIds] Remapped ${remapped} node id(s) from UUID to topology id. Re-export zone.json from the graph analyzer to silence this.`);
         }
     }
 
@@ -1287,34 +1249,16 @@
 
     // ─── LEAK/BURST STATE FROM RECORDS ─────────────────────────────────────────────
     // Reads leakbursts.csv and derives the latest leak/burst state per edge.
-    // Backward-compat: legacy records used the action codes 'FAULT' / 'FAULT_CLEAR';
-    // normalize them to the current LEAK_BURST equivalents on read.
-    function normalizeLeakBurstAction(a) {
-        if (a === 'FAULT')       return 'LEAK_BURST';
-        if (a === 'FAULT_CLEAR') return 'LEAK_BURST_CLEAR';
-        return a;
-    }
-
     async function loadLeakBurstState() {
         try {
             const files = await workerGet('output');
-            // Primary source is leakbursts.csv; also fold in any legacy leak/burst
-            // rows that may still live in records.csv so older reports aren't lost.
-            const rows   = csvParseLeakBurst(files[LEAKBURST_FILE] || '');
-            const legacy = csvParseLeakBurst(files[RECORDS_FILE] || '')
-                .filter(r => {
-                    const n = normalizeLeakBurstAction(r.action);
-                    return n === 'LEAK_BURST' || n === 'LEAK_BURST_CLEAR';
-                });
-            leakBurstState  = {};
-            // Process in timestamp order so the newest action per edge wins,
-            // regardless of which file (new or legacy) it came from.
-            rows.concat(legacy)
-                .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
+            const rows  = csvParseLeakBurst(files[LEAKBURST_FILE] || '');
+            leakBurstState = {};
+            // Process in timestamp order so the newest action per edge wins.
+            rows.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
                 .forEach(r => {
-                    const action = normalizeLeakBurstAction(r.action);
-                    if ((action === 'LEAK_BURST' || action === 'LEAK_BURST_CLEAR') && r.assetId)
-                        leakBurstState[r.assetId] = action;
+                    if ((r.action === 'LEAK_BURST' || r.action === 'LEAK_BURST_CLEAR') && r.assetId)
+                        leakBurstState[r.assetId] = r.action;
                 });
         } catch(e) {
             console.warn('Leak/Burst state load failed:', e.message);
@@ -1341,14 +1285,7 @@
 
     const LEAK_BURST_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','assetName',
                             'action','timestamp','date','time','lat','lng','distance','deviceId'];
-    // pad2 and esc come from common.js
-    function todayStrLeakBurst() {
-        const d = new Date();
-        return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-    }
-    function timeStrLeakBurst(d) {
-        return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
-    }
+    // pad2, esc, todayStr, timeStr come from common.js
     // Docket number: LB-YYYYMMDD-XXXX (matches the format used in Asset Control).
     function makeDocketLB(now) {
         const d = now || new Date();
@@ -1493,7 +1430,7 @@
                 docket = makeDocketLB(now);
             } else if (action === 'LEAK_BURST_CLEAR') {
                 const prior = [...allRecs].reverse().find(r =>
-                    r.assetId === _currentLeakBurstEdgeId && normalizeLeakBurstAction(r.action) === 'LEAK_BURST' && r.docket);
+                    r.assetId === _currentLeakBurstEdgeId && r.action === 'LEAK_BURST' && r.docket);
                 docket = prior ? prior.docket : makeDocketLB(now);
             }
             const rec = {
@@ -1506,8 +1443,8 @@
                 assetName:  edgeName,
                 action:     action,
                 timestamp:  now.toISOString(),
-                date:       todayStrLeakBurst(),
-                time:       timeStrLeakBurst(now),
+                date:       todayStr(),
+                time:       timeStr(now),
                 lat:        _geoPos.lat.toFixed(7),
                 lng:        _geoPos.lng.toFixed(7),
                 distance:   '',
@@ -1554,6 +1491,34 @@
         await loadPersonsConfig();
         loadManifest();
     })();
+</script>
+
+<!-- Report-from-actual-location warning modal -->
+<div class="locwarn-backdrop" id="locWarnBackdrop">
+    <div class="locwarn-box">
+        <div class="locwarn-icon">📍</div>
+        <div class="locwarn-title">Report From the Actual Location</div>
+        <div class="locwarn-text">Please make sure you are physically at the leak/burst site before reporting. The report records your current GPS coordinates, which the field team relies on to locate the problem.</div>
+        <div class="locwarn-btn-row">
+            <button class="locwarn-btn locwarn-btn-back"    onclick="closeLocWarn()">← Go back</button>
+            <button class="locwarn-btn locwarn-btn-confirm" onclick="confirmLocWarn()">I understand</button>
+        </div>
+    </div>
+</div>
+<script>
+    let _locWarnCallback = null;
+    function showLocWarn(callback) {
+        _locWarnCallback = callback || null;
+        document.getElementById('locWarnBackdrop').classList.add('open');
+    }
+    function confirmLocWarn() {
+        document.getElementById('locWarnBackdrop').classList.remove('open');
+        if (_locWarnCallback) { const cb = _locWarnCallback; _locWarnCallback = null; cb(); }
+    }
+    function closeLocWarn() {
+        _locWarnCallback = null;
+        document.getElementById('locWarnBackdrop').classList.remove('open');
+    }
 </script>
 </body>
 </html>
