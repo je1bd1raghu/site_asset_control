@@ -11,7 +11,8 @@
 
 // ─── BACKEND CONSTANTS ───────────────────────────────────────────────────────
 const WORKER         = 'https://scada-visualizer.je1-bd1-raghu.workers.dev';
-const RECORDS_FILE   = 'records.csv';
+const RECORDS_FILE   = 'records.csv';     // on/off toggle records only
+const LEAKBURST_FILE = 'leakbursts.csv';  // leak/burst report + clear records
 const CONFIG_FILE    = 'config.json';
 const ESTIMATES_FILE = 'estimates.json';
 

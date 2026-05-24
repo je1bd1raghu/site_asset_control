@@ -259,17 +259,17 @@
             width: 26px; height: 4px; flex-shrink: 0;
             border-radius: 2px;
         }
-        .lg-fault {
+        .lg-leakburst {
             width: 26px; height: 4px; flex-shrink: 0;
             border-radius: 2px;
         }
 
-        /* Fault blink legend pulse */
-        @keyframes legendFaultBlink {
+        /* Leak/Burst blink legend pulse */
+        @keyframes legendLeakBurstBlink {
             0%, 100% { background: #e74c3c; }
             50%       { background: #ff8c00; }
         }
-        .lg-fault { animation: legendFaultBlink 1s infinite; }
+        .lg-leakburst { animation: legendLeakBurstBlink 1s infinite; }
 
         /* ── Node info panel ─────────────────────────────────────────────── */
         #node-info-panel {
@@ -355,8 +355,8 @@
             flex: 1;
         }
 
-        /* ── Fault report action bar ───────────────────────────────────── */
-        .nip-fault-bar {
+        /* ── Leak/Burst report action bar ───────────────────────────────────── */
+        .nip-leakburst-bar {
             display: flex;
             flex-direction: column;
             gap: 6px;
@@ -364,13 +364,13 @@
             border-top: 1px solid rgba(255,255,255,0.1);
             margin-top: 8px;
         }
-        .nip-fault-person {
+        .nip-leakburst-person {
             display: flex;
             align-items: center;
             gap: 8px;
             flex-wrap: wrap;
         }
-        .nip-fault-person label {
+        .nip-leakburst-person label {
             font-size: 0.68rem;
             font-weight: 800;
             text-transform: uppercase;
@@ -378,7 +378,7 @@
             color: rgba(255,255,255,0.4);
             white-space: nowrap;
         }
-        .nip-fault-person select {
+        .nip-leakburst-person select {
             background: #2c3e50;
             color: #ecf0f1;
             border: 1px solid rgba(255,255,255,0.2);
@@ -391,14 +391,14 @@
             min-width: 0;
             outline: none;
         }
-        .nip-fault-person select:focus { border-color: #e74c3c; }
-        .nip-fault-btns {
+        .nip-leakburst-person select:focus { border-color: #e74c3c; }
+        .nip-leakburst-btns {
             display: flex;
             gap: 6px;
             align-items: center;
             flex-wrap: wrap;
         }
-        .btn-fault-report {
+        .btn-leakburst-report {
             background: #c0392b;
             color: white;
             border: none;
@@ -411,9 +411,9 @@
             transition: background 0.2s;
             white-space: nowrap;
         }
-        .btn-fault-report:hover { background: #e74c3c; }
-        .btn-fault-report:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn-fault-clear {
+        .btn-leakburst-report:hover { background: #e74c3c; }
+        .btn-leakburst-report:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-leakburst-clear {
             background: #27ae60;
             color: white;
             border: none;
@@ -426,17 +426,17 @@
             transition: background 0.2s;
             white-space: nowrap;
         }
-        .btn-fault-clear:hover { background: #2ecc71; }
-        .btn-fault-clear:disabled { opacity: 0.4; cursor: not-allowed; }
-        .nip-fault-status {
+        .btn-leakburst-clear:hover { background: #2ecc71; }
+        .btn-leakburst-clear:disabled { opacity: 0.4; cursor: not-allowed; }
+        .nip-leakburst-status {
             font-size: 0.72rem;
             font-weight: 600;
             color: rgba(255,255,255,0.45);
             min-height: 16px;
         }
-        .nip-fault-status.ok   { color: #2ecc71; }
-        .nip-fault-status.err  { color: #e74c3c; }
-        .nip-fault-status.warn { color: #f39c12; }
+        .nip-leakburst-status.ok   { color: #2ecc71; }
+        .nip-leakburst-status.err  { color: #e74c3c; }
+        .nip-leakburst-status.warn { color: #f39c12; }
     </style>
 </head>
 <body>
@@ -516,8 +516,8 @@
             Active Flow
         </div>
         <div class="legend-item">
-            <div class="lg-fault"></div>
-            Fault
+            <div class="lg-leakburst"></div>
+            Leak/Burst
         </div>
         </div><!-- /legend-body -->
     </div>
@@ -529,16 +529,16 @@
                 <button class="nip-close" onclick="closeNodePanel()" aria-label="Close info panel">✕ Close</button>
             </div>
             <div class="nip-fields" id="nip-fields"></div>
-            <!-- Fault report bar — shown only for edges -->
-            <div class="nip-fault-bar" id="nip-fault-bar" style="display:none">
-                <div class="nip-fault-person">
-                    <label for="fault-person-select">Your Name</label>
-                    <select id="fault-person-select"><option value="">— select —</option></select>
+            <!-- Leak/Burst report bar — shown only for edges -->
+            <div class="nip-leakburst-bar" id="nip-leakburst-bar" style="display:none">
+                <div class="nip-leakburst-person">
+                    <label for="leakburst-person-select">Your Name</label>
+                    <select id="leakburst-person-select"><option value="">— select —</option></select>
                 </div>
-                <div class="nip-fault-btns">
-                    <button class="btn-fault-report" id="btn-fault-report" onclick="submitFault('FAULT')" disabled>⚠ Report Fault</button>
-                    <button class="btn-fault-clear"  id="btn-fault-clear"  onclick="submitFault('FAULT_CLEAR')" disabled>✓ Clear Fault</button>
-                    <span class="nip-fault-status" id="nip-fault-status"></span>
+                <div class="nip-leakburst-btns">
+                    <button class="btn-leakburst-report" id="btn-leakburst-report" onclick="submitLeakBurst('LEAK_BURST')" disabled>⚠ Report Leak/Burst</button>
+                    <button class="btn-leakburst-clear"  id="btn-leakburst-clear"  onclick="submitLeakBurst('LEAK_BURST_CLEAR')" disabled>✓ Clear Leak/Burst</button>
+                    <span class="nip-leakburst-status" id="nip-leakburst-status"></span>
                 </div>
             </div>
         </div>
@@ -573,8 +573,8 @@
 
     let persons    = [];   // loaded from config.json
     let deviceId   = '';   // FingerprintJS visitor ID
-    let faultState = {};   // edgeId → 'FAULT' | 'FAULT_CLEAR' | undefined
-    let _currentFaultEdgeId = null;   // edge currently shown in info panel
+    let leakBurstState = {};   // edgeId → 'LEAK_BURST' | 'LEAK_BURST_CLEAR' | undefined
+    let _currentLeakBurstEdgeId = null;   // edge currently shown in info panel
 
     let cy            = null;
     let refreshTimer  = null;
@@ -1071,9 +1071,9 @@
             await refreshStatus(zone);
             refreshTimer = setInterval(() => refreshStatus(zone), REFRESH_INTERVAL_MS);
 
-            // Load fault state from records.csv and overlay on graph
-            await loadFaultState();
-            applyFaultOverlay();
+            // Load leak/burst state from records.csv and overlay on graph
+            await loadLeakBurstState();
+            applyLeakBurstOverlay();
 
         } catch (err) {
             showLoading(false);
@@ -1220,8 +1220,8 @@
         }
 
         fields.innerHTML = html;
-        document.getElementById('nip-fault-bar').style.display = 'none';
-        _currentFaultEdgeId = null;
+        document.getElementById('nip-leakburst-bar').style.display = 'none';
+        _currentLeakBurstEdgeId = null;
         panel.classList.add('visible');
     }
 
@@ -1244,9 +1244,9 @@
 
             const updated = applyStatus(cy, data);
 
-            // Re-apply fault overlay after every sync — applyStatus + propagateFlow
-            // can overwrite edge flow values set by fault reports
-            applyFaultOverlay();
+            // Re-apply leak/burst overlay after every sync — applyStatus + propagateFlow
+            // can overwrite edge flow values set by leak/burst reports
+            applyLeakBurstOverlay();
 
             setStatus(`✓ Synced ${new Date().toLocaleTimeString()} (${updated} elements)`, '#27ae60');
         } catch (err) {
@@ -1276,66 +1276,94 @@
             const files = await workerGet('config');
             persons = JSON.parse(files[CONFIG_FILE] || '{}').persons || [];
             persons.sort((a, b) => a.name.localeCompare(b.name));
-            const sel = document.getElementById('fault-person-select');
+            const sel = document.getElementById('leakburst-person-select');
             sel.innerHTML = '<option value="">— select —</option>'
                 + persons.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.designation ? ' — ' + p.designation : ''}</option>`).join('');
-            sel.addEventListener('change', onFaultPersonChange);
+            sel.addEventListener('change', onLeakBurstPersonChange);
         } catch(e) {
             console.warn('Config load failed:', e.message);
         }
     }
 
-    // ─── FAULT STATE FROM RECORDS ─────────────────────────────────────────────
-    // Reads records.csv and derives the latest fault state per edge.
-    async function loadFaultState() {
+    // ─── LEAK/BURST STATE FROM RECORDS ─────────────────────────────────────────────
+    // Reads leakbursts.csv and derives the latest leak/burst state per edge.
+    // Backward-compat: legacy records used the action codes 'FAULT' / 'FAULT_CLEAR';
+    // normalize them to the current LEAK_BURST equivalents on read.
+    function normalizeLeakBurstAction(a) {
+        if (a === 'FAULT')       return 'LEAK_BURST';
+        if (a === 'FAULT_CLEAR') return 'LEAK_BURST_CLEAR';
+        return a;
+    }
+
+    async function loadLeakBurstState() {
         try {
             const files = await workerGet('output');
-            const rows  = csvParseFault(files[RECORDS_FILE] || '');
-            faultState  = {};
-            // Walk rows in order; last write per edge wins
-            rows.forEach(r => {
-                if ((r.action === 'FAULT' || r.action === 'FAULT_CLEAR') && r.assetId)
-                    faultState[r.assetId] = r.action;
-            });
+            // Primary source is leakbursts.csv; also fold in any legacy leak/burst
+            // rows that may still live in records.csv so older reports aren't lost.
+            const rows   = csvParseLeakBurst(files[LEAKBURST_FILE] || '');
+            const legacy = csvParseLeakBurst(files[RECORDS_FILE] || '')
+                .filter(r => {
+                    const n = normalizeLeakBurstAction(r.action);
+                    return n === 'LEAK_BURST' || n === 'LEAK_BURST_CLEAR';
+                });
+            leakBurstState  = {};
+            // Process in timestamp order so the newest action per edge wins,
+            // regardless of which file (new or legacy) it came from.
+            rows.concat(legacy)
+                .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
+                .forEach(r => {
+                    const action = normalizeLeakBurstAction(r.action);
+                    if ((action === 'LEAK_BURST' || action === 'LEAK_BURST_CLEAR') && r.assetId)
+                        leakBurstState[r.assetId] = action;
+                });
         } catch(e) {
-            console.warn('Fault state load failed:', e.message);
+            console.warn('Leak/Burst state load failed:', e.message);
         }
     }
 
-    // Apply faultState onto the current cy instance
-    function applyFaultOverlay() {
+    // Apply leakBurstState onto the current cy instance
+    function applyLeakBurstOverlay() {
         if (!cy) return;
-        Object.entries(faultState).forEach(([edgeId, action]) => {
+        Object.entries(leakBurstState).forEach(([edgeId, action]) => {
             const el = cy.getElementById(edgeId);
             if (!el.length) return;
-            if (action === 'FAULT')
-                el.data('flow', 'fault');
-            else if (action === 'FAULT_CLEAR' && el.data('flow') === 'fault')
+            if (action === 'LEAK_BURST')
+                el.data('flow', 'leakburst');
+            else if (action === 'LEAK_BURST_CLEAR' && el.data('flow') === 'leakburst')
                 el.data('flow', '');
         });
     }
 
-    function csvParseFault(text) {
+    function csvParseLeakBurst(text) {
         if (!text?.trim()) return [];
         return Papa.parse(text.trim(), { header: true, skipEmptyLines: true }).data;
     }
 
-    const FAULT_CSV_COLS = ['sn','personId','personName','zone','assetId','assetName',
+    const LEAK_BURST_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','assetName',
                             'action','timestamp','date','time','lat','lng','distance','deviceId'];
     // pad2 and esc come from common.js
-    function todayStrFault() {
+    function todayStrLeakBurst() {
         const d = new Date();
         return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
     }
-    function timeStrFault(d) {
+    function timeStrLeakBurst(d) {
         return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
     }
+    // Docket number: LB-YYYYMMDD-XXXX (matches the format used in Asset Control).
+    function makeDocketLB(now) {
+        const d = now || new Date();
+        const ymd = `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`;
+        const rand = Math.floor(Math.random() * 36);
+        const suffix = (d.getTime() % 1000000).toString(36).toUpperCase().padStart(4,'0').slice(-3)
+                     + rand.toString(36).toUpperCase();
+        return `LB-${ymd}-${suffix}`;
+    }
 
-    // ─── EDGE TAP → FAULT PANEL ───────────────────────────────────────────────
+    // ─── EDGE TAP → LEAK/BURST PANEL ───────────────────────────────────────────────
     // Called from initCytoscape after cy is ready
     function bindEdgeTap() {
         cy.on('tap', 'edge', function(evt) {
-            showEdgeFaultPanel(evt.target);
+            showEdgeLeakBurstPanel(evt.target);
         });
     }
 
@@ -1350,17 +1378,17 @@
         );
     }
 
-    function showEdgeFaultPanel(edge) {
+    function showEdgeLeakBurstPanel(edge) {
         const panel  = document.getElementById('node-info-panel');
         const title  = document.getElementById('nip-title');
         const fields = document.getElementById('nip-fields');
-        const bar    = document.getElementById('nip-fault-bar');
+        const bar    = document.getElementById('nip-leakburst-bar');
 
-        _currentFaultEdgeId = edge.id();
+        _currentLeakBurstEdgeId = edge.id();
         const src   = edge.data('source') || '';
         const tgt   = edge.data('target') || '';
         const flow  = edge.data('flow')   || '';
-        const isFaulted = (faultState[edge.id()] === 'FAULT') || (flow === 'fault');
+        const isLeakBursted = (leakBurstState[edge.id()] === 'LEAK_BURST') || (flow === 'leakburst');
 
         title.textContent = `Pipe: ${src} → ${tgt}`;
 
@@ -1372,49 +1400,74 @@
             </div>`;
         }
 
-        const flowLabel = flow === 'fault' ? '⚠ FAULT' : flow === 'active' ? '▶ Active' : flow === '' ? 'Idle' : flow;
-        const flowCls   = flow === 'fault' ? 'state-off' : flow === 'active' ? 'state-on' : '';
+        const flowLabel = flow === 'leakburst' ? '⚠ LEAK/BURST' : flow === 'active' ? '▶ Active' : flow === '' ? 'Idle' : flow;
+        const flowCls   = flow === 'leakburst' ? 'state-off' : flow === 'active' ? 'state-on' : '';
         fields.innerHTML = field('Edge ID', edge.id())
                          + field('From', src)
                          + field('To', tgt)
                          + field('Flow', flowLabel, flowCls);
 
-        // Fault bar
+        // Leak/Burst bar
         bar.style.display = 'flex';
         bar.style.flexDirection = 'column';
-        setFaultStatus('');
-        onFaultPersonChange();   // update button states
+        setLeakBurstStatus('');
+        onLeakBurstPersonChange();   // update button states
 
-        // Mark faulted state on Clear button
-        document.getElementById('btn-fault-clear').style.display = isFaulted ? '' : 'none';
-        document.getElementById('btn-fault-report').textContent  = isFaulted ? '⚠ Re-report Fault' : '⚠ Report Fault';
+        // An open report blocks re-reporting until cleared; the Clear button is
+        // the only way forward while a report is active.
+        const rptBtn = document.getElementById('btn-leakburst-report');
+        document.getElementById('btn-leakburst-clear').style.display = isLeakBursted ? '' : 'none';
+        if (isLeakBursted) {
+            rptBtn.textContent = '⚠ Reported';
+            rptBtn.title       = 'Already reported — clear it before reporting again';
+        } else {
+            rptBtn.textContent = '⚠ Report Leak/Burst';
+            rptBtn.title       = '';
+        }
 
         panel.classList.add('visible');
         ensureGeoWatch();
     }
 
-    function onFaultPersonChange() {
-        const pid = document.getElementById('fault-person-select').value;
+    function currentEdgeIsLeakBursted() {
+        if (!_currentLeakBurstEdgeId) return false;
+        if (leakBurstState[_currentLeakBurstEdgeId] === 'LEAK_BURST') return true;
+        if (cy) {
+            const el = cy.getElementById(_currentLeakBurstEdgeId);
+            if (el && el.length && el.data('flow') === 'leakburst') return true;
+        }
+        return false;
+    }
+
+    function onLeakBurstPersonChange() {
+        const pid = document.getElementById('leakburst-person-select').value;
         const ok  = !!pid;
-        document.getElementById('btn-fault-report').disabled = !ok;
-        document.getElementById('btn-fault-clear').disabled  = !ok;
+        // Report is blocked while an open report exists for this edge; clearing
+        // it (which still needs a selected person) is the way forward.
+        const faulted = currentEdgeIsLeakBursted();
+        document.getElementById('btn-leakburst-report').disabled = !ok || faulted;
+        document.getElementById('btn-leakburst-clear').disabled  = !ok;
     }
 
-    function setFaultStatus(msg, cls) {
-        const el = document.getElementById('nip-fault-status');
+    function setLeakBurstStatus(msg, cls) {
+        const el = document.getElementById('nip-leakburst-status');
         el.textContent = msg;
-        el.className   = 'nip-fault-status' + (cls ? ' ' + cls : '');
+        el.className   = 'nip-leakburst-status' + (cls ? ' ' + cls : '');
     }
 
-    async function submitFault(action) {
-        const pid    = document.getElementById('fault-person-select').value;
+    async function submitLeakBurst(action) {
+        const pid    = document.getElementById('leakburst-person-select').value;
         const person = persons.find(p => p.id === pid);
-        if (!person) { setFaultStatus('Select your name first', 'err'); return; }
-        if (!_currentFaultEdgeId) { setFaultStatus('No edge selected', 'err'); return; }
+        if (!person) { setLeakBurstStatus('Select your name first', 'err'); return; }
+        if (!_currentLeakBurstEdgeId) { setLeakBurstStatus('No edge selected', 'err'); return; }
+        if (action === 'LEAK_BURST' && currentEdgeIsLeakBursted()) {
+            setLeakBurstStatus('⚠ Already reported — clear it first', 'warn');
+            return;
+        }
 
         // Location check — must have a GPS fix
         if (_geoPos === null || _geoPos === 'pending') {
-            setFaultStatus('⏳ Waiting for GPS…', 'warn');
+            setLeakBurstStatus('⏳ Waiting for GPS…', 'warn');
             ensureGeoWatch();
             return;
         }
@@ -1422,57 +1475,74 @@
         // Find the zone this edge belongs to (from currentZone)
         const zoneId = currentZone?.id || '';
 
-        document.getElementById('btn-fault-report').disabled = true;
-        document.getElementById('btn-fault-clear').disabled  = true;
-        setFaultStatus('Saving…', '');
+        document.getElementById('btn-leakburst-report').disabled = true;
+        document.getElementById('btn-leakburst-clear').disabled  = true;
+        setLeakBurstStatus('Saving…', '');
 
         try {
-            const edge     = cy.getElementById(_currentFaultEdgeId);
+            const edge     = cy.getElementById(_currentLeakBurstEdgeId);
             const edgeName = `${edge.data('source') || ''} → ${edge.data('target') || ''}`;
             const now      = new Date();
 
             const allFiles   = await workerGet('output');
-            const allRecs    = csvParseFault(allFiles[RECORDS_FILE] || '');
+            const allRecs    = csvParseLeakBurst(allFiles[LEAKBURST_FILE] || '');
+            // New report gets a fresh docket; a clear reuses the docket of the
+            // report it resolves so the pair shares one reference.
+            let docket = '';
+            if (action === 'LEAK_BURST') {
+                docket = makeDocketLB(now);
+            } else if (action === 'LEAK_BURST_CLEAR') {
+                const prior = [...allRecs].reverse().find(r =>
+                    r.assetId === _currentLeakBurstEdgeId && normalizeLeakBurstAction(r.action) === 'LEAK_BURST' && r.docket);
+                docket = prior ? prior.docket : makeDocketLB(now);
+            }
             const rec = {
                 sn:         allRecs.length + 1,
+                docket:     docket,
                 deviceId:   deviceId,
                 personId:   person.id,
                 personName: person.name,
-                assetId:    _currentFaultEdgeId,
+                assetId:    _currentLeakBurstEdgeId,
                 assetName:  edgeName,
                 action:     action,
                 timestamp:  now.toISOString(),
-                date:       todayStrFault(),
-                time:       timeStrFault(now),
+                date:       todayStrLeakBurst(),
+                time:       timeStrLeakBurst(now),
                 lat:        _geoPos.lat.toFixed(7),
                 lng:        _geoPos.lng.toFixed(7),
                 distance:   '',
                 zone:       zoneId
             };
             allRecs.push(rec);
-            await workerPatch({ [RECORDS_FILE]: Papa.unparse(allRecs, { columns: FAULT_CSV_COLS }) });
+            await workerPatch({ [LEAKBURST_FILE]: Papa.unparse(allRecs, { columns: LEAK_BURST_CSV_COLS }) });
 
-            // Update local fault state and overlay on graph
-            faultState[_currentFaultEdgeId] = action;
+            // Update local leak/burst state and overlay on graph
+            leakBurstState[_currentLeakBurstEdgeId] = action;
             if (edge.length) {
-                if (action === 'FAULT')
-                    edge.data('flow', 'fault');
-                else if (action === 'FAULT_CLEAR')
+                if (action === 'LEAK_BURST')
+                    edge.data('flow', 'leakburst');
+                else if (action === 'LEAK_BURST_CLEAR')
                     edge.data('flow', '');
             }
 
-            const msg = action === 'FAULT' ? '⚠ Fault reported' : '✓ Fault cleared';
-            setFaultStatus(msg, action === 'FAULT' ? 'err' : 'ok');
+            const msg = action === 'LEAK_BURST' ? '⚠ Leak/Burst reported' : '✓ Leak/Burst cleared';
+            setLeakBurstStatus(msg, action === 'LEAK_BURST' ? 'err' : 'ok');
 
-            // Refresh panel state
-            document.getElementById('btn-fault-clear').style.display = action === 'FAULT' ? '' : 'none';
-            document.getElementById('btn-fault-report').textContent  = action === 'FAULT' ? '⚠ Re-report Fault' : '⚠ Report Fault';
+            // Refresh panel state: after a report the pipe is now faulted, so
+            // the Report button shows "Reported" and only Clear is offered.
+            const rptBtn = document.getElementById('btn-leakburst-report');
+            document.getElementById('btn-leakburst-clear').style.display = action === 'LEAK_BURST' ? '' : 'none';
+            rptBtn.textContent = action === 'LEAK_BURST' ? '⚠ Reported' : '⚠ Report Leak/Burst';
+            rptBtn.title       = action === 'LEAK_BURST' ? 'Already reported — clear it before reporting again' : '';
         } catch(e) {
-            setFaultStatus('Error: ' + e.message, 'err');
+            setLeakBurstStatus('Error: ' + e.message, 'err');
         } finally {
-            const pid2 = document.getElementById('fault-person-select').value;
-            document.getElementById('btn-fault-report').disabled = !pid2;
-            document.getElementById('btn-fault-clear').disabled  = !pid2;
+            // Re-derive button states: keep Report disabled if the edge now has
+            // an open report; Clear stays available while a person is selected.
+            const pid2     = document.getElementById('leakburst-person-select').value;
+            const faulted2 = currentEdgeIsLeakBursted();
+            document.getElementById('btn-leakburst-report').disabled = !pid2 || faulted2;
+            document.getElementById('btn-leakburst-clear').disabled  = !pid2;
         }
     }
 

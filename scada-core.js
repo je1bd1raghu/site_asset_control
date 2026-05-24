@@ -224,9 +224,9 @@ const CY_STYLE = [
     }
 },
 
-// Fault: base style — blink class toggles highlight
+// Leak/Burst: base style — blink class toggles highlight
 {
-    selector: 'edge[flow="fault"]',
+    selector: 'edge[flow="leakburst"]',
     style: {
         'line-color': '#e74c3c',
         'target-arrow-color': '#e74c3c',
@@ -235,9 +235,9 @@ const CY_STYLE = [
     }
 },
 
-// Fault blink-ON state (toggled by JS every 500 ms)
+// Leak/Burst blink-ON state (toggled by JS every 500 ms)
 {
-    selector: 'edge[flow="fault"].faultBlink',
+    selector: 'edge[flow="leakburst"].leakburstBlink',
     style: {
         'line-color': '#ff8c00',
         'target-arrow-color': '#ff8c00',
@@ -319,7 +319,7 @@ function applyStatus(cy, data) {
 //   propagation logic to overwrite each other on every sync.
 //
 // Edge flow rules:
-//   reachable  + flow="fault"  → keep "fault"   (explicit faults always win)
+//   reachable  + flow="leakburst"  → keep "leakburst"   (explicit leaks/bursts always win)
 //   reachable  + anything else → set  "active"
 //   unreachable                → set  ""         (idle pipe colour)
 //
@@ -366,7 +366,7 @@ function propagateFlow(cy) {
     // Update edge flow — node states are never touched here
     cy.batch(() => {
         cy.edges().forEach(edge => {
-            if (edge.data('flow') === 'fault') return;   // faults always win
+            if (edge.data('flow') === 'leakburst') return;   // leaks/bursts always win
             edge.data('flow', reachableEdges.has(edge.id()) ? 'active' : '');
         });
     });
@@ -425,15 +425,15 @@ function startAnimations(cy) {
     }
     animateValves();
 
-    // ── 4. Fault blink (class toggle every 500 ms) ────────────────────────────
-    const faultTimer = setInterval(() => {
+    // ── 4. Leak/Burst blink (class toggle every 500 ms) ────────────────────────────
+    const leakBurstTimer = setInterval(() => {
         if (!running) return;
-        cy.edges('[flow="fault"]').toggleClass('faultBlink');
+        cy.edges('[flow="leakburst"]').toggleClass('leakburstBlink');
     }, 500);
 
     // ── Expose a clean teardown for zone switches ─────────────────────────────
     return function stop() {
         running = false;
-        clearInterval(faultTimer);
+        clearInterval(leakBurstTimer);
     };
 }

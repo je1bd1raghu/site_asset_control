@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Fault Estimate — SCADA Asset Control</title>
+<title>Leak/Burst Estimate — SCADA Asset Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -85,7 +85,7 @@
 <div class="header">
   <div class="header-left"><a href="index.html" class="scada-link">← Asset Control</a></div>
   <p id="headerDate">Loading…</p>
-  <h1>📋 Fault Estimate</h1>
+  <h1>📋 Leak/Burst Estimate</h1>
   <div class="header-right"><a href="scada-visualizer.html" class="scada-link">🌊 SCADA View</a></div>
 </div>
 
@@ -96,7 +96,7 @@
     <div class="asset-banner" id="assetBanner">
       <div class="ab-icon">⚠️</div>
       <div>
-        <div class="ab-title" id="assetBannerTitle">Loading fault…</div>
+        <div class="ab-title" id="assetBannerTitle">Loading leak/burst…</div>
         <div class="ab-sub"   id="assetBannerSub">Fetching asset information</div>
       </div>
     </div>
@@ -104,7 +104,7 @@
 
   <!-- Existing estimate (if any) -->
   <div class="card" id="existingCard" style="display:none">
-    <div class="section-title">Current Estimate for This Fault</div>
+    <div class="section-title">Current Estimate for This Leak/Burst</div>
     <div class="est-existing">
       <div class="ee-icon">✅</div>
       <div>
@@ -135,7 +135,7 @@
 
   <!-- Upload / Edit form -->
   <div class="card" id="formCard">
-    <div class="section-title" id="formTitle">Upload Estimate for This Fault</div>
+    <div class="section-title" id="formTitle">Upload Estimate for This Leak/Burst</div>
 
     <div class="field-label">Estimate Title / Reference</div>
     <div style="margin-bottom:16px;">
@@ -185,6 +185,7 @@
 
 let assetId   = '';
 let assetName = '';
+let docket    = '';
 let estimates = [];
 let rows      = [{ particulars:'', quantity:'', unit:'', rate:'' }];
 
@@ -193,15 +194,17 @@ window.addEventListener('DOMContentLoaded', () => {
   setInterval(updateClock, 1000);
 
   const params = new URLSearchParams(location.search);
-  assetId   = params.get('asset') || '';
-  assetName = params.get('name')  || assetId;
+  assetId   = params.get('asset')  || '';
+  assetName = params.get('name')   || assetId;
+  docket    = params.get('docket') || '';
 
   if (assetId) {
-    document.getElementById('assetBannerTitle').textContent = '⚠ Fault: ' + assetName;
-    document.getElementById('assetBannerSub').textContent   = 'Estimate will be linked to asset: ' + assetId;
+    document.getElementById('assetBannerTitle').textContent = '⚠ Leak/Burst: ' + assetName;
+    document.getElementById('assetBannerSub').textContent   =
+      (docket ? '🎫 Docket: ' + docket + '  ·  ' : '') + 'Linked to asset: ' + assetId;
   } else {
-    document.getElementById('assetBannerTitle').textContent = 'No fault asset specified';
-    document.getElementById('assetBannerSub').textContent   = 'Open this page from the fault report section in Asset Control';
+    document.getElementById('assetBannerTitle').textContent = 'No leak/burst asset specified';
+    document.getElementById('assetBannerSub').textContent   = 'Open this page from the leak/burst report section in Asset Control';
   }
 
   loadEstimates();
@@ -225,11 +228,20 @@ function getForAsset() {
 
 function renderPage() {
   const existing = getForAsset();
+  // If the URL didn't carry a docket but a stored estimate has one, surface it.
+  if (!docket && existing && existing.docket) {
+    docket = existing.docket;
+    if (assetId) {
+      document.getElementById('assetBannerSub').textContent =
+        '🎫 Docket: ' + docket + '  ·  Linked to asset: ' + assetId;
+    }
+  }
   if (existing) {
     document.getElementById('existingCard').style.display = '';
     document.getElementById('existingTitle').textContent  = existing.name || assetName;
+    const dk = existing.docket ? `🎫 ${existing.docket} · ` : '';
     document.getElementById('existingSub').textContent    =
-      `${existing.items.length} items · ₹${fmtNum(existing.total)} · Saved ${existing.date}`;
+      `${dk}${existing.items.length} items · ₹${fmtNum(existing.total)} · Saved ${existing.date}`;
     document.getElementById('existingBody').innerHTML = existing.items.map((it, i) => `
       <tr>
         <td class="sno">${i+1}</td>
@@ -277,7 +289,7 @@ function resetForm() {
   rows = [{ particulars:'', quantity:'', unit:'', rate:'' }];
   document.getElementById('estName').value          = '';
   document.getElementById('saveStatus').textContent = '';
-  document.getElementById('formTitle').textContent  = 'Upload Estimate for This Fault';
+  document.getElementById('formTitle').textContent  = 'Upload Estimate for This Leak/Burst';
   renderEditTable();
 }
 
@@ -322,7 +334,7 @@ function updateTotal() {
 }
 
 async function saveEstimate() {
-  if (!assetId) { showToast('No fault asset — open from fault section','warning'); return; }
+  if (!assetId) { showToast('No leak/burst asset — open from leak/burst section','warning'); return; }
   const name = (document.getElementById('estName').value||'').trim();
   if (!name)   { showToast('Enter an estimate title','warning'); document.getElementById('estName').focus(); return; }
   const hasContent = rows.some(r => r.particulars || r.rate || r.quantity);
@@ -341,7 +353,12 @@ async function saveEstimate() {
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const dateStr = `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-  const est = { id: Date.now().toString(), assetId, assetName, name, date: dateStr, items, total };
+  // Keep the docket linked to the estimate: use the one passed in the URL, or
+  // preserve a docket already stored on a prior estimate for this asset.
+  const prior  = estimates.find(e => e.assetId === assetId);
+  const docketRef = docket || (prior && prior.docket) || '';
+
+  const est = { id: Date.now().toString(), assetId, assetName, docket: docketRef, name, date: dateStr, items, total };
 
   document.getElementById('btnSave').disabled        = true;
   document.getElementById('saveStatus').textContent  = 'Saving…';

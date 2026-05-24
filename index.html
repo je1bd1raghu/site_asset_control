@@ -109,36 +109,72 @@
   .record-avatar { width:44px; height:44px; border-radius:12px; font-size:18px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .rec-on  { background:var(--success-light); }
   .rec-off { background:var(--danger-light); }
-  .rec-fault       { background:#fff3cd; }
-  .rec-fault-clear { background:var(--success-light); }
-  .chip-fault       { background:#fff3cd; color:var(--warning); }
-  .chip-fault-clear { background:var(--success-light); color:var(--success); }
+  .rec-leakburst       { background:#fff3cd; }
+  .rec-leakburst-clear { background:var(--success-light); }
+  .chip-leakburst       { background:#fff3cd; color:var(--warning); }
+  .chip-leakburst-clear { background:var(--success-light); color:var(--success); }
 
-  /* ── Fault Edge Report section ── */
-  .fault-search-wrap { position:relative; margin-bottom:14px; }
-  .fault-search-input { width:100%; border:2px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px 11px 40px; font-size:15px; font-family:'Nunito','Noto Sans Bengali',sans-serif; color:var(--text); outline:none; transition:border-color .2s; }
-  .fault-search-input:focus { border-color:var(--primary); }
-  .fault-search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:15px; pointer-events:none; }
-  .fault-edge-list { max-height:220px; overflow-y:auto; border:2px solid var(--border); border-radius:var(--radius-sm); margin-bottom:14px; }
-  .fault-edge-item { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .12s; gap:10px; }
-  .fault-edge-item:last-child { border-bottom:none; }
-  .fault-edge-item:hover, .fault-edge-item.selected { background:var(--primary-light); }
-  .fault-edge-item.selected { border-left:3px solid var(--primary); }
-  .fei-id { font-size:13px; font-weight:800; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* ── Leak/Burst Edge Report section ── */
+  .leakburst-search-wrap { position:relative; margin-bottom:14px; }
+  .leakburst-search-input { width:100%; border:2px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px 11px 40px; font-size:15px; font-family:'Nunito','Noto Sans Bengali',sans-serif; color:var(--text); outline:none; transition:border-color .2s; }
+  .leakburst-search-input:focus { border-color:var(--primary); }
+  .leakburst-search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:15px; pointer-events:none; }
+  .leakburst-edge-list { max-height:220px; overflow-y:auto; border:2px solid var(--border); border-radius:var(--radius-sm); margin-bottom:14px; }
+  .leakburst-edge-item { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .12s; gap:10px; }
+  .leakburst-edge-item:last-child { border-bottom:none; }
+  .leakburst-edge-item:hover, .leakburst-edge-item.selected { background:var(--primary-light); }
+  .leakburst-edge-item.selected { border-left:3px solid var(--primary); }
+  .fei-id { font-size:15px; font-weight:800; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:-.1px; }
   .fei-route { font-size:11px; color:var(--text3); font-weight:600; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .fei-zone { font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px; background:var(--surface2); color:var(--text3); flex-shrink:0; }
-  .fei-fault-badge { font-size:10px; font-weight:800; padding:2px 7px; border-radius:5px; background:#fff3cd; color:var(--warning); flex-shrink:0; }
-  .fault-empty { text-align:center; padding:20px; color:var(--text3); font-size:13px; font-weight:700; }
-  .fault-action-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:4px; }
-  .fault-selected-label { font-size:12px; font-weight:700; color:var(--text2); padding:8px 12px; border-radius:var(--radius-sm); background:var(--surface2); border:2px solid var(--border); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .fault-selected-label.has-fault { background:#fff3cd; border-color:#fcd34d; color:var(--warning); }
-  .btn-fault-rpt  { padding:10px 16px; background:#dc2626; color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:800; cursor:pointer; transition:background .2s; white-space:nowrap; }
-  .btn-fault-rpt:hover { background:#b91c1c; }
-  .btn-fault-rpt:disabled { opacity:.45; cursor:not-allowed; }
-  .btn-fault-clr  { padding:10px 16px; background:var(--success); color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:800; cursor:pointer; transition:background .2s; white-space:nowrap; }
-  .btn-fault-clr:hover { background:#15803d; }
-  .btn-fault-clr:disabled { opacity:.45; cursor:not-allowed; }
-  .fault-submit-status { font-size:12px; font-weight:600; color:var(--text3); min-height:18px; margin-top:6px; }
+  .fei-leakburst-badge { font-size:10px; font-weight:800; padding:2px 7px; border-radius:5px; background:#fff3cd; color:var(--warning); flex-shrink:0; }
+  .leakburst-empty { text-align:center; padding:20px; color:var(--text3); font-size:13px; font-weight:700; }
+  .leakburst-action-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:4px; }
+  .leakburst-selected-label { font-size:12px; font-weight:700; color:var(--text2); padding:8px 12px; border-radius:var(--radius-sm); background:var(--surface2); border:2px solid var(--border); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .leakburst-selected-label.has-leakburst { background:#fff3cd; border-color:#fcd34d; color:var(--warning); }
+  .btn-leakburst-rpt  { padding:10px 16px; background:#dc2626; color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:800; cursor:pointer; transition:background .2s; white-space:nowrap; }
+  .btn-leakburst-rpt:hover { background:#b91c1c; }
+  .btn-leakburst-rpt:disabled { opacity:.45; cursor:not-allowed; }
+  .btn-leakburst-clr  { padding:10px 16px; background:var(--success); color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:800; cursor:pointer; transition:background .2s; white-space:nowrap; }
+  .btn-leakburst-clr:hover { background:#15803d; }
+  .btn-leakburst-clr:disabled { opacity:.45; cursor:not-allowed; }
+  .leakburst-submit-status { font-size:12px; font-weight:600; color:var(--text3); min-height:18px; margin-top:6px; }
+
+  /* ── Share button + share sheet ── */
+  .btn-share-lb { flex-shrink:0; padding:8px 13px; background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:800; cursor:pointer; transition:background .2s; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
+  .btn-share-lb:hover { background:var(--primary-dark); }
+  .share-sheet-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:1100; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity .25s; }
+  .share-sheet-backdrop.open { opacity:1; pointer-events:auto; }
+  .share-sheet { background:var(--surface); border-radius:24px 24px 0 0; width:100%; max-width:540px; padding:22px 20px 32px; transform:translateY(100%); transition:transform .3s cubic-bezier(.34,1.2,.64,1); box-shadow:0 -8px 40px rgba(0,0,0,.15); }
+  .share-sheet-backdrop.open .share-sheet { transform:translateY(0); }
+  .share-handle { width:40px; height:4px; border-radius:2px; background:var(--border); margin:0 auto 18px; }
+  .share-title { font-size:15px; font-weight:800; color:var(--text); margin-bottom:4px; }
+  .share-sub { font-size:12px; font-weight:600; color:var(--text3); margin-bottom:14px; }
+  .share-preview { background:var(--surface2); border:2px solid var(--border); border-radius:var(--radius-sm); padding:14px; font-size:13px; font-weight:600; color:var(--text); white-space:pre-wrap; word-break:break-word; max-height:200px; overflow-y:auto; margin-bottom:16px; line-height:1.6; font-family:'Nunito','Noto Sans Bengali',sans-serif; }
+  .share-btn-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .share-btn { flex:1; min-width:100px; padding:12px 10px; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px; transition:background .2s; white-space:nowrap; }
+  .share-btn-whatsapp { background:#25D366; color:#fff; }
+  .share-btn-whatsapp:hover { background:#1ebe57; }
+  .share-btn-native { background:var(--primary); color:#fff; }
+  .share-btn-native:hover { background:var(--primary-dark); }
+  .share-btn-copy { background:var(--surface2); color:var(--text2); border:2px solid var(--border); }
+  .share-btn-copy:hover { background:var(--primary-light); border-color:var(--primary); color:var(--primary); }
+  .share-btn-close { background:var(--surface2); color:var(--text2); border:2px solid var(--border); }
+  .share-btn-close:hover { background:var(--danger-light); border-color:var(--danger); color:var(--danger); }
+
+  /* ── Location warning modal ── */
+  .locwarn-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:1200; display:flex; align-items:center; justify-content:center; padding:24px; opacity:0; pointer-events:none; transition:opacity .25s; }
+  .locwarn-backdrop.open { opacity:1; pointer-events:auto; }
+  .locwarn-box { background:var(--surface); border-radius:var(--radius); width:100%; max-width:380px; padding:26px 22px 22px; box-shadow:var(--shadow-lg); transform:scale(.92); transition:transform .25s cubic-bezier(.34,1.4,.64,1); text-align:center; }
+  .locwarn-backdrop.open .locwarn-box { transform:scale(1); }
+  .locwarn-icon { font-size:44px; margin-bottom:10px; }
+  .locwarn-title { font-size:18px; font-weight:800; color:var(--text); margin-bottom:8px; }
+  .locwarn-text { font-size:14px; font-weight:600; color:var(--text2); line-height:1.55; margin-bottom:20px; }
+  .locwarn-btn { width:100%; padding:13px; background:var(--warning); color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:800; cursor:pointer; transition:background .2s; }
+  .locwarn-btn:hover { background:#b45309; }
+
+  /* docket reference shown on report records */
+  .record-docket { font-size:11px; font-weight:800; color:var(--primary); margin-top:2px; letter-spacing:.3px; }
   .record-info { flex:1; min-width:0; }
   .record-name  { font-size:15px; font-weight:700; color:var(--text); }
   .record-asset { font-size:11px; color:var(--primary); font-weight:700; margin-top:1px; }
@@ -203,6 +239,7 @@
   .pend-info { flex:1; min-width:0; }
   .pend-id   { font-size:14px; font-weight:800; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .pend-route{ font-size:11px; color:var(--text3); font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pend-docket { font-size:11px; font-weight:800; color:var(--primary); margin-top:2px; letter-spacing:.3px; }
   .pend-zone { font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px; background:var(--surface2); color:var(--text3); display:inline-block; margin-top:4px; }
   .btn-upload-est { flex-shrink:0; padding:8px 13px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:12px; font-weight:800; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; transition:background .2s; }
   .btn-upload-est:hover { background:var(--primary-dark); }
@@ -312,46 +349,49 @@
     <div id="assetsList"></div>
   </div>
 
-  <div class="card" id="faultCard">
-    <button class="section-toggle-btn" onclick="toggleSection('faultBody',this)" aria-expanded="false">
+  <div class="card" id="leakBurstCard">
+    <button class="section-toggle-btn" onclick="toggleSection('leakBurstBody',this)" aria-expanded="false">
       <div class="stb-left">
         <span class="stb-icon">⚠️</span>
         <div class="stb-texts">
-          <span class="stb-title">Report Leak / Burst / Fault</span>
-          <span class="stb-sub">Select a pipe and report or clear a fault</span>
+          <span class="stb-title">Report Leak / Burst</span>
+          <span class="stb-sub">Select a pipe and report or clear a leak/burst</span>
         </div>
       </div>
       <div class="stb-right">
-        <div class="stb-chevron" id="faultChevron">▾</div>
+        <div class="stb-chevron" id="leakBurstChevron">▾</div>
       </div>
     </button>
 
-    <div class="collapsible-body" id="faultBody">
-      <!-- Zone filter tabs -->
-      <div id="faultZoneTabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div class="collapsible-body" id="leakBurstBody">
+      <!-- Zone filter tabs + share -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <div id="leakBurstZoneTabs" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0"></div>
+        <button class="btn-share-lb" onclick="shareLeakBursts()" title="Share active leaks/bursts in this zone">&#128228; Share</button>
+      </div>
 
       <!-- Search -->
-      <div class="fault-search-wrap">
-        <span class="fault-search-icon">🔍</span>
-        <input type="search" id="faultSearch" class="fault-search-input"
+      <div class="leakburst-search-wrap">
+        <span class="leakburst-search-icon">🔍</span>
+        <input type="search" id="leakBurstSearch" class="leakburst-search-input"
                placeholder="Search pipe by ID, source or target…"
-               oninput="filterFaultEdges()" autocomplete="off">
+               oninput="filterLeakBurstEdges()" autocomplete="off">
       </div>
 
       <!-- Edge list -->
-      <div class="fault-edge-list" id="faultEdgeList">
-        <div class="fault-empty">Loading edges…</div>
+      <div class="leakburst-edge-list" id="leakBurstEdgeList">
+        <div class="leakburst-empty">Loading edges…</div>
       </div>
 
       <!-- Selected edge + action row -->
-      <div class="fault-action-row">
-        <div class="fault-selected-label" id="faultSelectedLabel">No pipe selected</div>
-        <button class="btn-fault-rpt" id="btnFaultReport" onclick="submitEdgeFault('FAULT')"       disabled>⚠ Report</button>
-        <button class="btn-fault-clr" id="btnFaultClear"  onclick="submitEdgeFault('FAULT_CLEAR')" disabled>✓ Clear</button>
+      <div class="leakburst-action-row">
+        <div class="leakburst-selected-label" id="leakBurstSelectedLabel">No pipe selected</div>
+        <button class="btn-leakburst-rpt" id="btnLeakBurstReport" onclick="submitEdgeLeakBurst('LEAK_BURST')"       disabled>⚠ Report</button>
+        <button class="btn-leakburst-clr" id="btnLeakBurstClear"  onclick="submitEdgeLeakBurst('LEAK_BURST_CLEAR')" disabled>✓ Clear</button>
       </div>
-      <div class="fault-submit-status" id="faultSubmitStatus"></div>
+      <div class="leakburst-submit-status" id="leakBurstSubmitStatus"></div>
 
-      <!-- Inline estimate panel — shown only when a FAULTED pipe is selected -->
+      <!-- Inline estimate panel — shown only when a LEAK_BURSTED pipe is selected -->
       <div id="estimatePanel" style="display:none;margin-top:14px;border-top:2px solid var(--border);padding-top:14px;">
         <div id="estimatePanelContent"></div>
       </div>
@@ -365,7 +405,7 @@
         <span class="stb-icon">📋</span>
         <div class="stb-texts">
           <span class="stb-title">Pending Estimates</span>
-          <span class="stb-sub">Faults awaiting cost estimate upload</span>
+          <span class="stb-sub">Leaks/Bursts awaiting cost estimate upload</span>
         </div>
       </div>
       <div class="stb-right">
@@ -391,7 +431,7 @@
         <span class="stb-icon">🗒️</span>
         <div class="stb-texts">
           <span class="stb-title">Today's Toggle Records</span>
-          <span class="stb-sub">All on/off and fault actions logged today</span>
+          <span class="stb-sub">All on/off and leak/burst actions logged today</span>
         </div>
       </div>
       <div class="stb-right">
@@ -433,6 +473,7 @@
         </select>
         <select id="dlYear" class="dl-select"></select>
         <button class="btn-download" onclick="downloadRecords()">⬇ Records CSV</button>
+        <button class="btn-download" onclick="downloadLeakBursts()" style="background:var(--danger);white-space:nowrap;">⬇ Leak/Burst CSV</button>
         <button class="btn-download" onclick="openDownloadModal()" style="background:var(--warning);white-space:nowrap;">📋 Download Estimates</button>
       </div>
       <div id="dlStatus" style="font-size:12px;font-weight:600;color:var(--text3);margin-top:8px;min-height:18px"></div>
@@ -462,6 +503,32 @@
       <button class="modal-btn modal-btn-success" id="btnDownloadZip" onclick="downloadAllZip()" disabled>📦 Download All (ZIP)</button>
       <button class="modal-btn modal-btn-outline" onclick="closeModal()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- Share active leaks/bursts sheet -->
+<div class="share-sheet-backdrop" id="shareSheetBackdrop" onclick="closeShareSheet(event)">
+  <div class="share-sheet">
+    <div class="share-handle"></div>
+    <div class="share-title">&#128228; Share Leak / Burst Report</div>
+    <div class="share-sub" id="shareSheetSub">Active leaks/bursts in zone</div>
+    <div class="share-preview" id="sharePreviewText"></div>
+    <div class="share-btn-row">
+      <button class="share-btn share-btn-whatsapp" onclick="shareViaWhatsApp()">&#128241; WhatsApp</button>
+      <button class="share-btn share-btn-native" id="btnNativeShare" onclick="shareNative()" style="display:none">&#128228; Share&hellip;</button>
+      <button class="share-btn share-btn-copy" onclick="shareCopyClipboard()">&#128203; Copy</button>
+      <button class="share-btn share-btn-close" onclick="closeShareSheet()">&#x2715; Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report-from-actual-location warning modal -->
+<div class="locwarn-backdrop" id="locWarnBackdrop">
+  <div class="locwarn-box">
+    <div class="locwarn-icon">&#128205;</div>
+    <div class="locwarn-title">Report From the Actual Location</div>
+    <div class="locwarn-text">Please make sure you are physically at the leak/burst site before reporting. The report records your current GPS coordinates, which the field team relies on to locate the problem.</div>
+    <button class="locwarn-btn" onclick="closeLocWarn()">I understand</button>
   </div>
 </div>
 
@@ -592,22 +659,43 @@ async function loadAssetsFromGist() {
 }
 
 // ── RECORDS ───────────────────────────────────────────────────────────────────
+// Toggle (ON/OFF) records live in RECORDS_FILE; leak/burst report + clear
+// records live in LEAKBURST_FILE. We read both: toggle records drive asset
+// status + cooldowns, leak/burst records drive the leak/burst state, and the
+// "Today's Records" list shows both kinds merged together.
 async function fetchRecords(files) {
   try {
     if (!files) files = await workerGet('output');
-    const allRecs = csvParse(files[RECORDS_FILE] || '');
-    window._allFaultRecs = allRecs;
-    todayRecs = allRecs.filter(r => r.date === todayStr());
+    const rawToggle = csvParse(files[RECORDS_FILE]   || '');
+    const rawLb     = csvParse(files[LEAKBURST_FILE] || '');
 
-    // Latest record per asset wins over gist state
-    allRecs.forEach(r => {
+    // A record is a leak/burst event if its (normalized) action is one of the
+    // leak/burst codes. Older data may have leak/burst rows still sitting in
+    // records.csv, so classify by action rather than trusting the file alone.
+    const isLbAction = a => {
+      const n = normalizeLeakBurstAction(a);
+      return n === 'LEAK_BURST' || n === 'LEAK_BURST_CLEAR';
+    };
+    const legacyLb   = rawToggle.filter(r => isLbAction(r.action));
+    const toggleRecs = rawToggle.filter(r => !isLbAction(r.action));
+    const lbRecs     = rawLb.concat(legacyLb);
+    window._allLeakBurstRecs = lbRecs;
+
+    const today = todayStr();
+    const todayToggle = toggleRecs.filter(r => r.date === today);
+    const todayLb     = lbRecs.filter(r => r.date === today);
+    // Merged view for the records list (sorted at render time)
+    todayRecs = todayToggle.concat(todayLb);
+
+    // Asset (ON/OFF) status comes only from genuine toggle records.
+    toggleRecs.forEach(r => {
       const cur = assetStatus[r.assetId];
       if (!cur?.lastChangedAt || r.timestamp > cur.lastChangedAt)
         assetStatus[r.assetId] = { status: r.action, lastPersonId: r.personId, lastPersonName: r.personName, lastChangedAt: r.timestamp };
     });
 
-    // Restore cooldowns from server records
-    todayRecs.forEach(r => {
+    // Restore cooldowns from server toggle records.
+    todayToggle.forEach(r => {
       const ts = new Date(r.timestamp).getTime();
       if (ts > getLastToggleRaw(r.personId, r.assetId))
         try { localStorage.setItem(cdKey(r.personId, r.assetId), ts); } catch {}
@@ -622,7 +710,7 @@ async function refreshAll() {
   const files = await workerGet('output');
   await fetchRecords(files);
   await checkEstimate(files);
-  await loadAllEdges();   // re-derives fault state and re-renders pending list
+  await loadAllEdges();   // re-derives leak/burst state and re-renders pending list
   const person = persons.find(p => p.id === getPersonId());
   if (person && currentPos) renderAssets(person);
   showToast('Refreshed ✓', 'success');
@@ -864,19 +952,23 @@ function renderRecords() {
   const el = $('recordsList');
   if (!todayRecs.length) { el.innerHTML = '<div class="empty-state"><div class="e-icon">🗒️</div>No records yet today</div>'; return; }
   el.innerHTML = [...todayRecs].sort((a,b) => b.timestamp.localeCompare(a.timestamp)).map(r => {
-    const isOn      = r.action === 'ON';
-    const isFault   = r.action === 'FAULT';
-    const isClear   = r.action === 'FAULT_CLEAR';
-    const avatarCls = isFault ? 'rec-fault' : isClear ? 'rec-fault-clear' : isOn ? 'rec-on' : 'rec-off';
-    const avatarIcon= isFault ? '⚠' : isClear ? '✓' : isOn ? '▲' : '▼';
-    const chipCls   = isFault ? 'chip-fault' : isClear ? 'chip-fault-clear' : isOn ? 'chip-on' : 'chip-off';
-    const chipLabel = isFault ? '⚠ FAULT' : isClear ? '✓ CLEARED' : isOn ? '▲ ON' : '▼ OFF';
-    const assetIcon = (isFault || isClear) ? '🔗' : '🏭';
+    const action    = normalizeLeakBurstAction(r.action);
+    const isOn      = action === 'ON';
+    const isLeakBurst   = action === 'LEAK_BURST';
+    const isClear   = action === 'LEAK_BURST_CLEAR';
+    const avatarCls = isLeakBurst ? 'rec-leakburst' : isClear ? 'rec-leakburst-clear' : isOn ? 'rec-on' : 'rec-off';
+    const avatarIcon= isLeakBurst ? '⚠' : isClear ? '✓' : isOn ? '▲' : '▼';
+    const chipCls   = isLeakBurst ? 'chip-leakburst' : isClear ? 'chip-leakburst-clear' : isOn ? 'chip-on' : 'chip-off';
+    const chipLabel = isLeakBurst ? '⚠ LEAK/BURST' : isClear ? '✓ CLEARED' : isOn ? '▲ ON' : '▼ OFF';
+    const assetIcon = (isLeakBurst || isClear) ? '🔗' : '🏭';
+    const docketLine = (r.docket && (isLeakBurst || isClear))
+      ? `<div class="record-docket">🎫 ${esc(r.docket)}</div>` : '';
     return `<div class="record-item">
   <div class="record-avatar ${avatarCls}">${avatarIcon}</div>
   <div class="record-info">
     <div class="record-name">${esc(r.personName||'—')}</div>
     <div class="record-asset">${assetIcon} ${esc(r.assetName||'—')}</div>
+    ${docketLine}
     <div class="record-meta">📍 ${r.distance ? r.distance+'m away' : (r.zone ? 'Zone: '+r.zone : '—')}</div>
   </div>
   <div class="record-right">
@@ -886,12 +978,12 @@ function renderRecords() {
   }).join('');
 }
 
-// ── FAULT EDGE REPORT ─────────────────────────────────────────────────────────
+// ── LEAK/BURST EDGE REPORT ─────────────────────────────────────────────────────────
 let allEdges       = [];   // [{ id, source, target, zone, zoneName }]
-let faultEdgeState = {};   // edgeId → 'FAULT' | 'FAULT_CLEAR'
+let leakBurstEdgeState = {};   // edgeId → 'LEAK_BURST' | 'LEAK_BURST_CLEAR'
 let estimateMap    = {};   // assetId → estimate object
 let selectedEdgeId = null;
-let activeFaultZone = null;
+let activeLeakBurstZone = null;
 
 // ── ESTIMATE LOAD ────────────────────────────────────────────────────────────
 async function checkEstimate(files) {
@@ -923,28 +1015,38 @@ async function loadAllEdges() {
       } catch { /* skip unreadable zone */ }
     }
     allEdges = edges;   // commit only after a successful manifest load
-    buildFaultZoneTabs(zones);
-    deriveFaultStateFromRecords();
-    renderFaultEdgeList();
+    buildLeakBurstZoneTabs(zones);
+    deriveLeakBurstStateFromRecords();
+    renderLeakBurstEdgeList();
     renderPendingEstimates();
   } catch(e) {
     // Keep any previously loaded edges/list intact on failure
-    $('faultEdgeList').innerHTML = `<div class="fault-empty">Could not load edges: ${esc(e.message)}</div>`;
+    $('leakBurstEdgeList').innerHTML = `<div class="leakburst-empty">Could not load edges: ${esc(e.message)}</div>`;
   }
 }
 
-function deriveFaultStateFromRecords() {
-  faultEdgeState = {};
-  const recs = (window._allFaultRecs || todayRecs);
-  // Track the latest timestamp per assetId so a newer FAULT_CLEAR doesn't get
-  // overwritten by an older FAULT that appears later in the array.
+// Backward-compat: older records were stored with the action codes 'FAULT' /
+// 'FAULT_CLEAR'. Map any legacy code to the current LEAK_BURST equivalents so
+// previously-saved records still register correctly.
+function normalizeLeakBurstAction(a) {
+  if (a === 'FAULT')       return 'LEAK_BURST';
+  if (a === 'FAULT_CLEAR') return 'LEAK_BURST_CLEAR';
+  return a;
+}
+
+function deriveLeakBurstStateFromRecords() {
+  leakBurstEdgeState = {};
+  const recs = (window._allLeakBurstRecs || todayRecs);
+  // Track the latest timestamp per assetId so a newer LEAK_BURST_CLEAR doesn't get
+  // overwritten by an older LEAK/BURST that appears later in the array.
   const latestTs = {};
   recs.forEach(r => {
-    if ((r.action === 'FAULT' || r.action === 'FAULT_CLEAR') && r.assetId) {
+    const action = normalizeLeakBurstAction(r.action);
+    if ((action === 'LEAK_BURST' || action === 'LEAK_BURST_CLEAR') && r.assetId) {
       const ts = r.timestamp || '';
       if (!latestTs[r.assetId] || ts > latestTs[r.assetId]) {
         latestTs[r.assetId] = ts;
-        faultEdgeState[r.assetId] = r.action;
+        leakBurstEdgeState[r.assetId] = action;
       }
     }
   });
@@ -952,9 +1054,9 @@ function deriveFaultStateFromRecords() {
 
 // ── PENDING ESTIMATES ─────────────────────────────────────────────────────────
 function renderPendingEstimates() {
-  // Active faults with no estimate uploaded yet
+  // Active leaks/bursts with no estimate uploaded yet
   const pending = allEdges.filter(e =>
-    faultEdgeState[e.id] === 'FAULT' && !estimateMap[e.id]
+    leakBurstEdgeState[e.id] === 'LEAK_BURST' && !estimateMap[e.id]
   );
 
   const badge = $('pendingCount');
@@ -963,21 +1065,27 @@ function renderPendingEstimates() {
 
   const el = $('pendingEstList');
   if (!pending.length) {
-    el.innerHTML = '<div class="empty-state"><div class="e-icon">✅</div>All active faults have estimates</div>';
+    el.innerHTML = '<div class="empty-state"><div class="e-icon">✅</div>All active leaks/bursts have estimates</div>';
     return;
   }
 
   el.innerHTML = pending.map(e => {
+    const info    = latestReportInfo(e.id);
+    const docket  = (info && info.docket) ? info.docket : '';
     const encId   = encodeURIComponent(e.id);
     const encName = encodeURIComponent(`${e.id} (${e.source} → ${e.target})`);
+    const encDocket = encodeURIComponent(docket);
+    const docketLine = docket
+      ? `<div class="pend-docket">🎫 ${esc(docket)}</div>` : '';
     return `<div class="pend-item">
   <div class="pend-icon">⚠️</div>
   <div class="pend-info">
     <div class="pend-id">${esc(e.id)}</div>
     <div class="pend-route">${esc(e.source)} → ${esc(e.target)}</div>
+    ${docketLine}
     <span class="pend-zone">${esc(e.zoneName || e.zone)}</span>
   </div>
-  <a class="btn-upload-est" href="estimate.html?asset=${encId}&name=${encName}">📋 Upload</a>
+  <a class="btn-upload-est" href="estimate.html?asset=${encId}&name=${encName}&docket=${encDocket}">📋 Upload</a>
 </div>`;
   }).join('');
 }
@@ -992,32 +1100,32 @@ async function refreshPendingEstimates() {
   showToast('Pending estimates refreshed', 'success');
 }
 
-function buildFaultZoneTabs(zones) {
-  const wrap = $('faultZoneTabs');
+function buildLeakBurstZoneTabs(zones) {
+  const wrap = $('leakBurstZoneTabs');
   wrap.innerHTML = zones.map(z =>
-    `<button class="btn-refresh" id="fztab-${esc(z.id)}" onclick="setFaultZone('${esc(z.id)}')">${esc(z.name || z.id)}</button>`
+    `<button class="btn-refresh" id="fztab-${esc(z.id)}" onclick="setLeakBurstZone('${esc(z.id)}')">${esc(z.name || z.id)}</button>`
   ).join('');
   // Auto-select the first zone
-  if (zones.length) setFaultZone(zones[0].id);
+  if (zones.length) setLeakBurstZone(zones[0].id);
 }
 
-function setFaultZone(zoneId) {
-  activeFaultZone = zoneId;
-  $('faultZoneTabs').querySelectorAll('button').forEach(btn => {
+function setLeakBurstZone(zoneId) {
+  activeLeakBurstZone = zoneId;
+  $('leakBurstZoneTabs').querySelectorAll('button').forEach(btn => {
     const isActive = btn.id === `fztab-${zoneId}`;
     btn.style.background  = isActive ? 'var(--primary)' : '';
     btn.style.color       = isActive ? '#fff' : '';
     btn.style.borderColor = isActive ? 'var(--primary)' : '';
   });
-  renderFaultEdgeList();
+  renderLeakBurstEdgeList();
 }
 
-function filterFaultEdges() { renderFaultEdgeList(); }
+function filterLeakBurstEdges() { renderLeakBurstEdgeList(); }
 
-function renderFaultEdgeList() {
-  const q    = ($('faultSearch').value || '').trim().toLowerCase();
+function renderLeakBurstEdgeList() {
+  const q    = ($('leakBurstSearch').value || '').trim().toLowerCase();
   const list = allEdges.filter(e => {
-    if (activeFaultZone && e.zone !== activeFaultZone) return false;
+    if (activeLeakBurstZone && e.zone !== activeLeakBurstZone) return false;
     if (!q) return true;
     return e.id.toLowerCase().includes(q)
         || e.source.toLowerCase().includes(q)
@@ -1025,58 +1133,68 @@ function renderFaultEdgeList() {
   });
 
   if (!list.length) {
-    $('faultEdgeList').innerHTML = '<div class="fault-empty">No pipes match</div>';
+    $('leakBurstEdgeList').innerHTML = '<div class="leakburst-empty">No pipes match</div>';
     return;
   }
 
-  $('faultEdgeList').innerHTML = list.map(e => {
-    const isFaulted = faultEdgeState[e.id] === 'FAULT';
+  $('leakBurstEdgeList').innerHTML = list.map(e => {
+    const isLeakBursted = leakBurstEdgeState[e.id] === 'LEAK_BURST';
     const isSelected = e.id === selectedEdgeId;
-    return `<div class="fault-edge-item${isSelected ? ' selected' : ''}" onclick="selectFaultEdge('${esc(e.id)}')">
+    return `<div class="leakburst-edge-item${isSelected ? ' selected' : ''}" onclick="selectLeakBurstEdge('${esc(e.id)}')">
       <div style="flex:1;min-width:0">
-        <div class="fei-id">${hi(e.id, q)}</div>
-        <div class="fei-route">${hi(e.source, q)} → ${hi(e.target, q)}</div>
+        <div class="fei-id">${hi(e.source, q)} → ${hi(e.target, q)}</div>
       </div>
-      ${isFaulted ? '<span class="fei-fault-badge">⚠ FAULT</span>' : ''}
+      ${isLeakBursted ? '<span class="fei-leakburst-badge">⚠ LEAK/BURST</span>' : ''}
     </div>`;
   }).join('');
 }
 
-function selectFaultEdge(edgeId) {
+function selectLeakBurstEdge(edgeId) {
   selectedEdgeId = edgeId;
   const edge      = allEdges.find(e => e.id === edgeId);
-  const isFaulted = faultEdgeState[edgeId] === 'FAULT';
+  const isLeakBursted = leakBurstEdgeState[edgeId] === 'LEAK_BURST';
   const hasEst    = !!estimateMap[edgeId];
 
-  const lbl = $('faultSelectedLabel');
+  const lbl = $('leakBurstSelectedLabel');
   lbl.textContent = edge ? `${edge.id}  (${edge.source} → ${edge.target})` : edgeId;
-  lbl.className   = 'fault-selected-label' + (isFaulted ? ' has-fault' : '');
+  lbl.className   = 'leakburst-selected-label' + (isLeakBursted ? ' has-leakburst' : '');
 
-  $('btnFaultReport').disabled = false;
-  $('btnFaultReport').textContent = isFaulted ? '⚠ Re-report' : '⚠ Report';
-
-  if (isFaulted) {
-    $('btnFaultClear').style.display = '';
-    $('btnFaultClear').disabled = !hasEst;
-    $('btnFaultClear').title    = hasEst ? '' : 'Upload an estimate for this fault first';
+  const btnReport = $('btnLeakBurstReport');
+  if (isLeakBursted) {
+    // An open report already exists for this pipe — re-reporting is blocked
+    // until it has been cleared. The Clear button is the way forward.
+    btnReport.disabled    = true;
+    btnReport.textContent = '⚠ Reported';
+    btnReport.title       = 'Already reported — clear the existing report before reporting again';
+    $('btnLeakBurstClear').style.display = '';
+    $('btnLeakBurstClear').disabled = !hasEst;
+    $('btnLeakBurstClear').title    = hasEst ? '' : 'Upload an estimate for this leak/burst first';
   } else {
-    $('btnFaultClear').style.display = 'none';
+    btnReport.disabled    = false;
+    btnReport.textContent = '⚠ Report';
+    btnReport.title       = '';
+    $('btnLeakBurstClear').style.display = 'none';
   }
 
-  $('faultSubmitStatus').textContent = '';
-  renderEstimatePanel(edgeId, edge, isFaulted, hasEst);
-  renderFaultEdgeList();
+  $('leakBurstSubmitStatus').textContent = '';
+  renderEstimatePanel(edgeId, edge, isLeakBursted, hasEst);
+  renderLeakBurstEdgeList();
 }
 
-function renderEstimatePanel(edgeId, edge, isFaulted, hasEst) {
+function renderEstimatePanel(edgeId, edge, isLeakBursted, hasEst) {
   const panel   = $('estimatePanel');
   const content = $('estimatePanelContent');
-  if (!isFaulted) { panel.style.display = 'none'; content.innerHTML = ''; return; }
+  if (!isLeakBursted) { panel.style.display = 'none'; content.innerHTML = ''; return; }
 
   panel.style.display = '';
   const assetLabel = edge ? `${edge.id} (${edge.source} → ${edge.target})` : edgeId;
+  const info    = latestReportInfo(edgeId);
+  const docket  = (info && info.docket) ? info.docket : '';
   const encId   = encodeURIComponent(edgeId);
   const encName = encodeURIComponent(assetLabel);
+  const encDocket = encodeURIComponent(docket);
+  const docketChip = docket
+    ? `<div style="font-size:12px;font-weight:800;color:#2563EB;margin-bottom:8px;">🎫 Docket: ${esc(docket)}</div>` : '';
 
   if (hasEst) {
     const est = estimateMap[edgeId];
@@ -1090,9 +1208,10 @@ function renderEstimatePanel(edgeId, edge, isFaulted, hasEst) {
         <td style="padding:7px 10px;font-size:13px;font-weight:800;text-align:right;color:#2563EB;">₹${(it.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
       </tr>`).join('');
     content.innerHTML = `
+      ${docketChip}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
         <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#16A34A;">✅ Estimate Uploaded</div>
-        <a href="estimate.html?asset=${encId}&name=${encName}" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px;border:1.5px solid #E2E8F0;background:#F0F4FF;color:#2563EB;text-decoration:none;">✏ Revise</a>
+        <a href="estimate.html?asset=${encId}&name=${encName}&docket=${encDocket}" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px;border:1.5px solid #E2E8F0;background:#F0F4FF;color:#2563EB;text-decoration:none;">✏ Revise</a>
       </div>
       <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:8px;">📋 ${esc(est.name || assetLabel)} &nbsp;·&nbsp; ${esc(est.date||'')}</div>
       <div style="overflow-x:auto;border-radius:8px;border:2px solid #E2E8F0;margin-bottom:10px;">
@@ -1113,43 +1232,60 @@ function renderEstimatePanel(edgeId, edge, isFaulted, hasEst) {
       </div>`;
   } else {
     content.innerHTML = `
+      ${docketChip}
       <div style="display:flex;align-items:center;gap:12px;padding:14px;background:#FFFBEB;border-radius:10px;border:2px solid #FDE68A;margin-bottom:10px;">
         <div style="font-size:26px;flex-shrink:0;">📋</div>
         <div>
-          <div style="font-size:14px;font-weight:800;color:#D97706;">No Estimate for This Fault</div>
-          <div style="font-size:12px;font-weight:600;color:#92400E;margin-top:2px;">Upload an estimate to enable fault clearance</div>
+          <div style="font-size:14px;font-weight:800;color:#D97706;">No Estimate for This Leak/Burst</div>
+          <div style="font-size:12px;font-weight:600;color:#92400E;margin-top:2px;">Upload an estimate to enable leak/burst clearance</div>
         </div>
       </div>
-      <a href="estimate.html?asset=${encId}&name=${encName}"
+      <a href="estimate.html?asset=${encId}&name=${encName}&docket=${encDocket}"
          style="display:inline-flex;align-items:center;gap:8px;padding:11px 20px;background:#2563EB;color:#fff;border-radius:10px;font-size:14px;font-weight:800;text-decoration:none;font-family:'Nunito',sans-serif;">
-        📋 Upload Estimate for This Fault
+        📋 Upload Estimate for This Leak/Burst
       </a>`;
   }
 }
 
-async function submitEdgeFault(action) {
+async function submitEdgeLeakBurst(action) {
   const pid    = getPersonId();
   const person = persons.find(p => p.id === pid);
-  if (!person) { setFaultSubmitStatus('Select your name above first', 'var(--warning)'); return; }
-  if (!selectedEdgeId)  { setFaultSubmitStatus('Select a pipe first', 'var(--warning)'); return; }
-  if (!currentPos) { setFaultSubmitStatus('⏳ Waiting for GPS location…', 'var(--warning)'); return; }
-  if (action === 'FAULT_CLEAR' && !estimateMap[selectedEdgeId]) {
-    setFaultSubmitStatus('⚠ Upload an estimate for this fault before clearing', 'var(--danger)');
-    showToast('Upload an estimate for this fault first', 'warning');
+  if (!person) { setLeakBurstSubmitStatus('Select your name above first', 'var(--warning)'); return; }
+  if (!selectedEdgeId)  { setLeakBurstSubmitStatus('Select a pipe first', 'var(--warning)'); return; }
+  if (!currentPos) { setLeakBurstSubmitStatus('⏳ Waiting for GPS location…', 'var(--warning)'); return; }
+  if (action === 'LEAK_BURST' && leakBurstEdgeState[selectedEdgeId] === 'LEAK_BURST') {
+    setLeakBurstSubmitStatus('⚠ Already reported — clear the existing report first', 'var(--warning)');
+    showToast('This pipe is already reported. Clear it before reporting again.', 'warning');
+    return;
+  }
+  if (action === 'LEAK_BURST_CLEAR' && !estimateMap[selectedEdgeId]) {
+    setLeakBurstSubmitStatus('⚠ Upload an estimate for this leak/burst before clearing', 'var(--danger)');
+    showToast('Upload an estimate for this leak/burst first', 'warning');
     return;
   }
 
   const edge = allEdges.find(e => e.id === selectedEdgeId);
 
-  $('btnFaultReport').disabled = true;
-  $('btnFaultClear').disabled  = true;
-  setFaultSubmitStatus('Saving…', 'var(--text3)');
+  $('btnLeakBurstReport').disabled = true;
+  $('btnLeakBurstClear').disabled  = true;
+  setLeakBurstSubmitStatus('Saving…', 'var(--text3)');
 
   try {
     const now      = new Date();
-    const existing = csvParse((await workerGet('output'))[RECORDS_FILE] || '');
+    const existing = csvParse((await workerGet('output'))[LEAKBURST_FILE] || '');
+    // A new LEAK_BURST report gets a fresh docket number; a CLEAR carries the
+    // docket of the report it resolves (if found) so the pair shares a reference.
+    let docket = '';
+    if (action === 'LEAK_BURST') {
+      docket = makeDocket(now);
+    } else if (action === 'LEAK_BURST_CLEAR') {
+      const prior = [...existing].reverse().find(r =>
+        r.assetId === selectedEdgeId && normalizeLeakBurstAction(r.action) === 'LEAK_BURST' && r.docket);
+      docket = prior ? prior.docket : makeDocket(now);
+    }
     const rec = {
       sn:         existing.length + 1,
+      docket:     docket,
       deviceId:   deviceId,
       personId:   person.id,
       personName: person.name,
@@ -1165,41 +1301,69 @@ async function submitEdgeFault(action) {
       zone:       edge?.zoneName || ''
     };
     existing.push(rec);
-    await workerPatch({ [RECORDS_FILE]: csvStringify(existing) });
+    await workerPatch({ [LEAKBURST_FILE]: csvStringifyLB(existing) });
 
-    faultEdgeState[selectedEdgeId] = action;
+    leakBurstEdgeState[selectedEdgeId] = action;
     todayRecs.push(rec);
     renderRecords();
-    renderFaultEdgeList();
+    renderLeakBurstEdgeList();
     await checkEstimate();
     renderPendingEstimates();
-    selectFaultEdge(selectedEdgeId);
+    selectLeakBurstEdge(selectedEdgeId);
 
-    const msg = action === 'FAULT' ? '⚠ Fault reported' : '✓ Fault cleared';
-    setFaultSubmitStatus(msg, action === 'FAULT' ? 'var(--danger)' : 'var(--success)');
-    showToast(msg, action === 'FAULT' ? 'error' : 'success');
+    const msg = action === 'LEAK_BURST'
+      ? (docket ? `⚠ Leak/Burst reported · ${docket}` : '⚠ Leak/Burst reported')
+      : '✓ Leak/Burst cleared';
+    setLeakBurstSubmitStatus(msg, action === 'LEAK_BURST' ? 'var(--danger)' : 'var(--success)');
+    showToast(msg, action === 'LEAK_BURST' ? 'error' : 'success');
   } catch(e) {
-    setFaultSubmitStatus('Error: ' + e.message, 'var(--danger)');
+    setLeakBurstSubmitStatus('Error: ' + e.message, 'var(--danger)');
   } finally {
-    $('btnFaultReport').disabled = false;
-    $('btnFaultClear').disabled  = false;
+    // Re-derive button enabled/disabled state from the current edge state
+    // (this keeps re-reporting disabled while an open report exists) instead
+    // of blindly re-enabling both buttons. selectLeakBurstEdge clears the
+    // status line, so capture and restore the message we just set.
+    const statusEl  = $('leakBurstSubmitStatus');
+    const savedMsg  = statusEl.textContent;
+    const savedCol  = statusEl.style.color;
+    if (selectedEdgeId) selectLeakBurstEdge(selectedEdgeId);
+    statusEl.textContent = savedMsg;
+    statusEl.style.color = savedCol;
   }
 }
 
-function setFaultSubmitStatus(msg, color) {
-  const el = $('faultSubmitStatus');
+function setLeakBurstSubmitStatus(msg, color) {
+  const el = $('leakBurstSubmitStatus');
   el.textContent   = msg;
   el.style.color   = color || 'var(--text3)';
 }
 
 // ── CSV ────────────────────────────────────────────────────────────────────────
-const CSV_COLS = ['sn','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','deviceId'];
+// Toggle (ON/OFF) records — records.csv. Leak/burst records add a docket column
+// and live in leakbursts.csv.
+const CSV_COLS    = ['sn','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','deviceId'];
+const LB_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','deviceId'];
+
+// Docket number for a leak/burst report: LB-YYYYMMDD-XXXX
+// XXXX is a short base36 suffix derived from the timestamp + a random nibble,
+// giving a human-readable, sortable, practically-unique reference.
+function makeDocket(now) {
+  const d = now || new Date();
+  const ymd = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+  const rand = Math.floor(Math.random() * 36);
+  const suffix = (d.getTime() % 1000000).toString(36).toUpperCase().padStart(4,'0').slice(-3)
+               + rand.toString(36).toUpperCase();
+  return `LB-${ymd}-${suffix}`;
+}
 function csvParse(text) {
   if (!text?.trim()) return [];
   return Papa.parse(text.trim(), { header: true, skipEmptyLines: true }).data;
 }
 function csvStringify(recs) {
   return Papa.unparse(recs, { columns: CSV_COLS });
+}
+function csvStringifyLB(recs) {
+  return Papa.unparse(recs, { columns: LB_CSV_COLS });
 }
 
 // ── CSV DOWNLOAD ───────────────────────────────────────────────────────────────
@@ -1248,6 +1412,41 @@ async function downloadRecords() {
     status.textContent = 'Error: ' + e.message;
   } finally {
     btn.disabled = false;
+  }
+}
+
+async function downloadLeakBursts() {
+  const month = $('dlMonth').value;
+  const year  = $('dlYear').value;
+  const btns  = document.querySelectorAll('.btn-download');
+  const status = $('dlStatus');
+
+  btns.forEach(b => b.disabled = true);
+  status.style.color = 'var(--text3)';
+  status.textContent = 'Fetching leak/burst records…';
+
+  try {
+    const files   = await workerGet('output');
+    const allRecs = csvParse(files[LEAKBURST_FILE] || '');
+    const prefix  = `${year}-${month}`;
+    const filtered = allRecs.filter(r => (r.date || '').startsWith(prefix));
+
+    if (!filtered.length) {
+      status.style.color = 'var(--warning)';
+      status.textContent = `No leak/burst records for ${$('dlMonth').options[$('dlMonth').selectedIndex].text} ${year}.`;
+      return;
+    }
+
+    const csv = Papa.unparse(filtered, { columns: LB_CSV_COLS });
+    triggerCsvDownload(BOM + csv, `leakbursts_${year}_${month}.csv`);
+
+    status.style.color = 'var(--success)';
+    status.textContent = `✓ Downloaded ${filtered.length} leak/burst record${filtered.length > 1 ? 's' : ''} for ${$('dlMonth').options[$('dlMonth').selectedIndex].text} ${year}.`;
+  } catch(e) {
+    status.style.color = 'var(--danger)';
+    status.textContent = 'Error: ' + e.message;
+  } finally {
+    btns.forEach(b => b.disabled = false);
   }
 }
 
@@ -1301,12 +1500,13 @@ function renderModalList() {
     const nm  = esc(e.name || e.assetId || 'Unnamed estimate');
     const aid = esc(e.assetId || '');
     const dt  = esc(e.date || '');
+    const dk  = e.docket ? `🎫 ${esc(e.docket)} · ` : '';
     const tot = (parseFloat(e.total)||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
     return `<div class="modal-est-item${sel?' selected':''}" onclick="toggleEstItem('${id.replace(/'/g,"\\'")}')">
       <div class="mei-check">${sel?'✓':''}</div>
       <div class="mei-body">
         <div class="mei-name">${nm}</div>
-        <div class="mei-meta">${aid} · ${dt} · ₹${tot}</div>
+        <div class="mei-meta">${dk}${aid} · ${dt} · ₹${tot}</div>
       </div>
     </div>`;
   }).join('');
@@ -1350,6 +1550,7 @@ const BOM = '\uFEFF'; // UTF-8 BOM — makes Excel open the file in UTF-8 so ₹
 
 function estToCsv(e) {
   const meta = Papa.unparse([
+    { Field: 'Docket No.',    Value: e.docket  || '' },
     { Field: 'Estimate Name', Value: e.name    || '' },
     { Field: 'Asset ID',      Value: e.assetId || '' },
     { Field: 'Date',          Value: e.date    || '' },
@@ -1372,6 +1573,7 @@ function summaryCsv(ests) {
   return BOM + Papa.unparse(
     ests.map((e,i) => ({
       'Sl.':              i + 1,
+      'Docket No.':       e.docket  || '',
       'Asset ID':         e.assetId || '',
       'Estimate Name':    e.name    || '',
       'Date':             e.date    || '',
@@ -1426,6 +1628,116 @@ function toggleSection(bodyId, btn) {
   const body   = $(bodyId);
   const isOpen = body.classList.toggle('expanded');
   btn.setAttribute('aria-expanded', String(isOpen));
+  // Warn reporters to report from the actual location when they open the
+  // Report Leak/Burst section (once per session).
+  if (bodyId === 'leakBurstBody' && isOpen) maybeShowLocWarn();
+}
+
+// ── LEAK/BURST SHARE ───────────────────────────────────────────────────────────
+let _shareText = '';
+
+// Most-recent docket + reporter coords per active edge, derived from records.
+function latestReportInfo(assetId) {
+  const recs = (window._allLeakBurstRecs || todayRecs);
+  let best = null;
+  recs.forEach(r => {
+    if (r.assetId === assetId && normalizeLeakBurstAction(r.action) === 'LEAK_BURST') {
+      if (!best || (r.timestamp || '') > (best.timestamp || '')) best = r;
+    }
+  });
+  return best;   // {docket, lat, lng, personName, timestamp, ...} or null
+}
+
+function buildLeakBurstShareText() {
+  let zoneName = activeLeakBurstZone || 'All Zones';
+  const tabs = $('leakBurstZoneTabs');
+  if (tabs) {
+    const active = Array.from(tabs.querySelectorAll('button')).find(b => b.style.background === 'var(--primary)');
+    if (active) zoneName = active.textContent.trim();
+  }
+
+  const faulted = allEdges.filter(e =>
+    leakBurstEdgeState[e.id] === 'LEAK_BURST' &&
+    (!activeLeakBurstZone || e.zone === activeLeakBurstZone));
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+  const tStr    = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+
+  let msg = '\u26a0\ufe0f *Leak / Burst Report*\n';
+  msg    += '\uD83D\uDCCD Zone: *' + zoneName + '*\n';
+  msg    += '\uD83D\uDDD3\ufe0f ' + dateStr + '  \u23F0 ' + tStr + '\n';
+  msg    += '\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\n';
+
+  if (!faulted.length) {
+    msg += '\u2705 No active leaks/bursts in this zone.';
+  } else {
+    faulted.forEach((e, i) => {
+      const info = latestReportInfo(e.id);
+      const docket = info && info.docket ? info.docket : '(no docket)';
+      msg += (i + 1) + '. \uD83D\uDD34 *' + e.source + ' \u2192 ' + e.target + '*\n';
+      msg += '    \uD83C\uDFAB Docket: *' + docket + '*\n';
+      if (info && info.lat && info.lng) {
+        msg += '    \uD83D\uDCCD Location: ' + info.lat + ', ' + info.lng + '\n';
+        msg += '    \uD83D\uDDFA\ufe0f https://maps.google.com/?q=' + info.lat + ',' + info.lng + '\n';
+      } else {
+        msg += '    \uD83D\uDCCD Location: not recorded\n';
+      }
+    });
+    msg += '\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\n';
+    msg += 'Total: *' + faulted.length + ' active leak(s)/burst(s)*';
+  }
+  return { msg, zoneName, count: faulted.length };
+}
+
+function shareLeakBursts() {
+  const r = buildLeakBurstShareText();
+  _shareText = r.msg;
+  $('sharePreviewText').textContent = r.msg;
+  $('shareSheetSub').textContent = r.count
+    ? (r.count + ' active leak(s)/burst(s) in ' + r.zoneName)
+    : ('No active leaks/bursts in ' + r.zoneName);
+  $('btnNativeShare').style.display = navigator.share ? 'inline-flex' : 'none';
+  $('shareSheetBackdrop').classList.add('open');
+}
+
+function closeShareSheet(e) {
+  if (e && e.target !== $('shareSheetBackdrop')) return;
+  $('shareSheetBackdrop').classList.remove('open');
+}
+
+function shareViaWhatsApp() {
+  window.open('https://wa.me/?text=' + encodeURIComponent(_shareText), '_blank', 'noopener');
+  $('shareSheetBackdrop').classList.remove('open');
+}
+
+async function shareNative() {
+  try {
+    await navigator.share({ title: 'Leak / Burst Report', text: _shareText });
+    $('shareSheetBackdrop').classList.remove('open');
+  } catch(err) { /* user cancelled */ }
+}
+
+async function shareCopyClipboard() {
+  try {
+    await navigator.clipboard.writeText(_shareText);
+    showToast('\u2713 Copied to clipboard', 'success');
+    $('shareSheetBackdrop').classList.remove('open');
+  } catch(err) {
+    showToast('Copy failed', 'error');
+  }
+}
+
+// ── REPORT-FROM-ACTUAL-LOCATION WARNING ────────────────────────────────────────
+// Shown once per session the first time the Report Leak/Burst section is opened.
+let _locWarnShown = false;
+function maybeShowLocWarn() {
+  if (_locWarnShown) return;
+  _locWarnShown = true;
+  $('locWarnBackdrop').classList.add('open');
+}
+function closeLocWarn() {
+  $('locWarnBackdrop').classList.remove('open');
 }
 
 function $(id) { return document.getElementById(id); }
