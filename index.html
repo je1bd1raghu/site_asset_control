@@ -709,10 +709,10 @@ async function fetchRecords(files) {
         const zoneEntry   = personAsset?.zone && zoneMap[personAsset.zone];
         if (!zoneEntry?.gistFile) continue;
 
-        // Lazy-fetch status JSON once per zone
+        // Lazy-fetch status JSON once per zone (via worker so STATUS_GIST_ID is used)
         if (!dirtyZones[zoneEntry.gistFile]) {
-          const res = await fetch(`${GIST_BASE}/${zoneEntry.gistFile}?t=${Date.now()}`);
-          dirtyZones[zoneEntry.gistFile] = { data: await res.json(), changed: false };
+          const statusFiles = await workerGet('status');
+          dirtyZones[zoneEntry.gistFile] = { data: JSON.parse(statusFiles[zoneEntry.gistFile] || '[]'), changed: false };
         }
 
         const nodeEntry = dirtyZones[zoneEntry.gistFile].data.find(e => e.id === asset.id);
@@ -725,13 +725,7 @@ async function fetchRecords(files) {
       // Write back only zones that actually changed
       for (const [gistFile, zone] of Object.entries(dirtyZones)) {
         if (!zone.changed) continue;
-        await fetch(`${WORKER}/status`, {
-          method:  'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            files: { [gistFile]: { content: JSON.stringify(zone.data, null, 2) } }
-          })
-        });
+        await workerPatch2('status', { [gistFile]: JSON.stringify(zone.data, null, 2) });
       }
     } catch (e) {
       console.warn('Gist reconciliation failed (non-fatal):', e.message);
@@ -977,18 +971,12 @@ async function doToggle(assetId) {
     const zoneEntry = zoneId && zoneMap[zoneId];
     if (zoneEntry?.gistFile) {
       try {
-        const statusRes  = await fetch(`${GIST_BASE}/${zoneEntry.gistFile}?t=${Date.now()}`);
-        const statusData = await statusRes.json();
+        const statusFiles = await workerGet('status');
+        const statusData  = JSON.parse(statusFiles[zoneEntry.gistFile] || '[]');
         const nodeEntry  = statusData.find(e => e.id === assetId);
         if (nodeEntry) {
           nodeEntry.state = newStatus;   // "ON" or "OFF"
-          await fetch(`${WORKER}/status`, {
-            method:  'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              files: { [zoneEntry.gistFile]: { content: JSON.stringify(statusData, null, 2) } }
-            })
-          });
+          await workerPatch2('status', { [zoneEntry.gistFile]: JSON.stringify(statusData, null, 2) });
         }
       } catch (e) {
         // Non-fatal: records.csv is already written, toggle is not lost.

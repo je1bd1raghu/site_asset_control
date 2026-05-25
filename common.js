@@ -48,15 +48,19 @@ async function workerGet(endpoint) {
   return d.files;  // { filename: rawString }
 }
 async function workerPatch(fileMap) {
+  return workerPatch2('output', fileMap);
+}
+// Generic PATCH helper — targets any worker endpoint (e.g. 'status', 'output').
+async function workerPatch2(endpoint, fileMap) {
   const files = {};
   for (const [k, v] of Object.entries(fileMap))
     files[k] = { content: typeof v === 'string' ? v : JSON.stringify(v, null, 2) };
-  const r = await fetch(`${WORKER}/output`, {
+  const r = await fetch(`${WORKER}/${endpoint}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ files })
   });
-  if (!r.ok) throw new Error(`Worker write failed: HTTP ${r.status}`);
+  if (!r.ok) throw new Error(`Worker ${endpoint} write failed: HTTP ${r.status}`);
   const d = await r.json();
   if (!d.ok) throw new Error(d.error || 'Gist write failed');
 }
