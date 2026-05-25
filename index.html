@@ -371,7 +371,7 @@
       <!-- Zone filter tabs + share -->
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
         <div id="leakBurstZoneTabs" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0"></div>
-        <button class="btn-share-lb" onclick="shareLeakBursts()" title="Share active leaks/bursts in this zone">&#128228; Share</button>
+        <button class="btn-share-lb" onclick="shareLeakBursts()" title="Share active leaks/bursts in this zone">Share &#10148;</button>
       </div>
 
       <!-- Search -->
@@ -690,6 +690,53 @@ async function fetchRecords(files) {
         assetStatus[r.assetId] = { status: r.action, lastPersonId: r.personId, lastPersonName: r.personName, lastChangedAt: r.timestamp };
     });
 
+    // ── Reconcile gist zone status files against records.csv-derived state ──
+    // doToggle() syncs the gist only on button tap, so manual admin edits to
+    // records.csv (add / remove / change rows) would otherwise never propagate
+    // to the visualizer. This pass runs once on every app load, compares the
+    // CSV-derived state against what the gist currently says, and patches only
+    // zones where at least one asset state differs — no unnecessary writes.
+    try {
+      const dirtyZones = {};   // gistFile → { data: [...], changed: false }
+
+      for (const asset of assets) {
+        const csvStatus  = assetStatus[asset.id]?.status;   // "ON" / "OFF" from records
+        const gistStatus = asset.state;                      // seeded from gist at boot
+        if (!csvStatus || csvStatus === gistStatus) continue;
+
+        // Find which zone owns this asset via config.json person entries
+        const personAsset = persons.flatMap(p => p.assets).find(a => a.id === asset.id);
+        const zoneEntry   = personAsset?.zone && zoneMap[personAsset.zone];
+        if (!zoneEntry?.gistFile) continue;
+
+        // Lazy-fetch status JSON once per zone
+        if (!dirtyZones[zoneEntry.gistFile]) {
+          const res = await fetch(`${GIST_BASE}/${zoneEntry.gistFile}?t=${Date.now()}`);
+          dirtyZones[zoneEntry.gistFile] = { data: await res.json(), changed: false };
+        }
+
+        const nodeEntry = dirtyZones[zoneEntry.gistFile].data.find(e => e.id === asset.id);
+        if (nodeEntry && nodeEntry.state !== csvStatus) {
+          nodeEntry.state = csvStatus;
+          dirtyZones[zoneEntry.gistFile].changed = true;
+        }
+      }
+
+      // Write back only zones that actually changed
+      for (const [gistFile, zone] of Object.entries(dirtyZones)) {
+        if (!zone.changed) continue;
+        await fetch(`${WORKER}/status`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            files: { [gistFile]: { content: JSON.stringify(zone.data, null, 2) } }
+          })
+        });
+      }
+    } catch (e) {
+      console.warn('Gist reconciliation failed (non-fatal):', e.message);
+    }
+
     // Restore cooldowns from server toggle records.
     todayToggle.forEach(r => {
       const ts = new Date(r.timestamp).getTime();
@@ -923,6 +970,32 @@ async function doToggle(assetId) {
 
     allExisting.push(rec);
     await workerPatch({ [RECORDS_FILE]: csvStringify(allExisting) });
+
+    // ── Sync valve state → zone_*_status.json so scada-visualizer updates ──
+    // personAsset (from config.json) carries .zone; assetMap entries do not.
+    const zoneId    = personAsset?.zone;
+    const zoneEntry = zoneId && zoneMap[zoneId];
+    if (zoneEntry?.gistFile) {
+      try {
+        const statusRes  = await fetch(`${GIST_BASE}/${zoneEntry.gistFile}?t=${Date.now()}`);
+        const statusData = await statusRes.json();
+        const nodeEntry  = statusData.find(e => e.id === assetId);
+        if (nodeEntry) {
+          nodeEntry.state = newStatus;   // "ON" or "OFF"
+          await fetch(`${WORKER}/status`, {
+            method:  'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              files: { [zoneEntry.gistFile]: { content: JSON.stringify(statusData, null, 2) } }
+            })
+          });
+        }
+      } catch (e) {
+        // Non-fatal: records.csv is already written, toggle is not lost.
+        // The visualizer will pick up the correct state on the next manual sync.
+        console.warn('Zone status sync failed:', e.message);
+      }
+    }
 
     setLastToggle(person.id, assetId);
     todayRecs.push(rec);
