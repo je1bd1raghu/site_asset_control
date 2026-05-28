@@ -642,9 +642,20 @@ async function loadAssetsFromGist() {
         // workerGet('status') fetches all zone files at once; cache the result
         // outside the loop so we only hit the worker once during boot.
         if (!_bootStatusFiles) _bootStatusFiles = (await workerGet('status'));
-        const raw  = _bootStatusFiles[zone.gistFile] || '[]';
-        const data = JSON.parse(raw);
-        ...
+        const statusRaw = _bootStatusFiles[zone.gistFile] || '[]';
+        const data = JSON.parse(statusRaw);
+        for (const entry of data) {
+          if (!entry.id || seen.has(entry.id)) continue;
+          seen.add(entry.id);
+          raw.push({
+            id:    entry.id,
+            label: entry.label ?? entry.id,
+            type:  entry.type  ?? '',
+            state: (entry.state ?? 'OFF').toString().toUpperCase(),
+            flow:  entry.flow  ?? null,
+            zone:  zone.id,
+          });
+        }
       } catch { /* skip unreadable status file */ }
     }
 
