@@ -1,0 +1,10 @@
+name       = "scada-visualizer"
+main       = "scada-worker-d1.js"
+compatibility_date = "2024-09-23"
+
+# ── D1 database binding ───────────────────────────────────────────────────────
+# After running `wrangler d1 create scada-store`, paste the database_id here.
+[[d1_databases]]
+binding       = "DB"
+database_name = "scada-store"
+database_id   = "7aa40110-b757-4dae-8e95-ff242ae74fc4"

@@ -578,8 +578,6 @@
     }
 
     // ─── CONFIG ───────────────────────────────────────────────────────────────
-    const GITHUB_USERNAME     = 'je1bd1raghu';
-    const GIST_ID             = 'b92c304c7c56c5a76916600d35b55d67';
     const REFRESH_INTERVAL_MS = 20000;
 
     // ─── WORKER / RECORDS ────────────────────────────────────────────────────
@@ -1197,12 +1195,11 @@
         if (!cy || !zone) return;
         setStatus('Syncing...', '#34495e');
         try {
-            const url = `https://gist.githubusercontent.com/${GITHUB_USERNAME}/${GIST_ID}/raw/${zone.gistFile}?t=${Date.now()}`;
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
+            // Read zone status via the worker (D1-backed) instead of raw Gist URL.
+            // workerGet returns { files: { "zone_a_status.json": "[...]", ... } }
+            const files = await workerGet('status');
+            const raw   = files[zone.gistFile] || '[]';
+            const data  = JSON.parse(raw);
 
             const updated = applyStatus(cy, data);
 

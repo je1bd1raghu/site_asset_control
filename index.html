@@ -561,7 +561,6 @@
 <script>
 // ── CONSTANTS ──────────────────────────────────────────────────────────────────
 // WORKER, RECORDS_FILE, CONFIG_FILE, ESTIMATES_FILE come from common.js
-const GIST_BASE   = 'https://gist.githubusercontent.com/je1bd1raghu/b92c304c7c56c5a76916600d35b55d67/raw';
 const COOLDOWN_MS  = 5 * 60 * 1000;
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
@@ -574,6 +573,7 @@ let zoneMap    = {};  // zoneId → manifest entry (id, name, gistFile)
 let todayRecs  = [];
 let currentPos = null;
 let watchId    = null;
+let _bootStatusFiles = null;
 const GPS_FIX_BUF      = 5;    // Option C: keep last N fixes, use the most accurate
 const ACC_POOR_THRESH  = 50;   // Option B: above this (metres) → show confirmation modal
 const gpsFixes         = [];   // Option C: rolling buffer of recent fixes
@@ -639,14 +639,13 @@ async function loadAssetsFromGist() {
     for (const zone of zonesToFetch) {
       if (!zone.gistFile) continue;
       try {
-        const res = await fetch(`${GIST_BASE}/${zone.gistFile}?t=${Date.now()}`);
-        if (!res.ok) continue;
-        for (const entry of await res.json()) {
-          if (!entry.id || seen.has(entry.id)) continue;
-          seen.add(entry.id);
-          raw.push({ id: entry.id, name: (entry.label || entry.id).replace(/\n/g, ' '), type: entry.type || '', state: entry.state || 'OFF', lat: null, lng: null, tolerance: 50 });
-        }
-      } catch { /* skip unreadable gist file */ }
+        // workerGet('status') fetches all zone files at once; cache the result
+        // outside the loop so we only hit the worker once during boot.
+        if (!_bootStatusFiles) _bootStatusFiles = (await workerGet('status'));
+        const raw  = _bootStatusFiles[zone.gistFile] || '[]';
+        const data = JSON.parse(raw);
+        ...
+      } catch { /* skip unreadable status file */ }
     }
 
     assets   = raw;
@@ -1499,10 +1498,14 @@ async function downloadRecords() {
   status.textContent = 'Fetching records…';
 
   try {
-    const files   = await workerGet('output');
-    const allRecs = csvParse(files[RECORDS_FILE] || '');
-    const prefix  = `${year}-${month}`;
-    const filtered = allRecs.filter(r => (r.date || '').startsWith(prefix));
+    // Pass ?month=YYYY-MM so the worker returns only that month from D1.
+    // workerGet() is a thin fetch wrapper — we call the URL directly here
+    // to add the query param.
+    const prefix   = `${year}-${month}`;
+    const r        = await fetch(`${WORKER}/output?month=${prefix}`);
+    if (!r.ok) throw new Error(`Worker failed: HTTP ${r.status}`);
+    const d        = await r.json();
+    const filtered = csvParse(d.files[RECORDS_FILE] || '');
 
     if (!filtered.length) {
       status.style.color = 'var(--warning)';
