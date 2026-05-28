@@ -1431,7 +1431,7 @@
                 docket = prior ? prior.docket : makeDocketLB(now);
             }
             const rec = {
-                sn:         allRecs.length + 1,
+                sn:         makeSn(),
                 docket:     docket,
                 deviceId:   deviceId,
                 personId:   person.id,

@@ -88,10 +88,17 @@ async function handleOutputGet(db, url) {
   // Leakbursts: always return all rows so the app can track unresolved reports
   const lb = await db.prepare('SELECT * FROM leakbursts ORDER BY timestamp ASC').all();
 
+  // Estimates live in the key-value `files` table (single JSON blob), but the
+  // estimate + asset-control front-ends read them from this /output response,
+  // so surface the blob here too.
+  const estRow = await db.prepare('SELECT content FROM files WHERE name = ?')
+    .bind('estimates.json').first();
+
   return jsonResp({
     files: {
       'records.csv':    toCsv(recRows, CSV_COLS),
       'leakbursts.csv': toCsv(lb.results, LB_CSV_COLS),
+      'estimates.json': estRow?.content ?? '[]',
     }
   });
 }
@@ -136,11 +143,20 @@ async function handleOutputPatch(db, request) {
     }
   }
 
+  // Estimates: a full-array JSON blob stored in the key-value `files` table.
+  // INSERT OR REPLACE — the client always sends the complete current array.
+  const estVal = body.files['estimates.json'];
+  if (estVal != null) {
+    const content = typeof estVal === 'string' ? estVal : (estVal?.content ?? JSON.stringify(estVal));
+    stmts.push(
+      db.prepare('INSERT OR REPLACE INTO files (name, content, updated_at) VALUES (?, ?, ?)')
+        .bind('estimates.json', content, now)
+    );
+  }
+
   if (stmts.length > 0) await db.batch(stmts);
   return jsonResp({ ok: true, updatedAt: now, inserted: stmts.length });
 }
-
-// ── GET /status ────────────────────────────────────────────────────────────────
 async function handleStatusGet(db) {
   const { results } = await db
     .prepare("SELECT name, content FROM files WHERE name LIKE 'zone_%_status.json'")

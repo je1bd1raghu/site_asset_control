@@ -31,6 +31,16 @@ function timeStr(d) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+// ─── UNIQUE RECORD SERIAL ────────────────────────────────────────────────────
+// Globally-unique value for a record's `sn` PRIMARY KEY. The worker inserts
+// rows with INSERT OR IGNORE keyed on `sn`, so any collision SILENTLY DROPS the
+// row. A per-list ordinal (e.g. array.length + 1) is NOT safe: it collides
+// across months, across pages, and across concurrent devices. Always use this.
+function makeSn() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 // ─── DEVICE ID (requires FingerprintJS; pages that need it load fp.min.js) ───
 async function getDeviceId() {
   try {

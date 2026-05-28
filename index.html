@@ -1465,14 +1465,6 @@ const LB_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','ass
 // Docket number for a leak/burst report: LB-YYYYMMDD-XXXX
 // XXXX is a short base36 suffix derived from the timestamp + a random nibble,
 // giving a human-readable, sortable, practically-unique reference.
-// Globally-unique serial for a record's PRIMARY KEY (sn).
-// Must be unique across ALL months and concurrent devices — the worker uses
-// `sn` as the PK with INSERT OR IGNORE, so any collision silently drops a row.
-function makeSn() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
 function makeDocket(now) {
   const d = now || new Date();
   const ymd = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
