@@ -116,7 +116,7 @@ async function handleOutputPatch(db, request) {
       `).bind(
         r.sn, r.personId, r.personName, r.zone, r.assetId, r.assetName,
         r.action, r.timestamp, r.date, r.time,
-        r.lat||null, r.lng||null, r.distance||null, r.gpsAcc||null, r.deviceId
+        numOrNull(r.lat), numOrNull(r.lng), numOrNull(r.distance), numOrNull(r.gpsAcc), r.deviceId
       ));
     }
   }
@@ -131,7 +131,7 @@ async function handleOutputPatch(db, request) {
       `).bind(
         r.sn, r.docket||null, r.personId, r.personName, r.zone,
         r.assetId, r.assetName, r.action, r.timestamp, r.date, r.time,
-        r.lat||null, r.lng||null, r.distance||null, r.deviceId
+        numOrNull(r.lat), numOrNull(r.lng), numOrNull(r.distance), r.deviceId
       ));
     }
   }
@@ -172,6 +172,13 @@ async function upsertFiles(db, filesObj) {
       .bind(name, content, now);
   });
   await db.batch(stmts);
+}
+
+// Empty string → NULL, but preserve a real 0 (which `x || null` would lose).
+function numOrNull(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 function currentMonthPrefix() {

@@ -1019,7 +1019,7 @@ async function doToggle(assetId, _accConfirmed) {
 
     const allExisting = csvParse((await workerGet('output'))[RECORDS_FILE] || '');
     const rec = {
-      sn:         allExisting.length + 1,
+      sn:         makeSn(),
       deviceId:   deviceId,
       personId:   person.id, personName: person.name,
       assetId:    asset.id,  assetName:  asset.name,
@@ -1027,7 +1027,7 @@ async function doToggle(assetId, _accConfirmed) {
       timestamp:  now.toISOString(),
       date:       todayStr(), time: timeStr(now),
       lat:        currentPos.lat.toFixed(7), lng: currentPos.lng.toFixed(7),
-      distance:   dist ?? '',
+      distance:   dist == null ? '' : dist,
       gpsAcc:     acc,
       zone:       zoneName
     };
@@ -1402,7 +1402,7 @@ async function submitEdgeLeakBurst(action) {
       docket = prior ? prior.docket : makeDocket(now);
     }
     const rec = {
-      sn:         existing.length + 1,
+      sn:         makeSn(),
       docket:     docket,
       deviceId:   deviceId,
       personId:   person.id,
@@ -1465,6 +1465,14 @@ const LB_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','ass
 // Docket number for a leak/burst report: LB-YYYYMMDD-XXXX
 // XXXX is a short base36 suffix derived from the timestamp + a random nibble,
 // giving a human-readable, sortable, practically-unique reference.
+// Globally-unique serial for a record's PRIMARY KEY (sn).
+// Must be unique across ALL months and concurrent devices — the worker uses
+// `sn` as the PK with INSERT OR IGNORE, so any collision silently drops a row.
+function makeSn() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function makeDocket(now) {
   const d = now || new Date();
   const ymd = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
