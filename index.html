@@ -649,7 +649,7 @@ async function loadAssetsFromGist() {
           seen.add(entry.id);
           raw.push({
             id:    entry.id,
-            label: entry.label ?? entry.id,
+            name:  entry.label ?? entry.id,
             type:  entry.type  ?? '',
             state: (entry.state ?? 'OFF').toString().toUpperCase(),
             flow:  entry.flow  ?? null,
