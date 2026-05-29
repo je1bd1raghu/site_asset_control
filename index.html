@@ -575,6 +575,7 @@ let currentPos = null;
 let watchId    = null;
 let _bootStatusFiles = null;
 const GPS_FIX_BUF      = 5;    // Option C: keep last N fixes, use the most accurate
+const GPS_FIX_MAX_AGE  = 1 * 60 * 1000;  // discard fixes older than 1 minute
 const ACC_POOR_THRESH  = 50;   // Option B: above this (metres) → show confirmation modal
 const gpsFixes         = [];   // Option C: rolling buffer of recent fixes
 
@@ -856,13 +857,24 @@ function ensureWatch() {
   setLoc('checking', '📡', 'Getting your location…', 'Please hold still');
   watchId = navigator.geolocation.watchPosition(
     pos => {
-      // Option C — rolling best-fix buffer: keep last GPS_FIX_BUF readings,
-      // always promote the one with lowest (best) accuracy value so a single
-      // bad cell-tower reading can't override a recent satellite fix.
-      const fix = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy) };
+      // Option C — rolling best-fix buffer: keep recent readings and always
+      // promote the one with lowest (best) accuracy value, so a single bad
+      // cell-tower reading can't override a recent satellite fix. Fixes carry a
+      // timestamp so a precise-but-stale reading (e.g. from where the operator
+      // stood an hour ago) is discarded rather than promoted as current.
+      const fix = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy), ts: Date.now() };
       gpsFixes.push(fix);
-      if (gpsFixes.length > GPS_FIX_BUF) gpsFixes.shift();
-      currentPos = gpsFixes.reduce((best, f) => f.acc < best.acc ? f : best);
+      // 1) drop fixes older than the max age (mutate in place — gpsFixes is const)
+      const cutoff = Date.now() - GPS_FIX_MAX_AGE;
+      for (let i = gpsFixes.length - 1; i >= 0; i--) {
+        if (gpsFixes[i].ts < cutoff) gpsFixes.splice(i, 1);
+      }
+      // 2) cap to the most recent GPS_FIX_BUF readings
+      while (gpsFixes.length > GPS_FIX_BUF) gpsFixes.shift();
+      // 3) promote the most accurate of the surviving (fresh) fixes. Seed with
+      // the just-pushed fix (ts = now, so it always survives the age cut) to
+      // guarantee a non-empty selection.
+      currentPos = gpsFixes.reduce((best, f) => f.acc < best.acc ? f : best, fix);
       onGpsUpdate();
     },
     err  => { const m = {1:'Permission denied', 2:'Location unavailable', 3:'Timed out'}; setLoc('failed', '❌', m[err.code] || 'Location error', 'Enable GPS and try again'); },
@@ -987,23 +999,31 @@ function tickCooldowns() {
 // second concurrent write for the same asset.
 const _toggleInFlight = new Set();
 
-async function doToggle(assetId, _accConfirmed) {
+async function doToggle(assetId, _accConfirmed, _snapshot) {
   const person = persons.find(p => p.id === getPersonId());
   const asset  = assetMap[assetId];
   if (!person || !asset || !currentPos) { showToast('Location not available yet', 'error'); return; }
 
   const hasGps = asset.lat !== null && asset.lng !== null;
-  const dist   = hasGps ? Math.round(haversine(currentPos.lat, currentPos.lng, asset.lat, asset.lng)) : null;
   const tol    = asset.tolerance || 50;
-  const acc    = currentPos.acc ?? 0;
+
+  // Snapshot the position ONCE at decision time. The poor-accuracy modal can sit
+  // open for many seconds while watchPosition keeps rewriting currentPos; on the
+  // confirm re-entry we reuse the snapshot taken on the first call so the recorded
+  // distance/accuracy are exactly the numbers the operator saw and acted on — not
+  // a fresh reading that drifted in the meantime. This keeps screen == record.
+  const fix  = _snapshot || { lat: currentPos.lat, lng: currentPos.lng, acc: currentPos.acc ?? 0 };
+  const acc  = fix.acc;
+  const dist = hasGps ? Math.round(haversine(fix.lat, fix.lng, asset.lat, asset.lng)) : null;
 
   // Option A — best-case gate: operator must be plausibly within tolerance
   const bestCase = dist !== null ? Math.max(0, dist - acc) : null;
   if (hasGps && bestCase > tol) { showToast(`Too far away (${dist}m ±${acc}m). Must be within ${tol}m`, 'error'); return; }
 
-  // Option B — if accuracy is poor and not yet confirmed, show modal first
+  // Option B — if accuracy is poor and not yet confirmed, show modal first.
+  // Pass the snapshot forward so confirm records the same fix shown here.
   if (!_accConfirmed && acc > ACC_POOR_THRESH) {
-    showAccWarn(assetId, acc, dist, tol);
+    showAccWarn(assetId, acc, dist, tol, fix);
     return;
   }
 
@@ -1033,7 +1053,7 @@ async function doToggle(assetId, _accConfirmed) {
       action:     newStatus,
       timestamp:  now.toISOString(),
       date:       todayStr(), time: timeStr(now),
-      lat:        currentPos.lat.toFixed(7), lng: currentPos.lng.toFixed(7),
+      lat:        fix.lat.toFixed(7), lng: fix.lng.toFixed(7),
       distance:   dist == null ? '' : dist,
       gpsAcc:     acc,
       zone:       zoneName
@@ -1863,10 +1883,14 @@ async function shareCopyClipboard() {
 
 // ── POOR-ACCURACY CONFIRMATION (Option B) ──────────────────────────────────────
 // When GPS accuracy > ACC_POOR_THRESH, ask operator to confirm physical presence
-// before the toggle fires. confirmAccWarn() re-calls doToggle with _accConfirmed=true.
+// before the toggle fires. confirmAccWarn() re-calls doToggle with _accConfirmed=true,
+// passing back the SAME position snapshot shown in the modal so the recorded
+// distance/accuracy match what the operator saw (currentPos may drift meanwhile).
 let _accWarnAssetId = null;
-function showAccWarn(assetId, acc, dist, tol) {
+let _accWarnFix     = null;
+function showAccWarn(assetId, acc, dist, tol, fix) {
   _accWarnAssetId = assetId;
+  _accWarnFix     = fix;
   $('accWarnText').textContent =
     `GPS accuracy is ±${acc}m — your exact position cannot be confirmed. ` +
     `Measured distance: ${dist !== null ? dist + 'm' : 'unknown'} (tolerance: ${tol}m). ` +
@@ -1875,12 +1899,15 @@ function showAccWarn(assetId, acc, dist, tol) {
 }
 function confirmAccWarn() {
   $('accWarnBackdrop').classList.remove('open');
-  const id = _accWarnAssetId;
+  const id  = _accWarnAssetId;
+  const fix = _accWarnFix;
   _accWarnAssetId = null;
-  if (id) doToggle(id, true);   // _accConfirmed = true → skip modal, allow toggle
+  _accWarnFix     = null;
+  if (id) doToggle(id, true, fix);   // _accConfirmed = true, reuse the shown snapshot
 }
 function closeAccWarn() {
   _accWarnAssetId = null;
+  _accWarnFix     = null;
   $('accWarnBackdrop').classList.remove('open');
 }
 
