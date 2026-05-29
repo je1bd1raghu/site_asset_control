@@ -982,6 +982,11 @@ function tickCooldowns() {
 }
 
 // ── TOGGLE ─────────────────────────────────────────────────────────────────────
+// Assets with a toggle write currently in flight. Blocks re-entry (double-tap,
+// or a tap during the async fetch→patch window) which would otherwise issue a
+// second concurrent write for the same asset.
+const _toggleInFlight = new Set();
+
 async function doToggle(assetId, _accConfirmed) {
   const person = persons.find(p => p.id === getPersonId());
   const asset  = assetMap[assetId];
@@ -1005,14 +1010,16 @@ async function doToggle(assetId, _accConfirmed) {
   const cdLeft = getCooldownRemaining(person.id, assetId);
   if (cdLeft > 0) { showToast('Wait ' + formatCooldown(cdLeft) + ' before toggling again', 'warning'); return; }
 
+  // Re-entry guard: refuse a second toggle for this asset while one is mid-flight.
+  if (_toggleInFlight.has(assetId)) { showToast('Still saving the previous change…', 'warning'); return; }
+  _toggleInFlight.add(assetId);
+
   const card = document.getElementById('asset-card-' + assetId);
   if (card) card.classList.add('loading');
 
   try {
     const now       = new Date();
     const newStatus = (assetStatus[assetId]?.status || 'OFF') === 'ON' ? 'OFF' : 'ON';
-
-    assetStatus[assetId] = { status: newStatus, lastPersonId: person.id, lastPersonName: person.name, lastChangedAt: now.toISOString() };
 
     const personAsset = (person.assets || []).find(a => a.id === assetId);
     const zoneName    = (personAsset?.zone && zoneMap[personAsset.zone]?.name) || personAsset?.zone || '';
@@ -1034,6 +1041,11 @@ async function doToggle(assetId, _accConfirmed) {
 
     allExisting.push(rec);
     await workerPatch({ [RECORDS_FILE]: csvStringify(allExisting) });
+
+    // Durable write succeeded — only now commit the in-memory state. If the
+    // PATCH above threw, assetStatus is untouched, so no re-render can show a
+    // phantom ON for a toggle that never persisted.
+    assetStatus[assetId] = { status: newStatus, lastPersonId: person.id, lastPersonName: person.name, lastChangedAt: now.toISOString() };
 
     // ── Sync valve state → zone_*_status.json so scada-visualizer updates ──
     // personAsset (from config.json) carries .zone; assetMap entries do not.
@@ -1063,6 +1075,8 @@ async function doToggle(assetId, _accConfirmed) {
   } catch(e) {
     if (card) card.classList.remove('loading');
     showToast('Save error: ' + e.message, 'error');
+  } finally {
+    _toggleInFlight.delete(assetId);
   }
 }
 
