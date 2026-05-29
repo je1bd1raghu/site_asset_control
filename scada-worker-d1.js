@@ -203,28 +203,48 @@ function currentMonthPrefix() {
 }
 
 // Dependency-free CSV parser (no Papa in the worker runtime)
-function parseCsv(text) {
-  if (!text?.trim()) return [];
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const header = splitCsvLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim());
-  return lines.slice(1).map(line => {
-    const vals = splitCsvLine(line);
-    const row  = {};
-    header.forEach((col, i) => { row[col] = (vals[i] ?? '').replace(/^"|"$/g, '').trim(); });
-    return row;
-  }).filter(r => Object.values(r).some(v => v !== ''));
+// RFC-4180-style parser. Tokenizes the WHOLE text in one pass so that quoted
+// fields may contain commas, escaped quotes ("") AND newlines. Do NOT pre-split
+// on \n — asset names legitimately contain embedded newlines, and splitting
+// first shears those rows in half (truncated row + bogus row). See toCsv, which
+// quotes any field containing , " or \n.
+function tokenizeCsv(text) {
+  const rows = [];
+  let row = [], cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { cur += '"'; i++; }  // escaped quote
+        else inQ = false;                              // closing quote
+      } else cur += ch;
+    } else if (ch === '"') {
+      inQ = true;
+    } else if (ch === ',') {
+      row.push(cur); cur = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;     // CRLF → one break
+      row.push(cur); cur = '';
+      rows.push(row); row = [];
+    } else {
+      cur += ch;
+    }
+  }
+  // flush trailing field/row if the text didn't end on a newline
+  if (cur !== '' || row.length > 0) { row.push(cur); rows.push(row); }
+  return rows;
 }
 
-function splitCsvLine(line) {
-  const out = []; let cur = '', inQ = false;
-  for (const ch of line) {
-    if (ch === '"')        inQ = !inQ;
-    else if (ch === ',' && !inQ) { out.push(cur); cur = ''; }
-    else cur += ch;
-  }
-  out.push(cur);
-  return out;
+function parseCsv(text) {
+  if (!text?.trim()) return [];
+  const rows = tokenizeCsv(text);
+  if (rows.length < 2) return [];
+  const header = rows[0].map(h => h.trim());
+  return rows.slice(1).map(vals => {
+    const row = {};
+    header.forEach((col, i) => { row[col] = (vals[i] ?? '').trim(); });
+    return row;
+  }).filter(r => Object.values(r).some(v => v !== ''));
 }
 
 function toCsv(rows, cols) {
