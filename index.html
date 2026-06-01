@@ -67,6 +67,8 @@
   .loc-status.verified .loc-title { color:var(--success); }
   .loc-status.failed   .loc-title { color:var(--danger); }
   .loc-status.idle     .loc-title { color:var(--text2); }
+  .loc-reacq { margin-left:auto; flex:none; padding:8px 12px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); color:var(--text); font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  .loc-reacq:active { transform:scale(.97); }
   @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
   .loc-status.checking .loc-icon { animation:pulse 1.2s ease-in-out infinite; }
 
@@ -344,10 +346,11 @@
 
     <div class="loc-status idle" id="locStatus">
       <div class="loc-icon" id="locIcon">📍</div>
-      <div>
+      <div style="flex:1">
         <div class="loc-title" id="locTitle">Location not checked</div>
         <div class="loc-sub"   id="locSub">Select your name to begin</div>
       </div>
+      <button class="loc-reacq" id="btnReacq" onclick="reacquireGps()" title="Force a fresh GPS fix">🔄 Re-acquire</button>
     </div>
   </div>
 
@@ -575,9 +578,12 @@ let currentPos = null;
 let watchId    = null;
 let _bootStatusFiles = null;
 const GPS_FIX_BUF      = 5;    // Option C: keep last N fixes, use the most accurate
-const GPS_FIX_MAX_AGE  = 1 * 60 * 1000;  // discard fixes older than 1 minute
+const GPS_FIX_MAX_AGE  = 60 * 1000;       // discard fixes older than 1 minute
+const GPS_STALE_MS     = 15 * 1000;       // Option 1: no fresh movement in this long → "signal frozen"
 const ACC_POOR_THRESH  = 50;   // Option B: above this (metres) → show confirmation modal
 const gpsFixes         = [];   // Option C: rolling buffer of recent fixes
+let _lastRawFix        = null; // Option 1: last raw reading, for duplicate detection
+let _lastFreshTs       = 0;    // Option 1: timestamp of the last genuinely-different reading
 
 // ── BOOT ───────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -855,14 +861,28 @@ function ensureWatch() {
   if (watchId !== null) return;
   if (!navigator.geolocation) { setLoc('failed', '❌', 'GPS not supported', 'Use Chrome or Safari'); return; }
   setLoc('checking', '📡', 'Getting your location…', 'Please hold still');
+  startLocTick();
   watchId = navigator.geolocation.watchPosition(
     pos => {
       // Option C — rolling best-fix buffer: keep recent readings and always
       // promote the one with lowest (best) accuracy value, so a single bad
       // cell-tower reading can't override a recent satellite fix. Fixes carry a
-      // timestamp so a precise-but-stale reading (e.g. from where the operator
-      // stood an hour ago) is discarded rather than promoted as current.
+      // timestamp so a precise-but-stale reading is discarded rather than promoted.
       const fix = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy), ts: Date.now() };
+
+      // Option 1 — staleness detection: when GPS signal is weak the OS keeps
+      // handing back the SAME cached coordinate with the same accuracy, fix after
+      // fix, each with a fresh timestamp. That makes the displayed distance/acc
+      // appear "stuck". Detect an identical reading and record when we last saw a
+      // genuinely DIFFERENT position, so the UI can tell the operator the signal
+      // is frozen rather than presenting a stale value as confidently live.
+      const dup = _lastRawFix &&
+                  _lastRawFix.lat === fix.lat &&
+                  _lastRawFix.lng === fix.lng &&
+                  _lastRawFix.acc === fix.acc;
+      if (!dup) _lastFreshTs = fix.ts;   // a real change arrived
+      _lastRawFix = fix;
+
       gpsFixes.push(fix);
       // 1) drop fixes older than the max age (mutate in place — gpsFixes is const)
       const cutoff = Date.now() - GPS_FIX_MAX_AGE;
@@ -881,11 +901,59 @@ function ensureWatch() {
     { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
   );
 }
+
+// Option 4 — manual GPS re-acquire. Tears down the watch and clears the buffer so
+// the OS is forced to attempt a genuinely fresh fix instead of replaying a stale
+// cached one. Used when the signal is frozen and the operator has moved to open sky.
+function reacquireGps() {
+  if (watchId !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+  gpsFixes.length = 0;
+  _lastRawFix  = null;
+  _lastFreshTs = 0;
+  currentPos   = null;
+  setLoc('checking', '📡', 'Re-acquiring GPS…', 'Hold still in an open area');
+  ensureWatch();
+}
 function onGpsUpdate() {
   if (!getPersonId()) return;
-  setLoc('verified', '✅', 'Location acquired', `Accuracy: ±${currentPos.acc}m`);
+  renderLocStatus();
   const person = persons.find(p => p.id === getPersonId());
   if (person) renderAssets(person);
+}
+
+// Option 1 + 5 — reflect GPS freshness honestly. The OS re-issues an unchanged
+// position when signal is weak, so "last fresh" is the last time the reading
+// actually moved. We show a frozen-signal warning past GPS_STALE_MS and a
+// human-readable freshness age otherwise. Driven both by new fixes and by a
+// timer, since during a freeze the watch callback may stop firing entirely.
+function renderLocStatus() {
+  if (!currentPos) return;
+  const sinceFresh = Date.now() - _lastFreshTs;
+  if (sinceFresh > GPS_STALE_MS) {
+    setLoc('failed', '🛰️', 'GPS signal frozen — not updating',
+      `Last movement ${fmtAge(sinceFresh)} ago · ±${currentPos.acc}m. Move to open sky, then tap Re-acquire.`);
+  } else {
+    setLoc('verified', '✅', 'Location acquired',
+      `Accuracy ±${currentPos.acc}m · updated ${fmtAge(sinceFresh)} ago`);
+  }
+}
+
+function fmtAge(ms) {
+  const s = Math.round(ms / 1000);
+  if (s < 2)  return 'just now';
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60);
+  return m + 'm ' + (s % 60) + 's';
+}
+
+// Keep the freshness/staleness display live even when no new fixes arrive.
+let _locTick = null;
+function startLocTick() {
+  if (_locTick !== null) return;
+  _locTick = setInterval(() => { if (currentPos && getPersonId()) renderLocStatus(); }, 1000);
 }
 function haversine(lat1, lng1, lat2, lng2) {
   const R = 6371000, r = Math.PI / 180;
