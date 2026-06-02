@@ -10,12 +10,12 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #F4F6FA; --surface: #FFFFFF; --surface2: #F0F4FF;
-    --primary: #2563EB; --primary-dark: #1D4ED8; --primary-light: #EFF6FF;
+    --bg: #F4F6FA; --surface: #FFFFFF; --surface2: #F8F9FA;
+    --primary: #F5821F; --primary-dark: #D06E00; --primary-light: #FFF0E0;
     --success: #16A34A; --success-light: #F0FDF4;
     --danger: #DC2626;  --danger-light: #FEF2F2;
     --warning: #D97706; --warning-light: #FFFBEB;
-    --text: #1E293B; --text2: #475569; --text3: #94A3B8; --border: #E2E8F0;
+    --text: #212529; --text2: #343A40; --text3: #6C757D; --border: #DEE2E6;
     --radius: 16px; --radius-sm: 10px;
     --shadow: 0 2px 12px rgba(0,0,0,.07); --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
   }
@@ -1414,39 +1414,39 @@ function renderEstimatePanel(edgeId, edge, isLeakBursted, hasEst) {
   const encName = encodeURIComponent(assetLabel);
   const encDocket = encodeURIComponent(docket);
   const docketChip = docket
-    ? `<div style="font-size:12px;font-weight:800;color:#2563EB;margin-bottom:8px;">🎫 Docket: ${esc(docket)}</div>` : '';
+    ? `<div style="font-size:12px;font-weight:800;color:#F5821F;margin-bottom:8px;">🎫 Docket: ${esc(docket)}</div>` : '';
 
   if (hasEst) {
     const est = estimateMap[edgeId];
     const total = (est.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
     const rows  = (est.items || []).map((it, i) => `
       <tr>
-        <td style="padding:7px 10px;color:#94A3B8;font-size:12px;font-weight:700;">${i+1}</td>
+        <td style="padding:7px 10px;color:#6C757D;font-size:12px;font-weight:700;">${i+1}</td>
         <td style="padding:7px 10px;font-size:13px;font-weight:600;">${esc(it.particulars)}</td>
         <td style="padding:7px 10px;font-size:13px;text-align:right;">${it.quantity} ${esc(it.unit)}</td>
         <td style="padding:7px 10px;font-size:13px;text-align:right;">₹${(it.rate||0).toLocaleString('en-IN')}</td>
-        <td style="padding:7px 10px;font-size:13px;font-weight:800;text-align:right;color:#2563EB;">₹${(it.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+        <td style="padding:7px 10px;font-size:13px;font-weight:800;text-align:right;color:#F5821F;">₹${(it.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
       </tr>`).join('');
     content.innerHTML = `
       ${docketChip}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
         <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#16A34A;">✅ Estimate Uploaded</div>
-        <a href="estimate.html?asset=${encId}&name=${encName}&docket=${encDocket}" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px;border:1.5px solid #E2E8F0;background:#F0F4FF;color:#2563EB;text-decoration:none;">✏ Revise</a>
+        <a href="estimate.html?asset=${encId}&name=${encName}&docket=${encDocket}" style="font-size:12px;font-weight:800;padding:5px 12px;border-radius:8px;border:1.5px solid #DEE2E6;background:#FFF0E0;color:#F5821F;text-decoration:none;">✏ Revise</a>
       </div>
-      <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:8px;">📋 ${esc(est.name || assetLabel)} &nbsp;·&nbsp; ${esc(est.date||'')}</div>
-      <div style="overflow-x:auto;border-radius:8px;border:2px solid #E2E8F0;margin-bottom:10px;">
+      <div style="font-size:12px;font-weight:600;color:#343A40;margin-bottom:8px;">📋 ${esc(est.name || assetLabel)} &nbsp;·&nbsp; ${esc(est.date||'')}</div>
+      <div style="overflow-x:auto;border-radius:8px;border:2px solid #DEE2E6;margin-bottom:10px;">
         <table style="width:100%;border-collapse:collapse;min-width:400px;">
-          <thead><tr style="background:#F0F4FF;">
-            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94A3B8;text-align:left;">Sl.</th>
-            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94A3B8;text-align:left;">Particulars</th>
-            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94A3B8;text-align:right;">Qty / Unit</th>
-            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94A3B8;text-align:right;">Rate</th>
-            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94A3B8;text-align:right;">Amount</th>
+          <thead><tr style="background:#F8F9FA;">
+            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#6C757D;text-align:left;">Sl.</th>
+            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#6C757D;text-align:left;">Particulars</th>
+            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#6C757D;text-align:right;">Qty / Unit</th>
+            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#6C757D;text-align:right;">Rate</th>
+            <th style="padding:7px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#6C757D;text-align:right;">Amount</th>
           </tr></thead>
           <tbody>${rows}</tbody>
-          <tfoot><tr style="background:#F0F4FF;border-top:2px solid #E2E8F0;">
-            <td colspan="4" style="padding:9px 10px;font-weight:800;font-size:14px;color:#475569;">Grand Total</td>
-            <td style="padding:9px 10px;font-weight:800;font-size:16px;color:#2563EB;text-align:right;">₹${total}</td>
+          <tfoot><tr style="background:#F8F9FA;border-top:2px solid #DEE2E6;">
+            <td colspan="4" style="padding:9px 10px;font-weight:800;font-size:14px;color:#343A40;">Grand Total</td>
+            <td style="padding:9px 10px;font-weight:800;font-size:16px;color:#F5821F;text-align:right;">₹${total}</td>
           </tr></tfoot>
         </table>
       </div>`;
@@ -1461,7 +1461,7 @@ function renderEstimatePanel(edgeId, edge, isLeakBursted, hasEst) {
         </div>
       </div>
       <a href="estimate.html?asset=${encId}&name=${encName}&docket=${encDocket}"
-         style="display:inline-flex;align-items:center;gap:8px;padding:11px 20px;background:#2563EB;color:#fff;border-radius:10px;font-size:14px;font-weight:800;text-decoration:none;font-family:'Nunito',sans-serif;">
+         style="display:inline-flex;align-items:center;gap:8px;padding:11px 20px;background:#F5821F;color:#fff;border-radius:10px;font-size:14px;font-weight:800;text-decoration:none;font-family:'Nunito',sans-serif;">
         📋 Upload Estimate for This Leak/Burst
       </a>`;
   }
