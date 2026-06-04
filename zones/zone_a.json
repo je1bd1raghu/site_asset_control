@@ -37,7 +37,7 @@
     {"data":{"id":"J-21","lat":24.18303908,"lng":88.28741882},"position":{"x":69,"y":313}},
     {"data":{"id":"J-22","lat":24.18588799,"lng":88.29425967},"position":{"x":119,"y":290}},
     {"data":{"id":"KAPASDANGA-(B2)-NEW","lat":24.19580711,"lng":88.31739092},"position":{"x":289,"y":210}},
-    {"data":{"id":"SASHIDHARPUR-(B1)-EXISTING","lat":24.192229,"lng":88.295223},"position":{"x":124,"y":228}}
+    {"data":{"id":"SASHIDHARPUR-(B1)-EXISTING","lat":24.19371,"lng":88.29469},"position":{"x":124,"y":228}}
   ],
   "edges": [
     {"data":{"id":"WTP-J-1","source":"WTP","target":"J-1"}},
