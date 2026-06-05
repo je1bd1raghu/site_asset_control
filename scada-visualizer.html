@@ -122,6 +122,24 @@
         }
         #map-toggle-btn:hover { background: rgba(245,130,31,0.18); border-color: #F5821F; }
         #map-toggle-btn.map-off { opacity: 0.5; }
+        /* Show-my-location button — sits to the left of the map toggle */
+        #locate-btn {
+            position: absolute;
+            top: 16px; right: 134px;
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            border: 2px solid rgba(127,219,202,0.5);
+            background: rgba(33,37,41,0.82);
+            color: #F5821F;
+            font-size: 16px; cursor: pointer;
+            z-index: 12;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+            transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+        }
+        #locate-btn:hover { background: rgba(245,130,31,0.18); border-color: #F5821F; }
+        #locate-btn.locating { opacity: 0.6; cursor: progress; }
+        #locate-btn.active { background: rgba(245,130,31,0.25); border-color: #F5821F; }
         /* Leaflet attribution: keep it out of the way */
         .leaflet-control-attribution { font-size: 9px !important; }
 
@@ -469,6 +487,7 @@
     <div id="cy"></div>
     <div id="loading">Loading zone...</div>
 
+    <button id="locate-btn" title="Show my location" onclick="locateMe()">📍</button>
     <button id="map-toggle-btn" title="Toggle satellite map" onclick="toggleMap()">🗺️</button>
 
     <!-- Compass rose — shown only when GPS layout is active -->
@@ -1299,6 +1318,61 @@
         cy.on('tap', 'edge', function(evt) {
             showEdgeLeakBurstPanel(evt.target);
         });
+    }
+
+    // ─── SHOW MY LOCATION ──────────────────────────────────────────────────────
+    // Center the satellite map on the user's current GPS fix and drop a marker
+    // (a dot + an accuracy circle). The map must be visible for this to be useful.
+    let _userLocMarker = null;   // Leaflet circleMarker for the user dot
+    let _userLocCircle = null;   // Leaflet circle showing accuracy radius
+    function locateMe() {
+        const btn = document.getElementById('locate-btn');
+        if (!navigator.geolocation) {
+            alert('Location is not supported on this device/browser.');
+            return;
+        }
+        // Make sure the map exists and is shown.
+        if (!map) initializeMap();
+        if (!mapVisible) toggleMap();
+
+        btn.classList.add('locating');
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                btn.classList.remove('locating');
+                btn.classList.add('active');
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const acc = pos.coords.accuracy || 0;
+                const latlng = [lat, lng];
+
+                if (_userLocMarker) {
+                    _userLocMarker.setLatLng(latlng);
+                    _userLocCircle.setLatLng(latlng).setRadius(acc);
+                } else {
+                    _userLocCircle = L.circle(latlng, {
+                        radius: acc,
+                        color: '#F5821F', weight: 1,
+                        fillColor: '#F5821F', fillOpacity: 0.12
+                    }).addTo(map);
+                    _userLocMarker = L.circleMarker(latlng, {
+                        radius: 7,
+                        color: '#fff', weight: 2,
+                        fillColor: '#F5821F', fillOpacity: 1
+                    }).addTo(map);
+                    _userLocMarker.bindTooltip('You are here', { direction: 'top' });
+                }
+                map.setView(latlng, Math.max(map.getZoom(), 16));
+                syncNodesToMap();
+            },
+            err => {
+                btn.classList.remove('locating');
+                const msg = err.code === err.PERMISSION_DENIED
+                    ? 'Location permission denied. Please allow location access.'
+                    : 'Unable to get your location. Make sure GPS is on and try again.';
+                alert(msg);
+            },
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+        );
     }
 
     let _geoPos = null;
