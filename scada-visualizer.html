@@ -916,15 +916,18 @@
         return pts;
     }
 
-    // DIAGRAM MODE coords: node model positions scaled by the current zoom give
-    // rendered (on-screen) pixels — the spacing the user actually perceives.
+    // DIAGRAM MODE coords: use raw node MODEL positions (zoom-independent).
+    // Node sizes are model-space units too, so deriving the step from model
+    // spacing keeps the icon-to-spacing ratio constant at every zoom level —
+    // Cytoscape magnifies icons and spacing by the same zoom factor. (Using
+    // rendered px = model × zoom here would inflate the step on zoom-in and
+    // make icons grow faster than the gaps between them, causing overlap.)
     function _canvasPoints() {
         if (!cy) return [];
-        const z = cy.zoom() || 1;
         const pts = [];
         cy.nodes().forEach(n => {
             const p = n.position();
-            pts.push([p.x * z, p.y * z]);
+            pts.push([p.x, p.y]);
         });
         return pts;
     }
@@ -1139,23 +1142,13 @@
             if (evt.target === cy) closeNodePanel();
         });
 
-        // Diagram mode: rescale icons as the user zooms the Cytoscape canvas,
-        // mirroring the map-mode zoomend behaviour. Debounced so it fires once
-        // the gesture settles, not on every wheel tick. (In map mode cy zoom is
-        // locked, so this never triggers there.)
-        cy.on('zoom', function() {
-            if (mapVisible && zoneHasGps()) return;   // map drives sizing instead
-            if (_cyZoomTmr) clearTimeout(_cyZoomTmr);
-            _cyZoomTmr = setTimeout(() => {
-                _cyZoomTmr = null;
-                recomputeAutoStep(cy.nodes().length);
-                _applyNodeSizeStyle();
-            }, 150);
-        });
+        // Diagram mode needs no per-zoom resize: the auto-step is derived from
+        // zoom-independent MODEL spacing, and Cytoscape scales icons and gaps by
+        // the same zoom factor, so their ratio stays constant. (Map mode handles
+        // its own sizing via the map 'zoomend' handler.)
 
         bindEdgeTap();
     }
-    let _cyZoomTmr = null;
 
     // ─── NODE INFO PANEL ─────────────────────────────────────────────────────
     function showNodePanel(n) {
