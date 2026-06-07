@@ -239,18 +239,18 @@ function onPreprocessModeChange() {
         if (llPanel) llPanel.style.display = 'none';
         document.body.classList.remove('mode-latlng');
     } else if (mode === 'latlng') {
-        ta.placeholder  = 'Paste your node pairs here — one edge per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
+        ta.placeholder  = 'Paste your node pairs here — one pipe per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
         ta.style.fontFamily = '';
         ta.style.fontSize   = '';
-        if (edgesLabel) edgesLabel.textContent = 'Edge list';
+        if (edgesLabel) edgesLabel.textContent = 'Pipe list';
         if (statusField) statusField.style.display = 'none';
         if (llPanel) { llPanel.style.display = 'block'; onLatlngModeActive(); }
         document.body.classList.add('mode-latlng');
     } else {
-        ta.placeholder  = 'Paste your node pairs here — one edge per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
+        ta.placeholder  = 'Paste your node pairs here — one pipe per line:\nWTP       V-E1-300\nV-E1-300  V-CDFG-500';
         ta.style.fontFamily = '';
         ta.style.fontSize   = '';
-        if (edgesLabel) edgesLabel.textContent = 'Edge list';
+        if (edgesLabel) edgesLabel.textContent = 'Pipe list';
         if (statusField) statusField.style.display = 'none';
         if (llPanel) llPanel.style.display = 'none';
         // Note: we intentionally do NOT clear window._latlngCoords here. Keeping
@@ -297,7 +297,7 @@ function loadFromZoneJSON() {
     }
 
     if (!diagram.edges.length) {
-        showToast('⚠️ No edges found in zone.json.', 'warning'); return false;
+        showToast('⚠️ No pipes found in zone.json.', 'warning'); return false;
     }
 
     // ── Parse the OPTIONAL zone_status.json (label / state / type by id). ─────
@@ -429,7 +429,7 @@ function loadFromZoneJSON() {
         return coerceCoord(d.lat) != null && coerceCoord(d.lng) != null;
     }).length;
     const layoutMsg = gpsApplied ? ` · 📡 GPS layout (${gpsCount} nodes)` : ' · 🔀 Auto layout';
-    showToast(`✅ ${diagram.nodes.length} nodes, ${diagram.edges.length} edges${layoutMsg}`, 'success');
+    showToast(`✅ ${diagram.nodes.length} nodes, ${diagram.edges.length} pipes${layoutMsg}`, 'success');
     return true;
 }
 
@@ -685,7 +685,7 @@ function renderReport(duplicates, midpoints, selfLoops, overbranches, orphans) {
 
     let dupHtml = '';
     if (repeated.length) {
-        dupHtml += '<h4>Repeated Edges:</h4>' +
+        dupHtml += '<h4>Repeated Pipes:</h4>' +
             repeated.map((d, i) =>
                 `${i+1}. <a href="#" onclick="highlightNodes(['${d.a}','${d.b}']); return false;">` +
                 `${getOriginalNames(d.a)} &lt;-&gt; ${getOriginalNames(d.b)}</a>`
@@ -693,7 +693,7 @@ function renderReport(duplicates, midpoints, selfLoops, overbranches, orphans) {
     }
     if (bidirectional.length) {
         if (repeated.length) dupHtml += '<br><br>';
-        dupHtml += '<h4>Bidirectional Edges:</h4>' +
+        dupHtml += '<h4>Bidirectional Pipes:</h4>' +
             bidirectional.map((d, i) =>
                 `${i+1}. <a href="#" onclick="highlightNodes(['${d.a}','${d.b}']); return false;">` +
                 `${getOriginalNames(d.a)} &lt;-&gt; ${getOriginalNames(d.b)}</a>`
@@ -813,7 +813,7 @@ function downloadCSV() {
     const rows = [];
 
     (latestReport.duplicates   || []).forEach(({ a, b, type }) =>
-        rows.push({ Section: 'Duplicate Edge',    Details: `${fmt(a)} <-> ${fmt(b)} [${type}]` }));
+        rows.push({ Section: 'Duplicate Pipe',    Details: `${fmt(a)} <-> ${fmt(b)} [${type}]` }));
     (latestReport.midpoints    || []).forEach(trio =>
         rows.push({ Section: 'Triangle',          Details: trio.map(fmt).join(' - ') }));
     (latestReport.cycles       || []).forEach(cycle =>
@@ -1002,7 +1002,7 @@ function buildLatlngTable() {
     tbody.innerHTML = '';
 
     if (!order.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:12px;color:var(--text3)">Paste edges in the textarea above first, then click Rebuild.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:12px;color:var(--text3)">Paste pipes in the textarea above first, then click Rebuild.</td></tr>';
         return;
     }
 

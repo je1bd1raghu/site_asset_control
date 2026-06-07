@@ -1506,7 +1506,7 @@
 
         const flowLabel = flow === 'leakburst' ? '⚠ LEAK/BURST' : flow === 'active' ? '▶ Active' : flow === '' ? 'Idle' : flow;
         const flowCls   = flow === 'leakburst' ? 'state-off' : flow === 'active' ? 'state-on' : '';
-        fields.innerHTML = field('Edge ID', edge.id())
+        fields.innerHTML = field('Pipe ID', edge.id())
                          + field('From', src)
                          + field('To', tgt)
                          + field('Flow', flowLabel, flowCls);
@@ -1591,7 +1591,7 @@
         const pid    = document.getElementById('leakburst-person-select').value;
         const person = persons.find(p => p.id === pid);
         if (!person) { setLeakBurstStatus('Select your name first', 'err'); return; }
-        if (!_currentLeakBurstEdgeId) { setLeakBurstStatus('No edge selected', 'err'); return; }
+        if (!_currentLeakBurstEdgeId) { setLeakBurstStatus('No pipe selected', 'err'); return; }
         if (action === 'LEAK_BURST' && currentEdgeIsLeakBursted()) {
             setLeakBurstStatus('⚠ Already reported — clear it first', 'warn');
             return;

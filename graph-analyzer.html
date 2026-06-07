@@ -142,8 +142,8 @@
       gap: 0 20px;
       align-items: start;
     }
+    .input-grid .field-mode { min-width: 0; }
     .input-grid .field-mode,
-    .input-grid .field-search { min-width: 0; }
     .input-grid .field-edges,
     .input-grid .field-latlng,
     .input-grid .field-status,
@@ -390,6 +390,24 @@
       flex: 1; min-width: 0; display: flex; flex-direction: column;
       position: relative;
     }
+
+    /* ── GRAPH SEARCH (docked directly above the canvas) ── */
+    .graph-search {
+      position: relative;
+      flex: 0 0 auto;
+      margin-bottom: 10px;
+    }
+    .graph-search-icon {
+      position: absolute;
+      left: 14px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 15px; line-height: 1;
+      opacity: 0.7; pointer-events: none;
+    }
+    .graph-search input[type="search"] {
+      margin-bottom: 0;
+      padding-left: 40px;
+    }
     .node-size-controls {
       position: absolute; bottom: 16px; right: 16px;
       z-index: 100;
@@ -452,12 +470,12 @@
     <h2 id="helpModalTitle">Graphical Network Analyzer — Help</h2>
 
     <h3>Input Format</h3>
-    <p>Paste one directed edge per line as two node names separated by a space or tab:</p>
+    <p>Paste one directed pipe per line as two node names separated by a space or tab:</p>
     <pre>WTP       V-E1-300
 V-E1-300  V-CDFG-500
 V-E1-300  V-AB-350
 WTP       WTP</pre>
-    <p>Each line becomes a directed edge from the left node to the right node. Lines with more or fewer than two tokens are flagged as <strong>Malformed</strong>. A node pointing to itself is flagged as a <strong>Self-Loop</strong> and skipped from the graph.</p>
+    <p>Each line becomes a directed pipe from the left node to the right node. Lines with more or fewer than two tokens are flagged as <strong>Malformed</strong>. A node pointing to itself is flagged as a <strong>Self-Loop</strong> and skipped from the graph.</p>
 
     <hr class="divider">
 
@@ -529,7 +547,7 @@ WTP       WTP</pre>
     <hr class="divider">
 
     <h3>Compare Tab</h3>
-    <p>Paste two separate graphs to see what they share. <span style="color:blue;font-weight:700">Blue</span> = nodes/edges present in both. <span style="color:red;font-weight:700">Red</span> = present in only one graph.</p>
+    <p>Paste two separate graphs to see what they share. <span style="color:blue;font-weight:700">Blue</span> = nodes/pipes present in both. <span style="color:red;font-weight:700">Red</span> = present in only one graph.</p>
   </div>
 </div>
 
@@ -575,16 +593,10 @@ WTP       WTP</pre>
           </select>
         </div>
 
-        <div class="field-search">
-          <label for="searchBox">Search graph</label>
-          <input type="search" id="searchBox" placeholder="Search node…"
-            aria-label="Search node in graph" oninput="searchNode()">
-        </div>
-
         <div class="field-edges">
-          <label for="inputData">Edge list</label>
+          <label for="inputData">Pipe list</label>
           <textarea id="inputData"
-            placeholder="Paste your node pairs here — one edge per line:
+            placeholder="Paste your node pairs here — one pipe per line:
 WTP       V-E1-300
 V-E1-300  V-CDFG-500
 V-E1-300  V-AB-350
@@ -646,6 +658,11 @@ Leave empty to default label = id, state = "", type = "".'></textarea>
       <div class="graph-content">
         <div class="analysis-container">
           <div class="graph-overlay-wrap">
+            <div class="graph-search" role="search">
+              <span class="graph-search-icon" aria-hidden="true">🔍</span>
+              <input type="search" id="searchBox" placeholder="Search node in graph…"
+                aria-label="Search node in graph" oninput="searchNode()">
+            </div>
             <div id="graph" role="img" aria-label="Network graph visualisation" aria-live="polite"></div>
             <div class="node-size-controls" aria-label="Node size controls">
               <span class="nsc-label">Node<br>Size</span>
@@ -677,7 +694,7 @@ Leave empty to default label = id, state = "", type = "".'></textarea>
             <div class="report-section">
               <h3>⚠️ Nodes with 4+ Branches</h3>
               <div id="branches" aria-live="polite"></div>
-              <small><strong>Example:</strong><br>A connects to B, C, D, E (4+ edges)</small>
+              <small><strong>Example:</strong><br>A connects to B, C, D, E (4+ pipes)</small>
             </div>
             <div class="report-section">
               <h3>❗ Malformed Input Lines</h3>
@@ -696,7 +713,7 @@ Leave empty to default label = id, state = "", type = "".'></textarea>
        aria-hidden="true" class="tabpanel" style="background:#FFF5F5">
     <h2>Compare Two Graphs</h2>
     <p style="text-align:center; margin-bottom:8px; font-size:14px; color:var(--text2)">
-      <span style="color:blue; font-weight:800">Blue</span> = shared nodes/edges &nbsp;·&nbsp;
+      <span style="color:blue; font-weight:800">Blue</span> = shared nodes/pipes &nbsp;·&nbsp;
       <span style="color:red; font-weight:800">Red</span> = unique to one graph
     </p>
     <div class="compare-container">

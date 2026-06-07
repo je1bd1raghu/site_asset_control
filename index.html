@@ -453,7 +453,7 @@
 
       <!-- Edge list -->
       <div class="leakburst-edge-list" id="leakBurstEdgeList">
-        <div class="leakburst-empty">Loading edges…</div>
+        <div class="leakburst-empty">Loading pipes…</div>
       </div>
 
       <!-- Selected edge + action row -->
@@ -1315,7 +1315,7 @@ async function loadAllEdges() {
     renderPendingEstimates();
   } catch(e) {
     // Keep any previously loaded edges/list intact on failure
-    $('leakBurstEdgeList').innerHTML = `<div class="leakburst-empty">Could not load edges: ${esc(e.message)}</div>`;
+    $('leakBurstEdgeList').innerHTML = `<div class="leakburst-empty">Could not load pipes: ${esc(e.message)}</div>`;
   }
 }
 
