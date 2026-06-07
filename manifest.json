@@ -1,5 +1,5 @@
 [
   { "id": "zone_a", "name": "Rising Main Central Sector Part-I (28MLD)", "gistFile": "zone_a_status.json" },
-  { "id": "zone_b", "name": "Rampur Central Sector Part-I-C1 (1100M3)", "gistFile": "zone_b_status.json" },
-  { "id": "zone_c", "name": "Amaipara Central Sector Part-I-A1 (800M3)",   "gistFile": "zone_c_status.json" }
+  { "id": "zone_b", "name": "Rampur Distribution Central Sector Part-I-C1 (1100M3)", "gistFile": "zone_b_status.json" },
+  { "id": "zone_c", "name": "Amaipara Distribution Central Sector Part-I-A1 (800M3)",   "gistFile": "zone_c_status.json" }
 ]
