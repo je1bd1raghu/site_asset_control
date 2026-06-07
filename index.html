@@ -142,6 +142,63 @@
   .btn-leakburst-clr:disabled { opacity:.45; cursor:not-allowed; }
   .leakburst-submit-status { font-size:12px; font-weight:600; color:var(--text3); min-height:18px; margin-top:6px; }
 
+  /* ── Leak/Burst zone selector — horizontal swipeable cards ── */
+  .lbz-section { margin-bottom:16px; }
+  .lbz-header  { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+  .lbz-label   { font-size:13px; font-weight:800; color:var(--text2); text-transform:uppercase; letter-spacing:.6px; }
+
+  /* snap rail — scrolls horizontally, snaps each card to centre */
+  .lbz-rail {
+    position:relative;
+    display:flex; gap:12px;
+    overflow-x:auto; overflow-y:hidden;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    padding:3px 2px 12px; margin:0 -2px;
+    scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+  }
+  .lbz-rail::-webkit-scrollbar { height:6px; }
+  .lbz-rail::-webkit-scrollbar-track { background:transparent; }
+  .lbz-rail::-webkit-scrollbar-thumb { background:var(--border); border-radius:99px; }
+
+  .lbz-card {
+    scroll-snap-align:center;
+    flex:0 0 82%; max-width:300px;          /* next card peeks → "swipe me" cue */
+    display:flex; flex-direction:column; gap:7px;
+    text-align:left; padding:16px 16px 15px;
+    border:2px solid var(--border); border-radius:var(--radius);
+    background:var(--surface); cursor:pointer;
+    font-family:'Nunito','Noto Sans Bengali',sans-serif;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+    transition:transform .18s cubic-bezier(.34,1.2,.64,1), border-color .18s, box-shadow .18s, background .18s;
+  }
+  .lbz-card:hover { border-color:var(--primary); }
+  .lbz-card-kicker { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:800; letter-spacing:.9px; text-transform:uppercase; color:var(--text3); }
+  .lbz-card.active .lbz-card-kicker::before { content:'\2713'; font-weight:900; }
+  .lbz-card-name {
+    font-size:15px; font-weight:800; color:var(--text); line-height:1.3; min-height:2.6em;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .lbz-card-badge { align-self:flex-start; font-size:11px; font-weight:800; padding:3px 10px; border-radius:99px; background:var(--warning-light); color:var(--warning); }
+  .lbz-card-badge.ok { background:var(--success-light); color:var(--success); }
+  .lbz-card.active {
+    border-color:transparent;
+    background:linear-gradient(135deg, var(--primary), var(--primary-dark));
+    box-shadow:0 8px 22px rgba(245,130,31,.38);
+    transform:translateY(-3px);
+  }
+  .lbz-card.active .lbz-card-kicker { color:rgba(255,255,255,.9); }
+  .lbz-card.active .lbz-card-name   { color:#fff; }
+  .lbz-card.active .lbz-card-badge  { background:rgba(255,255,255,.24); color:#fff; }
+
+  .lbz-empty { flex:1; padding:16px; text-align:center; font-size:13px; font-weight:700; color:var(--text3); background:var(--surface2); border:2px dashed var(--border); border-radius:var(--radius-sm); }
+
+  /* Locked state — no operator selected: section is dimmed and not expandable */
+  .lb-locked .section-toggle-btn { cursor:not-allowed; }
+  .lb-locked .stb-icon, .lb-locked .stb-title { opacity:.45; }
+  .lb-locked .stb-sub { color:var(--warning); font-weight:800; }
+  .lb-locked .stb-chevron { opacity:.4; }
+
   /* ── Share button + share sheet ── */
   .btn-share-lb { flex-shrink:0; padding:8px 13px; background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:800; cursor:pointer; transition:background .2s; white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
   .btn-share-lb:hover { background:var(--primary-dark); }
@@ -377,10 +434,13 @@
     </button>
 
     <div class="collapsible-body" id="leakBurstBody">
-      <!-- Zone filter tabs + share -->
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <div id="leakBurstZoneTabs" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0"></div>
-        <button class="btn-share-lb" onclick="shareLeakBursts()" title="Share active leaks/bursts in this zone">Share &#10148;</button>
+      <!-- Zone selector — only the zones this operator handles (from config.json) -->
+      <div class="lbz-section">
+        <div class="lbz-header">
+          <span class="lbz-label">📍 Your Zone</span>
+          <button class="btn-share-lb" onclick="shareLeakBursts()" title="Share active leaks/bursts in this zone">Share &#10148;</button>
+        </div>
+        <div id="leakBurstZoneTabs" class="lbz-rail"></div>
       </div>
 
       <!-- Search -->
@@ -607,6 +667,7 @@ async function initApp() {
   setProgress(90); setLoadText('Loading pipe network…');
   await checkEstimate();   // load estimates BEFORE edges so the first pending render is correct
   await loadAllEdges();
+  updateLeakBurstLock();   // start locked until an operator is picked
 
   setProgress(100); setLoadText('Ready!');
   populateYears();
@@ -840,6 +901,8 @@ function clearPerson() {
   renderDropdown('');
   resetLoc();
   $('assetsCard').style.display = 'none';
+  updateLeakBurstLock();    // re-lock the section — no operator selected
+  renderLeakBurstZones();   // clears the zone cards
 }
 
 $('comboDropdown').addEventListener('mousedown', e => {
@@ -851,6 +914,8 @@ document.addEventListener('click', e => { if (!$('comboWrapper').contains(e.targ
 function onPersonChange() {
   resetLoc();
   $('assetsCard').style.display = 'none';
+  updateLeakBurstLock();    // unlock the section now that an operator is chosen
+  renderLeakBurstZones();   // scope the leak/burst zone cards to this operator
   const id = getPersonId();
   if (id) { ensureWatch(); if (currentPos) onGpsUpdate(); }
 }
@@ -1320,24 +1385,99 @@ async function refreshPendingEstimates() {
   showToast('Pending estimates refreshed', 'success');
 }
 
+// Full zone set from the manifest. The cards shown are the subset the selected
+// operator handles (see operatorZoneIds).
+let allLeakBurstZones = [];
+
 function buildLeakBurstZoneTabs(zones) {
-  const wrap = $('leakBurstZoneTabs');
-  wrap.innerHTML = zones.map(z =>
-    `<button class="btn-refresh" id="fztab-${esc(z.id)}" onclick="setLeakBurstZone('${esc(z.id)}')">${esc(z.name || z.id)}</button>`
-  ).join('');
-  // Auto-select the first zone
-  if (zones.length) setLeakBurstZone(zones[0].id);
+  allLeakBurstZones = zones.map(z => ({ id: z.id, name: z.name || z.id }));
+  renderLeakBurstZones();
 }
 
-function setLeakBurstZone(zoneId) {
+// Zone ids the selected operator is responsible for, from their assets in
+// config.json. Returns null when no operator is selected — the whole section is
+// locked in that case (see updateLeakBurstLock), so nothing is rendered.
+function operatorZoneIds() {
+  const p = persons.find(x => x.id === getPersonId());
+  if (!p || !Array.isArray(p.assets) || !p.assets.length) return null;
+  return [...new Set(p.assets.map(a => a.zone).filter(Boolean))];
+}
+
+// Count of currently-active leaks/bursts in a zone (drives the card badge).
+function zoneActiveLeakCount(zoneId) {
+  return allEdges.filter(e => e.zone === zoneId && leakBurstEdgeState[e.id] === 'LEAK_BURST').length;
+}
+
+// Render the operator's zones as a horizontal, swipeable card rail.
+function renderLeakBurstZones() {
+  const rail = $('leakBurstZoneTabs');
+  if (!rail || !allLeakBurstZones.length) return;     // wait until manifest/edges loaded
+
+  const opIds = operatorZoneIds();
+  if (opIds === null) { rail.innerHTML = ''; return; } // no operator → section locked
+
+  const zones = allLeakBurstZones.filter(z => opIds.includes(z.id));
+  if (zones.length === 0) {
+    rail.innerHTML = '<div class="lbz-empty">No zones are assigned to you — contact your supervisor.</div>';
+    activeLeakBurstZone = null;
+    renderLeakBurstEdgeList();
+    return;
+  }
+
+  rail.innerHTML = zones.map(z => {
+    const cnt   = zoneActiveLeakCount(z.id);
+    const badge = cnt
+      ? `<span class="lbz-card-badge">⚠ ${cnt} active</span>`
+      : `<span class="lbz-card-badge ok">✓ All clear</span>`;
+    return `<button class="lbz-card" id="fztab-${esc(z.id)}" onclick="setLeakBurstZone('${esc(z.id)}')">
+        <span class="lbz-card-kicker">Zone</span>
+        <span class="lbz-card-name">${esc(z.name)}</span>
+        ${badge}
+      </button>`;
+  }).join('');
+
+  // Keep the current selection if it's still one of the operator's zones,
+  // otherwise fall back to the first. Don't animate the initial centring.
+  const keep = zones.some(z => z.id === activeLeakBurstZone) ? activeLeakBurstZone : zones[0].id;
+  setLeakBurstZone(keep, false);
+}
+
+function setLeakBurstZone(zoneId, smoothScroll = true) {
   activeLeakBurstZone = zoneId;
-  $('leakBurstZoneTabs').querySelectorAll('button').forEach(btn => {
-    const isActive = btn.id === `fztab-${zoneId}`;
-    btn.style.background  = isActive ? 'var(--primary)' : '';
-    btn.style.color       = isActive ? '#fff' : '';
-    btn.style.borderColor = isActive ? 'var(--primary)' : '';
+  const rail = $('leakBurstZoneTabs');
+  let activeCard = null;
+  rail.querySelectorAll('.lbz-card').forEach(btn => {
+    const on = btn.id === `fztab-${zoneId}`;
+    btn.classList.toggle('active', on);
+    if (on) activeCard = btn;
   });
+  // Centre the selected card in the rail (swipe-to-it feel).
+  if (activeCard) {
+    rail.scrollTo({
+      left: activeCard.offsetLeft - (rail.clientWidth - activeCard.clientWidth) / 2,
+      behavior: smoothScroll ? 'smooth' : 'auto'
+    });
+  }
   renderLeakBurstEdgeList();
+}
+
+// Lock the whole Leak/Burst section until an operator is picked. While locked
+// the section is dimmed, can't be expanded, and explains what to do.
+function updateLeakBurstLock() {
+  const card = $('leakBurstCard');
+  if (!card) return;
+  const hasOp = !!getPersonId();
+  card.classList.toggle('lb-locked', !hasOp);
+  const btn = card.querySelector('.section-toggle-btn');
+  const sub = card.querySelector('.stb-sub');
+  if (sub) sub.textContent = hasOp
+    ? 'Select a pipe and report or clear a leak/burst'
+    : '🔒 Select your name above to begin';
+  if (btn) btn.disabled = !hasOp;
+  if (!hasOp) {                                  // force-collapse if it was open
+    $('leakBurstBody').classList.remove('expanded');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
 }
 
 function filterLeakBurstEdges() { renderLeakBurstEdgeList(); }
@@ -1527,6 +1667,7 @@ async function submitEdgeLeakBurst(action) {
     todayRecs.push(rec);
     renderRecords();
     renderLeakBurstEdgeList();
+    renderLeakBurstZones();   // refresh per-zone active-leak count badges
     await checkEstimate();
     renderPendingEstimates();
     selectLeakBurstEdge(selectedEdgeId);
@@ -1870,12 +2011,9 @@ function latestReportInfo(assetId) {
 }
 
 function buildLeakBurstShareText() {
-  let zoneName = activeLeakBurstZone || 'All Zones';
-  const tabs = $('leakBurstZoneTabs');
-  if (tabs) {
-    const active = Array.from(tabs.querySelectorAll('button')).find(b => b.style.background === 'var(--primary)');
-    if (active) zoneName = active.textContent.trim();
-  }
+  const zoneName = activeLeakBurstZone
+    ? ((zoneMap[activeLeakBurstZone] && zoneMap[activeLeakBurstZone].name) || activeLeakBurstZone)
+    : 'All Zones';
 
   const faulted = allEdges.filter(e =>
     leakBurstEdgeState[e.id] === 'LEAK_BURST' &&

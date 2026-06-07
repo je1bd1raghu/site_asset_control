@@ -634,7 +634,9 @@
 
     let persons    = [];   // loaded from config.json
     let deviceId   = '';   // FingerprintJS visitor ID
-    let leakBurstState = {};   // edgeId → 'LEAK_BURST' | 'LEAK_BURST_CLEAR' | undefined
+    let leakBurstState  = {};   // edgeId → 'LEAK_BURST' | 'LEAK_BURST_CLEAR' | undefined
+    let leakBurstDocket = {};   // edgeId → latest LEAK_BURST docket (for estimate links)
+    let estimateMap     = {};   // edgeId (assetId) → estimate object; gates clearing
     let _currentLeakBurstEdgeId = null;   // edge currently shown in info panel
 
     let cy            = null;
@@ -1354,13 +1356,22 @@
         try {
             const files = await workerGet('output');
             const rows  = csvParseLeakBurst(files[LEAKBURST_FILE] || '');
-            leakBurstState = {};
+            leakBurstState  = {};
+            leakBurstDocket = {};
             // Process in timestamp order so the newest action per edge wins.
             rows.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
                 .forEach(r => {
                     if ((r.action === 'LEAK_BURST' || r.action === 'LEAK_BURST_CLEAR') && r.assetId)
                         leakBurstState[r.assetId] = r.action;
+                    if (r.action === 'LEAK_BURST' && r.assetId && r.docket)
+                        leakBurstDocket[r.assetId] = r.docket;   // latest wins (sorted asc)
                 });
+            // Load estimates so a leak/burst can only be cleared once one is uploaded.
+            estimateMap = {};
+            try {
+                const ests = JSON.parse(files[ESTIMATES_FILE] || '[]');
+                if (Array.isArray(ests)) ests.forEach(e => { if (e.assetId) estimateMap[e.assetId] = e; });
+            } catch { /* leave estimateMap empty */ }
         } catch(e) {
             console.warn('Leak/Burst state load failed:', e.message);
         }
@@ -1518,6 +1529,14 @@
             rptBtn.title       = '';
         }
 
+        // A reported pipe with no estimate yet: point the user to upload one —
+        // clearing stays locked until then.
+        if (isLeakBursted && !currentEdgeHasEstimate()) {
+            const s = document.getElementById('nip-leakburst-status');
+            s.innerHTML = `📋 <a href="${buildEstimateLink(edge)}" style="color:#F5821F;font-weight:800;text-decoration:underline;">Upload estimate</a> to enable clearing`;
+            s.className = 'nip-leakburst-status warn';
+        }
+
         panel.classList.add('visible');
         ensureGeoWatch();
     }
@@ -1532,14 +1551,34 @@
         return false;
     }
 
+    // A leak/burst can only be cleared after a cost estimate has been uploaded
+    // for that pipe (mirrors the Asset Control lock).
+    function currentEdgeHasEstimate() {
+        return !!(_currentLeakBurstEdgeId && estimateMap[_currentLeakBurstEdgeId]);
+    }
+
+    // Link to the estimate uploader for an edge, carrying its id, label and the
+    // open report's docket so the estimate stays tied to the same reference.
+    function buildEstimateLink(edge) {
+        const id   = edge ? edge.id() : _currentLeakBurstEdgeId;
+        const src  = edge ? (edge.data('source') || '') : '';
+        const tgt  = edge ? (edge.data('target') || '') : '';
+        const name = `${id} (${src} → ${tgt})`;
+        const docket = leakBurstDocket[id] || '';
+        return `estimate.html?asset=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}&docket=${encodeURIComponent(docket)}`;
+    }
+
     function onLeakBurstPersonChange() {
         const pid = document.getElementById('leakburst-person-select').value;
         const ok  = !!pid;
         // Report is blocked while an open report exists for this edge; clearing
-        // it (which still needs a selected person) is the way forward.
+        // it needs a selected person AND an uploaded estimate for the pipe.
         const faulted = currentEdgeIsLeakBursted();
+        const hasEst  = currentEdgeHasEstimate();
         document.getElementById('btn-leakburst-report').disabled = !ok || faulted;
-        document.getElementById('btn-leakburst-clear').disabled  = !ok;
+        const clrBtn = document.getElementById('btn-leakburst-clear');
+        clrBtn.disabled = !ok || !hasEst;
+        clrBtn.title    = hasEst ? '' : 'Upload an estimate for this leak/burst first';
     }
 
     function setLeakBurstStatus(msg, cls) {
@@ -1555,6 +1594,10 @@
         if (!_currentLeakBurstEdgeId) { setLeakBurstStatus('No edge selected', 'err'); return; }
         if (action === 'LEAK_BURST' && currentEdgeIsLeakBursted()) {
             setLeakBurstStatus('⚠ Already reported — clear it first', 'warn');
+            return;
+        }
+        if (action === 'LEAK_BURST_CLEAR' && !currentEdgeHasEstimate()) {
+            setLeakBurstStatus('⚠ Upload an estimate for this leak/burst before clearing', 'err');
             return;
         }
 
@@ -1630,12 +1673,9 @@
         } catch(e) {
             setLeakBurstStatus('Error: ' + e.message, 'err');
         } finally {
-            // Re-derive button states: keep Report disabled if the edge now has
-            // an open report; Clear stays available while a person is selected.
-            const pid2     = document.getElementById('leakburst-person-select').value;
-            const faulted2 = currentEdgeIsLeakBursted();
-            document.getElementById('btn-leakburst-report').disabled = !pid2 || faulted2;
-            document.getElementById('btn-leakburst-clear').disabled  = !pid2;
+            // Re-derive button states via the shared gate: Report blocked while a
+            // report is open; Clear needs a person AND an uploaded estimate.
+            onLeakBurstPersonChange();
         }
     }
 
