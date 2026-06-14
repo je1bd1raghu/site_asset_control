@@ -615,8 +615,8 @@
 <div class="share-sheet-backdrop" id="shareSheetBackdrop" onclick="closeShareSheet(event)">
   <div class="share-sheet">
     <div class="share-handle"></div>
-    <div class="share-title">&#128228; Share Pipe Issue Report</div>
-    <div class="share-sub" id="shareSheetSub">Pipe issues in zone</div>
+    <div class="share-title">&#128228; Share Leak / Burst Report</div>
+    <div class="share-sub" id="shareSheetSub">Active leaks/bursts in zone</div>
     <div class="share-preview" id="sharePreviewText"></div>
     <div class="share-btn-row">
       <button class="share-btn share-btn-whatsapp" onclick="shareViaWhatsApp()">&#128241; WhatsApp</button>
@@ -2130,13 +2130,6 @@ function buildLeakBurstShareText() {
     leakBurstEdgeState[e.id] === 'LEAK_BURST' &&
     (!activeLeakBurstZone || e.zone === activeLeakBurstZone));
 
-  const today  = todayStr();
-  const allRec = (window._allLeakBurstRecs || todayRecs);
-  const issues = allRec.filter(r =>
-    r.action === 'PIPE_ISSUE' &&
-    r.date === today &&
-    (!activeLeakBurstZone || r.zone === zoneName));
-
   const pid      = getPersonId();
   const reporter = (persons.find(p => p.id === pid) || {}).name || '\u2014';
 
@@ -2145,7 +2138,7 @@ function buildLeakBurstShareText() {
   const tStr    = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
   const SEP = '------------------------------------';
 
-  let msg = 'PIPE ISSUE REPORT\n';
+  let msg = 'LEAK / BURST REPORT\n';
   msg    += 'SCADA Asset Control\n';
   msg    += SEP + '\n';
   msg    += 'Zone     : ' + zoneName + '\n';
@@ -2154,8 +2147,8 @@ function buildLeakBurstShareText() {
   msg    += 'Reporter : ' + reporter + '\n';
   msg    += SEP + '\n';
 
-  // Section A \u2014 active leaks/bursts
-  msg += 'A. LEAKS / BURSTS (ACTIVE)\n';
+  // Active leaks/bursts only \u2014 other pipe issues are log-only and excluded here
+  msg += 'LEAKS / BURSTS (ACTIVE)\n';
   if (!faulted.length) {
     msg += '   None.\n';
   } else {
@@ -2173,42 +2166,19 @@ function buildLeakBurstShareText() {
     });
   }
   msg += SEP + '\n';
-
-  // Section B \u2014 other pipe issues logged today
-  msg += 'B. OTHER PIPE ISSUES (TODAY)\n';
-  if (!issues.length) {
-    msg += '   None.\n';
-  } else {
-    issues.forEach((r, i) => {
-      msg += (i + 1) + '. Pipe   : ' + (r.assetName || r.assetId || '\u2014') + '\n';
-      msg += '   Issue  : ' + (r.issueType || 'Issue') + '\n';
-      if (r.note)   msg += '   Note   : ' + r.note + '\n';
-      msg += '   Docket : ' + (r.docket || 'N/A') + '\n';
-      if (r.lat && r.lng) {
-        msg += '   Location: ' + r.lat + ', ' + r.lng + '\n';
-        msg += '   Map    : https://maps.google.com/?q=' + r.lat + ',' + r.lng + '\n';
-      } else {
-        msg += '   Location: not recorded\n';
-      }
-      if (r.personName) msg += '   By     : ' + r.personName + '\n';
-    });
-  }
-  msg += SEP + '\n';
-  msg += 'Summary: ' + faulted.length + ' active leak(s)/burst(s), '
-       + issues.length + ' other issue(s).\n';
+  msg += 'Summary: ' + faulted.length + ' active leak(s)/burst(s).\n';
   msg += 'End of report.';
 
-  return { msg, zoneName, leakCount: faulted.length, issueCount: issues.length };
+  return { msg, zoneName, leakCount: faulted.length, issueCount: 0 };
 }
 
 function shareLeakBursts() {
   const r = buildLeakBurstShareText();
   _shareText = r.msg;
   $('sharePreviewText').textContent = r.msg;
-  const total = r.leakCount + r.issueCount;
-  $('shareSheetSub').textContent = total
-    ? (r.leakCount + ' leak/burst, ' + r.issueCount + ' other issue(s) in ' + r.zoneName)
-    : ('No pipe issues in ' + r.zoneName);
+  $('shareSheetSub').textContent = r.leakCount
+    ? (r.leakCount + ' active leak/burst in ' + r.zoneName)
+    : ('No active leaks/bursts in ' + r.zoneName);
   $('btnNativeShare').style.display = navigator.share ? 'inline-flex' : 'none';
   $('shareSheetBackdrop').classList.add('open');
 }
@@ -2225,7 +2195,7 @@ function shareViaWhatsApp() {
 
 async function shareNative() {
   try {
-    await navigator.share({ title: 'Pipe Issue Report', text: _shareText });
+    await navigator.share({ title: 'Leak / Burst Report', text: _shareText });
     $('shareSheetBackdrop').classList.remove('open');
   } catch(err) { /* user cancelled */ }
 }

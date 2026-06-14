@@ -1,5 +1,5 @@
 .wrangler/
-serve.py
 AGENTS.md
+CLAUDE.md
 cln_server.py
 server.py
