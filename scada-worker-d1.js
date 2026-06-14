@@ -8,7 +8,7 @@
  *   database_name = "scada-store"
  *   database_id   = "<your-d1-database-id>"
  *
- * Schema: see schema.sql
+ * Schema: see seed/schema.sql
  *
  * Routes (unchanged — front-end needs zero changes):
  *   GET   /config        → { files: { "config.json": "..." } }

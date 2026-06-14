@@ -1,6 +1,6 @@
 -- SCADA Asset Control — D1 schema (archive edition)
--- Run: wrangler d1 execute scada-store --remote --file=schema.sql
--- Then seed data: python3 seed_d1.py
+-- Run: wrangler d1 execute scada-store --remote --file=seed/schema.sql
+-- Then seed data: python3 seed/seed_d1.py
 
 -- ── Key-value store: config.json, zone_*_status.json, estimates.json ──────────
 CREATE TABLE IF NOT EXISTS files (

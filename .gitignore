@@ -3,3 +3,10 @@ AGENTS.md
 CLAUDE.md
 cln_server.py
 server.py
+
+# Exported / synced data files (pulled from D1 by seed/seed_d1.py)
+config.json
+records.csv
+leakbursts.csv
+estimates.json
+zone_*_status.json
