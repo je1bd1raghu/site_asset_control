@@ -115,6 +115,8 @@
   .rec-leakburst-clear { background:var(--success-light); }
   .chip-leakburst       { background:#fff3cd; color:var(--warning); }
   .chip-leakburst-clear { background:var(--success-light); color:var(--success); }
+  .rec-issue            { background:#e0e7ff; }
+  .chip-issue           { background:#e0e7ff; color:#4338ca; }
 
   /* ── Leak/Burst Edge Report section ── */
   .leakburst-search-wrap { position:relative; margin-bottom:14px; }
@@ -141,6 +143,18 @@
   .btn-leakburst-clr:hover { background:#15803d; }
   .btn-leakburst-clr:disabled { opacity:.45; cursor:not-allowed; }
   .leakburst-submit-status { font-size:12px; font-weight:600; color:var(--text3); min-height:18px; margin-top:6px; }
+
+  /* ── Other pipe issue sub-panel ── */
+  .pipe-issue-panel { margin-top:14px; border-top:2px solid var(--border); padding-top:14px; }
+  .pipe-issue-title { font-size:13px; font-weight:800; color:var(--text2); margin-bottom:10px; }
+  .pipe-issue-select { width:100%; border:2px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; font-size:14px; font-family:'Nunito','Noto Sans Bengali',sans-serif; color:var(--text); outline:none; background:var(--surface); transition:border-color .2s; margin-bottom:10px; }
+  .pipe-issue-select:focus { border-color:var(--primary); }
+  .pipe-issue-note { width:100%; box-sizing:border-box; border:2px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; font-size:14px; font-family:'Nunito','Noto Sans Bengali',sans-serif; color:var(--text); outline:none; resize:vertical; min-height:54px; transition:border-color .2s; margin-bottom:10px; }
+  .pipe-issue-note:focus { border-color:var(--primary); }
+  .btn-pipe-issue { width:100%; padding:11px 16px; background:#4338ca; color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:800; cursor:pointer; transition:background .2s; }
+  .btn-pipe-issue:hover { background:#3730a3; }
+  .btn-pipe-issue:disabled { opacity:.45; cursor:not-allowed; }
+  .pipe-issue-status { font-size:12px; font-weight:600; color:var(--text3); min-height:18px; margin-top:6px; }
 
   /* ── Leak/Burst zone selector — horizontal swipeable cards ── */
   .lbz-section { margin-bottom:16px; }
@@ -464,6 +478,24 @@
       </div>
       <div class="leakburst-submit-status" id="leakBurstSubmitStatus"></div>
 
+      <!-- Other pipe issue — log-only report of any non-leak/burst problem -->
+      <div class="pipe-issue-panel">
+        <div class="pipe-issue-title">🛠 Report another pipe issue</div>
+        <select id="pipeIssueType" class="pipe-issue-select">
+          <option value="Low pressure">Low pressure</option>
+          <option value="No water / supply interruption">No water / supply interruption</option>
+          <option value="Contamination / dirty water">Contamination / dirty water</option>
+          <option value="Valve fault">Valve fault</option>
+          <option value="Illegal / unauthorized connection">Illegal / unauthorized connection</option>
+          <option value="Exposed / damaged pipe">Exposed / damaged pipe</option>
+          <option value="Subsidence / road damage">Subsidence / road damage</option>
+          <option value="Other">Other</option>
+        </select>
+        <textarea id="pipeIssueNote" class="pipe-issue-note" placeholder="Optional note / description…" autocomplete="off"></textarea>
+        <button class="btn-pipe-issue" id="btnPipeIssue" onclick="showLocWarn(() => submitPipeIssue())" disabled>📝 Log Issue</button>
+        <div class="pipe-issue-status" id="pipeIssueSubmitStatus"></div>
+      </div>
+
       <!-- Inline estimate panel — shown only when a LEAK_BURSTED pipe is selected -->
       <div id="estimatePanel" style="display:none;margin-top:14px;border-top:2px solid var(--border);padding-top:14px;">
         <div id="estimatePanelContent"></div>
@@ -583,8 +615,8 @@
 <div class="share-sheet-backdrop" id="shareSheetBackdrop" onclick="closeShareSheet(event)">
   <div class="share-sheet">
     <div class="share-handle"></div>
-    <div class="share-title">&#128228; Share Leak / Burst Report</div>
-    <div class="share-sub" id="shareSheetSub">Active leaks/bursts in zone</div>
+    <div class="share-title">&#128228; Share Pipe Issue Report</div>
+    <div class="share-sub" id="shareSheetSub">Pipe issues in zone</div>
     <div class="share-preview" id="sharePreviewText"></div>
     <div class="share-btn-row">
       <button class="share-btn share-btn-whatsapp" onclick="shareViaWhatsApp()">&#128241; WhatsApp</button>
@@ -1250,19 +1282,23 @@ function renderRecords() {
     const isOn      = action === 'ON';
     const isLeakBurst   = action === 'LEAK_BURST';
     const isClear   = action === 'LEAK_BURST_CLEAR';
-    const avatarCls = isLeakBurst ? 'rec-leakburst' : isClear ? 'rec-leakburst-clear' : isOn ? 'rec-on' : 'rec-off';
-    const avatarIcon= isLeakBurst ? '⚠' : isClear ? '✓' : isOn ? '▲' : '▼';
-    const chipCls   = isLeakBurst ? 'chip-leakburst' : isClear ? 'chip-leakburst-clear' : isOn ? 'chip-on' : 'chip-off';
-    const chipLabel = isLeakBurst ? '⚠ LEAK/BURST' : isClear ? '✓ CLEARED' : isOn ? '▲ ON' : '▼ OFF';
-    const assetIcon = (isLeakBurst || isClear) ? '🔗' : '🏭';
-    const docketLine = (r.docket && (isLeakBurst || isClear))
+    const isIssue   = action === 'PIPE_ISSUE';
+    const avatarCls = isIssue ? 'rec-issue' : isLeakBurst ? 'rec-leakburst' : isClear ? 'rec-leakburst-clear' : isOn ? 'rec-on' : 'rec-off';
+    const avatarIcon= isIssue ? '🛠' : isLeakBurst ? '⚠' : isClear ? '✓' : isOn ? '▲' : '▼';
+    const chipCls   = isIssue ? 'chip-issue' : isLeakBurst ? 'chip-leakburst' : isClear ? 'chip-leakburst-clear' : isOn ? 'chip-on' : 'chip-off';
+    const chipLabel = isIssue ? '🛠 ISSUE' : isLeakBurst ? '⚠ LEAK/BURST' : isClear ? '✓ CLEARED' : isOn ? '▲ ON' : '▼ OFF';
+    const assetIcon = (isLeakBurst || isClear || isIssue) ? '🔗' : '🏭';
+    const docketLine = (r.docket && (isLeakBurst || isClear || isIssue))
       ? `<div class="record-docket">🎫 ${esc(r.docket)}</div>` : '';
+    const issueLine = isIssue
+      ? `<div class="record-meta">🛠 ${esc(r.issueType||'Issue')}${r.note ? ' — ' + esc(r.note) : ''}</div>` : '';
     return `<div class="record-item">
   <div class="record-avatar ${avatarCls}">${avatarIcon}</div>
   <div class="record-info">
     <div class="record-name">${esc(r.personName||'—')}</div>
     <div class="record-asset">${assetIcon} ${esc(r.assetName||'—')}</div>
     ${docketLine}
+    ${issueLine}
     <div class="record-meta">📍 ${r.distance ? r.distance+'m away' : (r.zone ? 'Zone: '+r.zone : '—')}</div>
   </div>
   <div class="record-right">
@@ -1537,6 +1573,13 @@ function selectLeakBurstEdge(edgeId) {
   }
 
   $('leakBurstSubmitStatus').textContent = '';
+
+  // Other-issue panel: enabled whenever a pipe is selected (log-only, independent
+  // of leak/burst state). Reset note + status on each fresh selection.
+  $('btnPipeIssue').disabled = false;
+  $('pipeIssueNote').value   = '';
+  $('pipeIssueSubmitStatus').textContent = '';
+
   renderEstimatePanel(edgeId, edge, isLeakBursted, hasEst);
   renderLeakBurstEdgeList();
 }
@@ -1699,22 +1742,87 @@ function setLeakBurstSubmitStatus(msg, color) {
   el.style.color   = color || 'var(--text3)';
 }
 
+function setPipeIssueSubmitStatus(msg, color) {
+  const el = $('pipeIssueSubmitStatus');
+  el.textContent = msg;
+  el.style.color = color || 'var(--text3)';
+}
+
+// Log-only report of any pipe problem that is not a leak/burst. Unlike
+// submitEdgeLeakBurst this never touches leakBurstEdgeState, estimates, or zone
+// badges — it just appends a PIPE_ISSUE record (issueType + optional note) to the
+// shared leakburst store so it appears in records and the combined report.
+async function submitPipeIssue() {
+  const pid    = getPersonId();
+  const person = persons.find(p => p.id === pid);
+  if (!person)         { setPipeIssueSubmitStatus('Select your name above first', 'var(--warning)'); return; }
+  if (!selectedEdgeId) { setPipeIssueSubmitStatus('Select a pipe first', 'var(--warning)'); return; }
+  if (!currentPos)     { setPipeIssueSubmitStatus('⏳ Waiting for GPS location…', 'var(--warning)'); return; }
+
+  const edge      = allEdges.find(e => e.id === selectedEdgeId);
+  const issueType = $('pipeIssueType').value;
+  const note      = $('pipeIssueNote').value.trim();
+
+  $('btnPipeIssue').disabled = true;
+  setPipeIssueSubmitStatus('Saving…', 'var(--text3)');
+
+  try {
+    const now      = new Date();
+    const existing = csvParse((await workerGet('output'))[LEAKBURST_FILE] || '');
+    const docket   = makeDocket(now, 'PI');
+    const rec = {
+      sn:         makeSn(),
+      docket:     docket,
+      deviceId:   deviceId,
+      personId:   person.id,
+      personName: person.name,
+      assetId:    selectedEdgeId,
+      assetName:  edge ? `${edge.source} → ${edge.target}` : selectedEdgeId,
+      action:     'PIPE_ISSUE',
+      issueType:  issueType,
+      note:       note,
+      timestamp:  now.toISOString(),
+      date:       todayStr(),
+      time:       timeStr(now),
+      lat:        currentPos.lat.toFixed(7),
+      lng:        currentPos.lng.toFixed(7),
+      distance:   '',
+      zone:       edge?.zoneName || ''
+    };
+    existing.push(rec);
+    await workerPatch({ [LEAKBURST_FILE]: csvStringifyLB(existing) });
+
+    todayRecs.push(rec);
+    if (Array.isArray(window._allLeakBurstRecs)) window._allLeakBurstRecs.push(rec);
+    renderRecords();
+
+    $('pipeIssueNote').value = '';
+    const msg = `📝 Issue logged · ${docket}`;
+    setPipeIssueSubmitStatus(msg, '#4338ca');
+    showToast(msg, 'success');
+  } catch(e) {
+    setPipeIssueSubmitStatus('Error: ' + e.message, 'var(--danger)');
+  } finally {
+    if (selectedEdgeId) $('btnPipeIssue').disabled = false;
+  }
+}
+
 // ── CSV ────────────────────────────────────────────────────────────────────────
 // Toggle (ON/OFF) records — records.csv. Leak/burst records add a docket column
 // and live in leakbursts.csv.
 const CSV_COLS    = ['sn','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','gpsAcc','deviceId'];
-const LB_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','deviceId'];
+const LB_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','assetName','action','issueType','note','timestamp','date','time','lat','lng','distance','deviceId'];
 
 // Docket number for a leak/burst report: LB-YYYYMMDD-XXXX
 // XXXX is a short base36 suffix derived from the timestamp + a random nibble,
 // giving a human-readable, sortable, practically-unique reference.
-function makeDocket(now) {
+function makeDocket(now, prefix = 'LB') {
   const d = now || new Date();
   const ymd = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
   const rand = Math.floor(Math.random() * 36);
   const suffix = (d.getTime() % 1000000).toString(36).toUpperCase().padStart(4,'0').slice(-3)
                + rand.toString(36).toUpperCase();
-  return `LB-${ymd}-${suffix}`;
+  return `${prefix}-${ymd}-${suffix}`;
 }
 function csvParse(text) {
   if (!text?.trim()) return [];
@@ -2010,6 +2118,9 @@ function latestReportInfo(assetId) {
   return best;   // {docket, lat, lng, personName, timestamp, ...} or null
 }
 
+// Combined, formal, plain-text (no-emoji) pipe issue report. Covers active
+// leaks/bursts (Section A) and other pipe issues logged today (Section B), scoped
+// to the active zone.
 function buildLeakBurstShareText() {
   const zoneName = activeLeakBurstZone
     ? ((zoneMap[activeLeakBurstZone] && zoneMap[activeLeakBurstZone].name) || activeLeakBurstZone)
@@ -2019,43 +2130,85 @@ function buildLeakBurstShareText() {
     leakBurstEdgeState[e.id] === 'LEAK_BURST' &&
     (!activeLeakBurstZone || e.zone === activeLeakBurstZone));
 
+  const today  = todayStr();
+  const allRec = (window._allLeakBurstRecs || todayRecs);
+  const issues = allRec.filter(r =>
+    r.action === 'PIPE_ISSUE' &&
+    r.date === today &&
+    (!activeLeakBurstZone || r.zone === zoneName));
+
+  const pid      = getPersonId();
+  const reporter = (persons.find(p => p.id === pid) || {}).name || '\u2014';
+
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
   const tStr    = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+  const SEP = '------------------------------------';
 
-  let msg = '\u26a0\ufe0f *Leak / Burst Report*\n';
-  msg    += '\uD83D\uDCCD Zone: *' + zoneName + '*\n';
-  msg    += '\uD83D\uDDD3\ufe0f ' + dateStr + '  \u23F0 ' + tStr + '\n';
-  msg    += '\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\n';
+  let msg = 'PIPE ISSUE REPORT\n';
+  msg    += 'SCADA Asset Control\n';
+  msg    += SEP + '\n';
+  msg    += 'Zone     : ' + zoneName + '\n';
+  msg    += 'Date     : ' + dateStr + '\n';
+  msg    += 'Time     : ' + tStr + '\n';
+  msg    += 'Reporter : ' + reporter + '\n';
+  msg    += SEP + '\n';
 
+  // Section A \u2014 active leaks/bursts
+  msg += 'A. LEAKS / BURSTS (ACTIVE)\n';
   if (!faulted.length) {
-    msg += '\u2705 No active leaks/bursts in this zone.';
+    msg += '   None.\n';
   } else {
     faulted.forEach((e, i) => {
-      const info = latestReportInfo(e.id);
-      const docket = info && info.docket ? info.docket : '(no docket)';
-      msg += (i + 1) + '. \uD83D\uDD34 *' + e.source + ' \u2192 ' + e.target + '*\n';
-      msg += '    \uD83C\uDFAB Docket: *' + docket + '*\n';
+      const info   = latestReportInfo(e.id);
+      const docket = info && info.docket ? info.docket : 'N/A';
+      msg += (i + 1) + '. Pipe   : ' + e.source + ' -> ' + e.target + '\n';
+      msg += '   Docket : ' + docket + '\n';
       if (info && info.lat && info.lng) {
-        msg += '    \uD83D\uDCCD Location: ' + info.lat + ', ' + info.lng + '\n';
-        msg += '    \uD83D\uDDFA\ufe0f https://maps.google.com/?q=' + info.lat + ',' + info.lng + '\n';
+        msg += '   Location: ' + info.lat + ', ' + info.lng + '\n';
+        msg += '   Map    : https://maps.google.com/?q=' + info.lat + ',' + info.lng + '\n';
       } else {
-        msg += '    \uD83D\uDCCD Location: not recorded\n';
+        msg += '   Location: not recorded\n';
       }
     });
-    msg += '\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\n';
-    msg += 'Total: *' + faulted.length + ' active leak(s)/burst(s)*';
   }
-  return { msg, zoneName, count: faulted.length };
+  msg += SEP + '\n';
+
+  // Section B \u2014 other pipe issues logged today
+  msg += 'B. OTHER PIPE ISSUES (TODAY)\n';
+  if (!issues.length) {
+    msg += '   None.\n';
+  } else {
+    issues.forEach((r, i) => {
+      msg += (i + 1) + '. Pipe   : ' + (r.assetName || r.assetId || '\u2014') + '\n';
+      msg += '   Issue  : ' + (r.issueType || 'Issue') + '\n';
+      if (r.note)   msg += '   Note   : ' + r.note + '\n';
+      msg += '   Docket : ' + (r.docket || 'N/A') + '\n';
+      if (r.lat && r.lng) {
+        msg += '   Location: ' + r.lat + ', ' + r.lng + '\n';
+        msg += '   Map    : https://maps.google.com/?q=' + r.lat + ',' + r.lng + '\n';
+      } else {
+        msg += '   Location: not recorded\n';
+      }
+      if (r.personName) msg += '   By     : ' + r.personName + '\n';
+    });
+  }
+  msg += SEP + '\n';
+  msg += 'Summary: ' + faulted.length + ' active leak(s)/burst(s), '
+       + issues.length + ' other issue(s).\n';
+  msg += 'End of report.';
+
+  return { msg, zoneName, leakCount: faulted.length, issueCount: issues.length };
 }
 
 function shareLeakBursts() {
   const r = buildLeakBurstShareText();
   _shareText = r.msg;
   $('sharePreviewText').textContent = r.msg;
-  $('shareSheetSub').textContent = r.count
-    ? (r.count + ' active leak(s)/burst(s) in ' + r.zoneName)
-    : ('No active leaks/bursts in ' + r.zoneName);
+  const total = r.leakCount + r.issueCount;
+  $('shareSheetSub').textContent = total
+    ? (r.leakCount + ' leak/burst, ' + r.issueCount + ' other issue(s) in ' + r.zoneName)
+    : ('No pipe issues in ' + r.zoneName);
   $('btnNativeShare').style.display = navigator.share ? 'inline-flex' : 'none';
   $('shareSheetBackdrop').classList.add('open');
 }
@@ -2072,7 +2225,7 @@ function shareViaWhatsApp() {
 
 async function shareNative() {
   try {
-    await navigator.share({ title: 'Leak / Burst Report', text: _shareText });
+    await navigator.share({ title: 'Pipe Issue Report', text: _shareText });
     $('shareSheetBackdrop').classList.remove('open');
   } catch(err) { /* user cancelled */ }
 }
