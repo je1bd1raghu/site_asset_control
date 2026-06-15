@@ -44,7 +44,9 @@ CREATE TABLE IF NOT EXISTS leakbursts (
   zone       TEXT NOT NULL,
   assetId    TEXT NOT NULL,
   assetName  TEXT NOT NULL,
-  action     TEXT NOT NULL,             -- 'LEAK_BURST' | 'LEAK_BURST_CLEAR'
+  action     TEXT NOT NULL,             -- 'LEAK_BURST' | 'LEAK_BURST_CLEAR' | 'PIPE_ISSUE'
+  issueType  TEXT,                      -- PIPE_ISSUE only: category (e.g. 'Low pressure')
+  note       TEXT,                      -- PIPE_ISSUE only: free-text description
   timestamp  TEXT NOT NULL,
   date       TEXT NOT NULL,
   time       TEXT NOT NULL,

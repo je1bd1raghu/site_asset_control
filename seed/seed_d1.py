@@ -5,10 +5,13 @@ and deploy the worker itself.
 
 Usage:
   python3 seed/seed_d1.py            # interactive menu
-  python3 seed/seed_d1.py pull       # download D1 → local files
-  python3 seed/seed_d1.py push       # upload local files → D1
-  python3 seed/seed_d1.py verify     # show D1 row / blob sizes
-  python3 seed/seed_d1.py deploy     # wrangler deploy (uploads scada-worker-d1.js)
+  python3 seed/seed_d1.py pull           # download D1 → local files
+  python3 seed/seed_d1.py push           # upload all local files → D1
+  python3 seed/seed_d1.py push config    # upload just config.json
+  python3 seed/seed_d1.py push status    # upload just zone_*_status.json
+  python3 seed/seed_d1.py push output    # upload just records/leakbursts/estimates
+  python3 seed/seed_d1.py verify         # show D1 row / blob sizes
+  python3 seed/seed_d1.py deploy         # wrangler deploy (upserts scada-worker-d1.js)
 
 Files live alongside this script under seed/ (paths are resolved relative to the
 script, not the current working directory):
@@ -149,56 +152,74 @@ def pull():
     print("\n  ✅  pull complete.")
 
 # ── PUSH: local files → D1 ────────────────────────────────────────────────────
-def push():
+# Each group can be pushed on its own (e.g. just config.json). Every push_*()
+# returns True on success or "nothing to do", False on a real failure.
+
+def push_config():
     # config.json — inserted via wrangler (there is no PATCH /config endpoint).
     section("push — config")
     content = load(CONFIG_PATH)
-    if content:
-        escaped = content.replace("'", "''")   # SQL single-quote escaping
-        sql = ("INSERT OR REPLACE INTO files (name, content, updated_at) "
-               f"VALUES ('config.json', '{escaped}', datetime('now'));")
-        r = wrangler_sql(sql)
-        if r.returncode == 0:
-            print("  ✅  config.json written to D1 via wrangler")
-        else:
-            print(f"  ❌  wrangler error:\n{r.stderr.strip()}"); return False
+    if not content:
+        return True
+    escaped = content.replace("'", "''")   # SQL single-quote escaping
+    sql = ("INSERT OR REPLACE INTO files (name, content, updated_at) "
+           f"VALUES ('config.json', '{escaped}', datetime('now'));")
+    r = wrangler_sql(sql)
+    if r.returncode == 0:
+        print("  ✅  config.json written to D1 via wrangler")
+        return True
+    print(f"  ❌  wrangler error:\n{r.stderr.strip()}")
+    return False
 
+def push_status():
     # zone status files — via PATCH /status (whitelisted to zone_*_status.json).
     section("push — status")
-    status_payload = {name: c for name in STATUS_FILES if (c := load(status_path(name)))}
-    if status_payload:
-        r = patch("/status", status_payload)
-        if r.get("ok"):
-            print(f"  ✅  {', '.join(status_payload.keys())} seeded")
-        else:
-            print(f"  ❌  {r}"); return False
-    else:
+    payload = {name: c for name in STATUS_FILES if (c := load(status_path(name)))}
+    if not payload:
         print("  —  no zone status files found, skipping")
+        return True
+    r = patch("/status", payload)
+    if r.get("ok"):
+        print(f"  ✅  {', '.join(payload.keys())} seeded")
+        return True
+    print(f"  ❌  {r}")
+    return False
 
+def push_output():
     # records + leakbursts + estimates — via PATCH /output (append-only).
     section("push — output")
-    output_payload = {}
+    payload = {}
     for name in OUTPUT_FILES:
         c = load(output_path(name))
         if c:
             if name.endswith(".csv"):
                 print(f"      → {count_csv_rows(c)} data rows in {name}")
-            output_payload[name] = c
-
-    if output_payload:
-        r = patch("/output", output_payload)
-        if r.get("ok"):
-            inserted = r.get("inserted", "?")
-            print(f"  ✅  done  ({inserted} INSERT statements — duplicates silently skipped)")
-            if isinstance(inserted, int) and inserted == 0:
-                print("      ℹ   Zero means all rows already exist in D1 (safe on re-run)")
-        else:
-            print(f"  ❌  {r}"); return False
-    else:
+            payload[name] = c
+    if not payload:
         print("  —  no output files found, skipping")
+        return True
+    r = patch("/output", payload)
+    if r.get("ok"):
+        inserted = r.get("inserted", "?")
+        print(f"  ✅  done  ({inserted} INSERT statements — duplicates silently skipped)")
+        if isinstance(inserted, int) and inserted == 0:
+            print("      ℹ   Zero means all rows already exist in D1 (safe on re-run)")
+        return True
+    print(f"  ❌  {r}")
+    return False
 
-    print("\n  ✅  push complete.")
-    return True
+PUSH_GROUPS = {"config": push_config, "status": push_status, "output": push_output}
+
+def push(targets=None):
+    """Push one or more groups. targets=None → all of config, status, output."""
+    ok = True
+    for name in (targets or list(PUSH_GROUPS)):
+        if not PUSH_GROUPS[name]():
+            ok = False
+            break
+    if ok:
+        print("\n  ✅  push complete.")
+    return ok
 
 # ── VERIFY: row counts / blob sizes from D1 ───────────────────────────────────
 def verify():
@@ -229,6 +250,22 @@ def deploy():
 def confirm(msg):
     return input(f"  {msg} [y/N] ").strip().lower() in ("y", "yes")
 
+def ask_push_targets():
+    """Ask which group to push. Returns [] for all, ['config'] etc. for one,
+    or None if the user cancelled / typed something invalid."""
+    print("     a) all     c) config     s) status     o) output     x) cancel")
+    sub = input("  Push what? [a] ").strip().lower()
+    mapping = {"": [], "a": [], "all": [],
+               "c": ["config"], "config": ["config"],
+               "s": ["status"], "status": ["status"],
+               "o": ["output"], "output": ["output"]}
+    if sub in ("x", "cancel", "q"):
+        return None
+    if sub not in mapping:
+        print("  Invalid choice.")
+        return None
+    return mapping[sub]
+
 ACTIONS = {"pull": pull, "push": push, "verify": verify, "deploy": deploy}
 
 def menu():
@@ -239,20 +276,29 @@ def menu():
     print(f"  Files : {rel(SCRIPT_DIR)}/  (config.json, status/, records/)")
     print("  ──────────────────────────────────────────────")
     print("    1)  Pull    download D1 → seed/ files")
-    print("    2)  Push    upload seed/ files → D1")
+    print("    2)  Push    upload seed/ files → D1  (choose all / config / status / output)")
     print("    3)  Verify  show D1 row / blob sizes")
-    print("    4)  Deploy  wrangler deploy (upload worker)")
+    print("    4)  Deploy  wrangler deploy (upsert worker)")
     print("    0)  Exit")
     return input("  Choose: ").strip().lower()
 
 def main():
-    # Non-interactive: `seed_d1.py pull|push|verify|deploy`
+    # Non-interactive:
+    #   seed_d1.py pull|verify|deploy
+    #   seed_d1.py push [config|status|output]   (no target → all)
     if len(sys.argv) > 1:
         action = sys.argv[1].lower()
-        if action in ACTIONS:
+        if action == "push":
+            target = sys.argv[2].lower() if len(sys.argv) > 2 else None
+            if target and target not in PUSH_GROUPS:
+                print(f"Unknown push target '{target}'. Use: {', '.join(PUSH_GROUPS)}")
+                sys.exit(1)
+            push([target] if target else None)
+        elif action in ACTIONS:
             ACTIONS[action]()
         else:
-            print(f"Unknown action '{action}'. Use: {', '.join(ACTIONS)}")
+            print(f"Unknown action '{action}'. Use: {', '.join(ACTIONS)} (push takes "
+                  f"an optional target: {', '.join(PUSH_GROUPS)})")
             sys.exit(1)
         return
 
@@ -263,8 +309,11 @@ def main():
             if confirm("Overwrite local seed/ files with D1 contents?"):
                 pull()
         elif choice in ("2", "push"):
-            if confirm("Upload seed/ files to the live D1 database?"):
-                push()
+            targets = ask_push_targets()
+            if targets is not None:   # None = cancelled at the sub-prompt
+                label = "all files" if not targets else targets[0]
+                if confirm(f"Upload {label} to the live D1 database?"):
+                    push(targets or None)
         elif choice in ("3", "verify"):
             verify()
         elif choice in ("4", "deploy"):

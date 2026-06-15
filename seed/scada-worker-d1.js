@@ -18,8 +18,8 @@
  *   PATCH /status        → writes zone_*_status.json (whitelist enforced)
  *
  *   BONUS — richer queries the download UI can use:
- *   GET   /output?month=YYYY-MM  → that month's records only
- *   GET   /output?all=1          → all records ever (admin export)
+ *   GET   /output?from=YYYY-MM-DD&to=YYYY-MM-DD  → records in an inclusive date range
+ *   GET   /output?all=1                          → all records ever (admin export)
  */
 
 const WORKER_NAME = 'scada-asset-worker-d1';
@@ -34,7 +34,7 @@ const STATUS_FILE_RE = /^zone_[a-z0-9_-]+_status\.json$/i;
 
 // Column order must match index.html exactly
 const CSV_COLS    = ['sn','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','gpsAcc','deviceId'];
-const LB_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','deviceId'];
+const LB_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','assetName','action','issueType','note','timestamp','date','time','lat','lng','distance','deviceId'];
 
 export default {
   async fetch(request, env) {
@@ -67,18 +67,27 @@ async function handleConfigGet(db) {
 
 // ── GET /output ────────────────────────────────────────────────────────────────
 // Default: current-month records + all leakburst rows
-// ?month=YYYY-MM : specific month (download page)
-// ?all=1         : entire history (admin export)
+// ?from=YYYY-MM-DD&to=...   : inclusive date range (download page)
+// ?all=1                    : entire history (admin export)
 async function handleOutputGet(db, url) {
-  const monthParam = url.searchParams.get('month');
+  const fromParam  = url.searchParams.get('from');
+  const toParam    = url.searchParams.get('to');
   const allParam   = url.searchParams.get('all');
 
   let recRows;
   if (allParam === '1') {
     const r = await db.prepare('SELECT * FROM records ORDER BY timestamp ASC').all();
     recRows = r.results;
+  } else if (fromParam || toParam) {
+    // Inclusive [from, to] on the 'YYYY-MM-DD' date column (uses idx_records_date).
+    const from = fromParam || '0000-01-01';
+    const to   = toParam   || '9999-12-31';
+    const r = await db.prepare(
+      "SELECT * FROM records WHERE date >= ? AND date <= ? ORDER BY timestamp ASC"
+    ).bind(from, to).all();
+    recRows = r.results;
   } else {
-    const prefix = monthParam ?? currentMonthPrefix();
+    const prefix = currentMonthPrefix();
     const r = await db.prepare(
       "SELECT * FROM records WHERE date LIKE ? ORDER BY timestamp ASC"
     ).bind(prefix + '%').all();
@@ -133,11 +142,12 @@ async function handleOutputPatch(db, request) {
     for (const r of rows) {
       stmts.push(db.prepare(`
         INSERT OR IGNORE INTO leakbursts
-          (sn,docket,personId,personName,zone,assetId,assetName,action,timestamp,date,time,lat,lng,distance,deviceId)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          (sn,docket,personId,personName,zone,assetId,assetName,action,issueType,note,timestamp,date,time,lat,lng,distance,deviceId)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `).bind(
         r.sn, r.docket||null, r.personId, r.personName, r.zone,
-        r.assetId, r.assetName, r.action, r.timestamp, r.date, r.time,
+        r.assetId, r.assetName, r.action, r.issueType||null, r.note||null,
+        r.timestamp, r.date, r.time,
         numOrNull(r.lat), numOrNull(r.lng), numOrNull(r.distance), r.deviceId
       ));
     }

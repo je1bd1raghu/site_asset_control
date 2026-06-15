@@ -557,8 +557,8 @@
       <div class="stb-left">
         <span class="stb-icon">⬇️</span>
         <div class="stb-texts">
-          <span class="stb-title">Download Records by Month</span>
-          <span class="stb-sub">Export toggle records or estimates as CSV / ZIP</span>
+          <span class="stb-title">Download Records by Date</span>
+          <span class="stb-sub">Export records, leak/bursts, issues or estimates as CSV / ZIP</span>
         </div>
       </div>
       <div class="stb-right">
@@ -568,17 +568,13 @@
 
     <div class="collapsible-body" id="downloadBody">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <select id="dlMonth" class="dl-select">
-          <option value="01">January</option><option value="02">February</option>
-          <option value="03">March</option><option value="04">April</option>
-          <option value="05">May</option><option value="06">June</option>
-          <option value="07">July</option><option value="08">August</option>
-          <option value="09">September</option><option value="10">October</option>
-          <option value="11">November</option><option value="12">December</option>
-        </select>
-        <select id="dlYear" class="dl-select"></select>
+        <label style="font-size:13px;font-weight:700;color:var(--text2)">From <input type="date" id="dlFrom" class="dl-select" style="cursor:text"></label>
+        <label style="font-size:13px;font-weight:700;color:var(--text2)">To <input type="date" id="dlTo" class="dl-select" style="cursor:text"></label>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
         <button class="btn-download" onclick="downloadRecords()">⬇ Records CSV</button>
         <button class="btn-download" onclick="downloadLeakBursts()" style="background:var(--danger);white-space:nowrap;">⬇ Leak/Burst CSV</button>
+        <button class="btn-download" onclick="downloadOtherIssuesSummary()" style="background:#4338ca;white-space:nowrap;">📊 Other Issues Summary</button>
         <button class="btn-download" onclick="openDownloadModal()" style="background:var(--warning);white-space:nowrap;">📋 Download Estimates</button>
       </div>
       <div id="dlStatus" style="font-size:12px;font-weight:600;color:var(--text3);margin-top:8px;min-height:18px"></div>
@@ -702,7 +698,7 @@ async function initApp() {
   updateLeakBurstLock();   // start locked until an operator is picked
 
   setProgress(100); setLoadText('Ready!');
-  populateYears();
+  setDefaultDateRange();
   setTimeout(hideLoading, 500);
 }
 
@@ -1836,22 +1832,46 @@ function csvStringifyLB(recs) {
 }
 
 // ── CSV DOWNLOAD ───────────────────────────────────────────────────────────────
-function populateYears() {
-  const sel = $('dlYear');
+// Default the From/To pickers to month-to-date (1st of this month → today).
+function setDefaultDateRange() {
   const now = new Date();
-  sel.innerHTML = '';
-  for (let y = now.getFullYear(); y >= 2024; y--) {
-    const o = document.createElement('option');
-    o.value = y; o.textContent = y;
-    sel.appendChild(o);
-  }
-  // Default month selector to current month
-  $('dlMonth').value = pad(now.getMonth() + 1);
+  const first = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+  $('dlFrom').value = first;
+  $('dlTo').value   = todayStr();
 }
 
+// Read the chosen [from, to] range. Record `date` fields are 'YYYY-MM-DD', which
+// compare lexicographically against the date-input values, so range checks are
+// plain string comparisons. Returns null (with a status message) if invalid.
+function getDateRange() {
+  const from = $('dlFrom').value;
+  const to   = $('dlTo').value;
+  if (!from || !to) {
+    const status = $('dlStatus');
+    status.style.color = 'var(--warning)';
+    status.textContent = 'Pick both a From and a To date.';
+    return null;
+  }
+  return from <= to ? { from, to } : { from: to, to: from };  // tolerate swapped
+}
+function inRange(dateStr, range) {
+  const d = dateStr || '';
+  return d >= range.from && d <= range.to;
+}
+// Format an ISO 'YYYY-MM-DD' as dd/mm/yyyy (display) or dd-mm-yyyy (filenames,
+// since '/' is illegal in a filename). The stored range values stay ISO.
+function fmtDMY(iso, sep = '/') {
+  const [y, m, d] = String(iso || '').split('-');
+  return (y && m && d) ? `${d}${sep}${m}${sep}${y}` : (iso || '');
+}
+const rangeLabel = range => range.from === range.to
+  ? fmtDMY(range.from)
+  : `${fmtDMY(range.from)} → ${fmtDMY(range.to)}`;
+const rangeFileTag = range => `${fmtDMY(range.from, '-')}_to_${fmtDMY(range.to, '-')}`;
+
 async function downloadRecords() {
-  const month = $('dlMonth').value;
-  const year  = $('dlYear').value;
+  const range = getDateRange();
+  if (!range) return;
   const btn   = document.querySelector('.btn-download');
   const status = $('dlStatus');
 
@@ -1860,26 +1880,24 @@ async function downloadRecords() {
   status.textContent = 'Fetching records…';
 
   try {
-    // Pass ?month=YYYY-MM so the worker returns only that month from D1.
-    // workerGet() is a thin fetch wrapper — we call the URL directly here
-    // to add the query param.
-    const prefix   = `${year}-${month}`;
-    const r        = await fetch(`${WORKER}/output?month=${prefix}`);
+    // Worker filters server-side via ?from=YYYY-MM-DD&to=YYYY-MM-DD. workerGet()
+    // is a thin fetch wrapper — we call the URL directly here to add the params.
+    const r        = await fetch(`${WORKER}/output?from=${range.from}&to=${range.to}`);
     if (!r.ok) throw new Error(`Worker failed: HTTP ${r.status}`);
     const d        = await r.json();
     const filtered = csvParse(d.files[RECORDS_FILE] || '');
 
     if (!filtered.length) {
       status.style.color = 'var(--warning)';
-      status.textContent = `No records found for ${$('dlMonth').options[$('dlMonth').selectedIndex].text} ${year}.`;
+      status.textContent = `No records found for ${rangeLabel(range)}.`;
       return;
     }
 
     const csv = Papa.unparse(filtered, { columns: CSV_COLS });
-    triggerCsvDownload(BOM + csv, `records_${year}_${month}.csv`);
+    triggerCsvDownload(BOM + csv, `records_${rangeFileTag(range)}.csv`);
 
     status.style.color = 'var(--success)';
-    status.textContent = `✓ Downloaded ${filtered.length} record${filtered.length > 1 ? 's' : ''} for ${$('dlMonth').options[$('dlMonth').selectedIndex].text} ${year}.`;
+    status.textContent = `✓ Downloaded ${filtered.length} record${filtered.length > 1 ? 's' : ''} for ${rangeLabel(range)}.`;
   } catch(e) {
     status.style.color = 'var(--danger)';
     status.textContent = 'Error: ' + e.message;
@@ -1889,8 +1907,8 @@ async function downloadRecords() {
 }
 
 async function downloadLeakBursts() {
-  const month = $('dlMonth').value;
-  const year  = $('dlYear').value;
+  const range = getDateRange();
+  if (!range) return;
   const btns  = document.querySelectorAll('.btn-download');
   const status = $('dlStatus');
 
@@ -1901,20 +1919,97 @@ async function downloadLeakBursts() {
   try {
     const files   = await workerGet('output');
     const allRecs = csvParse(files[LEAKBURST_FILE] || '');
-    const prefix  = `${year}-${month}`;
-    const filtered = allRecs.filter(r => (r.date || '').startsWith(prefix));
+    const filtered = allRecs.filter(r => inRange(r.date, range));
 
     if (!filtered.length) {
       status.style.color = 'var(--warning)';
-      status.textContent = `No leak/burst records for ${$('dlMonth').options[$('dlMonth').selectedIndex].text} ${year}.`;
+      status.textContent = `No leak/burst records for ${rangeLabel(range)}.`;
       return;
     }
 
     const csv = Papa.unparse(filtered, { columns: LB_CSV_COLS });
-    triggerCsvDownload(BOM + csv, `leakbursts_${year}_${month}.csv`);
+    triggerCsvDownload(BOM + csv, `leakbursts_${rangeFileTag(range)}.csv`);
 
     status.style.color = 'var(--success)';
-    status.textContent = `✓ Downloaded ${filtered.length} leak/burst record${filtered.length > 1 ? 's' : ''} for ${$('dlMonth').options[$('dlMonth').selectedIndex].text} ${year}.`;
+    status.textContent = `✓ Downloaded ${filtered.length} leak/burst record${filtered.length > 1 ? 's' : ''} for ${rangeLabel(range)}.`;
+  } catch(e) {
+    status.style.color = 'var(--danger)';
+    status.textContent = 'Error: ' + e.message;
+  } finally {
+    btns.forEach(b => b.disabled = false);
+  }
+}
+
+// ── OTHER ISSUES ZONE-WISE SUMMARY ──────────────────────────────────────────────
+// Builds a matrix CSV (zones as rows × issue-type categories as columns, with a
+// per-zone Total and a grand-total row) from PIPE_ISSUE records in the date range.
+// Issue-type columns follow the #pipeIssueType <option> order, then any extra
+// types found in the data, then '(unspecified)' for rows logged before the backend
+// persisted issueType.
+async function downloadOtherIssuesSummary() {
+  const range = getDateRange();
+  if (!range) return;
+  const btns   = document.querySelectorAll('.btn-download');
+  const status = $('dlStatus');
+
+  btns.forEach(b => b.disabled = true);
+  status.style.color = 'var(--text3)';
+  status.textContent = 'Building other-issues summary…';
+
+  try {
+    const files = await workerGet('output');
+    const issues = csvParse(files[LEAKBURST_FILE] || '')
+      .filter(r => r.action === 'PIPE_ISSUE' && inRange(r.date, range));
+
+    if (!issues.length) {
+      status.style.color = 'var(--warning)';
+      status.textContent = `No other issues logged for ${rangeLabel(range)}.`;
+      return;
+    }
+
+    const UNSPEC = '(unspecified)';
+    const norm = r => (r.issueType || '').trim() || UNSPEC;
+
+    // Column order: the standard categories first, then any others present.
+    const known = [...$('pipeIssueType').options].map(o => o.value);
+    const present = new Set(issues.map(norm));
+    const typeCols = [
+      ...known.filter(t => present.has(t)),
+      ...[...present].filter(t => !known.includes(t) && t !== UNSPEC).sort(),
+      ...(present.has(UNSPEC) ? [UNSPEC] : []),
+    ];
+
+    // zone → { type → count }
+    const byZone = {};
+    for (const r of issues) {
+      const z = (r.zone || '').trim() || '(no zone)';
+      (byZone[z] ||= {});
+      const t = norm(r);
+      byZone[z][t] = (byZone[z][t] || 0) + 1;
+    }
+
+    const totals = Object.fromEntries(typeCols.map(t => [t, 0]));
+    const rows = Object.keys(byZone).sort().map(z => {
+      const row = { Zone: z };
+      let zoneTotal = 0;
+      for (const t of typeCols) {
+        const n = byZone[z][t] || 0;
+        row[t] = n; zoneTotal += n; totals[t] += n;
+      }
+      row.Total = zoneTotal;
+      return row;
+    });
+    const grand = { Zone: 'TOTAL' };
+    let g = 0;
+    for (const t of typeCols) { grand[t] = totals[t]; g += totals[t]; }
+    grand.Total = g;
+    rows.push(grand);
+
+    const csv = Papa.unparse(rows, { columns: ['Zone', ...typeCols, 'Total'] });
+    triggerCsvDownload(BOM + csv, `other_issues_summary_${rangeFileTag(range)}.csv`);
+
+    status.style.color = 'var(--success)';
+    status.textContent = `✓ Summary of ${issues.length} issue${issues.length > 1 ? 's' : ''} across ${rows.length - 1} zone(s) for ${rangeLabel(range)}.`;
   } catch(e) {
     status.style.color = 'var(--danger)';
     status.textContent = 'Error: ' + e.message;
@@ -1927,9 +2022,21 @@ async function downloadLeakBursts() {
 let _modalEstimates = [];
 let _selectedIds    = new Set();
 
+// Estimate dates are human strings like "15 Jun 2026, 14:30" (see estimate.html).
+// Convert to 'YYYY-MM-DD' so they can be compared against the From/To range.
+// Returns '' when the string can't be parsed (such rows fall outside any range).
+const _EST_MON = { Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12' };
+function parseEstDate(str) {
+  const m = String(str || '').match(/(\d{1,2})\s+([A-Za-z]{3})[A-Za-z]*\s+(\d{4})/);
+  if (!m) return '';
+  const abbr = m[2][0].toUpperCase() + m[2].slice(1, 3).toLowerCase();  // "JUN"/"jun" → "Jun"
+  const mon = _EST_MON[abbr];
+  return mon ? `${m[3]}-${mon}-${pad(parseInt(m[1], 10))}` : '';
+}
+
 async function openDownloadModal() {
-  const month  = $('dlMonth').value;
-  const year   = $('dlYear').value;
+  const range  = getDateRange();
+  if (!range) return;
   const status = $('dlStatus');
   const btn    = document.querySelectorAll('.btn-download')[1];
   btn.disabled = true;
@@ -1943,17 +2050,15 @@ async function openDownloadModal() {
     const all = JSON.parse(raw);
     if (!Array.isArray(all) || !all.length) { status.style.color='var(--warning)'; status.textContent='No estimates saved yet.'; return; }
 
-    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const monthName = MONTHS[parseInt(month,10)-1];
-    _modalEstimates = all.filter(e => { const d=e.date||''; return d.includes(monthName)&&d.includes(year); });
+    _modalEstimates = all.filter(e => inRange(parseEstDate(e.date), range));
 
     if (!_modalEstimates.length) {
       status.style.color = 'var(--warning)';
-      status.textContent = `No estimates found for ${monthName} ${year}.`;
+      status.textContent = `No estimates found for ${rangeLabel(range)}.`;
       return;
     }
     status.textContent = '';
-    document.getElementById('modalSub').textContent = `${_modalEstimates.length} estimate(s) found for ${monthName} ${year}`;
+    document.getElementById('modalSub').textContent = `${_modalEstimates.length} estimate(s) found for ${rangeLabel(range)}`;
     _selectedIds.clear();
     renderModalList();
     document.getElementById('csvModal').classList.add('open');
@@ -2057,7 +2162,11 @@ function summaryCsv(ests) {
 }
 
 function downloadBlob(data, filename, mime) {
-  const url = URL.createObjectURL(new Blob([data], { type: mime }));
+  // Encode strings to real UTF-8 bytes so multi-byte text (Bengali notes / zone
+  // names, ₹) survives regardless of the platform's default download charset.
+  // Binary payloads (e.g. the ZIP Uint8Array) are passed through untouched.
+  const payload = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  const url = URL.createObjectURL(new Blob([payload], { type: mime }));
   const a   = document.createElement('a');
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
