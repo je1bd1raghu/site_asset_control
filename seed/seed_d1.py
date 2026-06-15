@@ -5,13 +5,14 @@ and deploy the worker itself.
 
 Usage:
   python3 seed/seed_d1.py            # interactive menu
-  python3 seed/seed_d1.py pull           # download D1 → local files
-  python3 seed/seed_d1.py push           # upload all local files → D1
-  python3 seed/seed_d1.py push config    # upload just config.json
-  python3 seed/seed_d1.py push status    # upload just zone_*_status.json
-  python3 seed/seed_d1.py push output    # upload just records/leakbursts/estimates
-  python3 seed/seed_d1.py verify         # show D1 row / blob sizes
-  python3 seed/seed_d1.py deploy         # wrangler deploy (upserts scada-worker-d1.js)
+  python3 seed/seed_d1.py pull                 # download D1 → local files
+  python3 seed/seed_d1.py push                 # upload ALL local files → D1
+  python3 seed/seed_d1.py push config status   # by group: config | status | output | all
+  python3 seed/seed_d1.py push zone_a_status.json records.csv   # by individual file
+  python3 seed/seed_d1.py verify               # show D1 row / blob sizes
+  python3 seed/seed_d1.py deploy               # wrangler deploy (upserts scada-worker-d1.js)
+
+The interactive menu's Push option lists every file so you can pick specific ones.
 
 Files live alongside this script under seed/ (paths are resolved relative to the
 script, not the current working directory):
@@ -29,7 +30,7 @@ worker stays append-only; only this admin tool deletes, via wrangler.) A
 present-but-empty CSV is skipped rather than wiping the whole table.
 """
 
-import json, sys, subprocess, tempfile, os, csv, io
+import json, sys, subprocess, tempfile, os, csv, io, re
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 
@@ -45,8 +46,18 @@ RECORDS_DIR = os.path.join(SCRIPT_DIR, "records")
 STATUS_FILES = ["zone_a_status.json", "zone_b_status.json", "zone_c_status.json"]
 OUTPUT_FILES = ["records.csv", "leakbursts.csv", "estimates.json"]
 
+# Every individually-pushable file, in display order, plus the group shortcuts that
+# expand to a set of them. push() works on a concrete list of these file names.
+PUSHABLE = ["config.json", *STATUS_FILES, *OUTPUT_FILES]
+GROUPS   = {"all": PUSHABLE, "config": ["config.json"],
+            "status": STATUS_FILES, "output": OUTPUT_FILES}
+
 def status_path(name):  return os.path.join(STATUS_DIR, name)
 def output_path(name):  return os.path.join(RECORDS_DIR, name)
+def local_path(name):
+    if name == "config.json": return CONFIG_PATH
+    if name in STATUS_FILES:  return status_path(name)
+    return output_path(name)
 
 # ── HTTP helpers ──────────────────────────────────────────────────────────────
 def get(endpoint):
@@ -156,37 +167,37 @@ def pull():
     print("\n  ✅  pull complete.")
 
 # ── PUSH: local files → D1 ────────────────────────────────────────────────────
-# Each group can be pushed on its own (e.g. just config.json). Every push_*()
-# returns True on success or "nothing to do", False on a real failure.
+# push() takes a concrete list of file names and groups them by endpoint. Each
+# pusher returns True on success (or nothing to do) and False on a real failure.
 
-def push_config():
-    # config.json — inserted via wrangler (there is no PATCH /config endpoint).
-    section("push — config")
+def push_config_file():
+    # config.json — upserted via wrangler (there is no PATCH /config endpoint).
+    section("push · config.json")
     content = load(CONFIG_PATH)
-    if not content:
-        return True
+    if content is None:
+        return True   # load() already reported it's missing
     escaped = content.replace("'", "''")   # SQL single-quote escaping
     sql = ("INSERT OR REPLACE INTO files (name, content, updated_at) "
            f"VALUES ('config.json', '{escaped}', datetime('now'));")
     r = wrangler_sql(sql)
     if r.returncode == 0:
-        print("  ✅  config.json written to D1 via wrangler")
+        print("  ✅  config.json → D1")
         return True
-    print(f"  ❌  wrangler error:\n{r.stderr.strip()}")
+    print(f"  ❌  config.json failed:\n{r.stderr.strip()}")
     return False
 
-def push_status():
+def push_status_files(names):
     # zone status files — via PATCH /status (whitelisted to zone_*_status.json).
-    section("push — status")
-    payload = {name: c for name in STATUS_FILES if (c := load(status_path(name)))}
+    section("push · status (" + ", ".join(names) + ")")
+    payload = {n: c for n in names if (c := load(status_path(n))) is not None}
     if not payload:
-        print("  —  no zone status files found, skipping")
+        print("  —  nothing to push")
         return True
     r = patch("/status", payload)
     if r.get("ok"):
-        print(f"  ✅  {', '.join(payload.keys())} seeded")
+        print(f"  ✅  {len(payload)} status file(s) → D1: {', '.join(payload)}")
         return True
-    print(f"  ❌  {r}")
+    print(f"  ❌  status push failed: {r.get('error', r)}")
     return False
 
 # Row tables (keyed on `sn`) that push mirrors. estimates.json is a full-blob
@@ -238,41 +249,61 @@ def mirror_delete_output(payload):
             ok = False
     return ok
 
-def push_output():
+def push_output_files(names):
     # records + leakbursts + estimates — via PATCH /output (append-only insert),
-    # then mirror-delete so the remote row tables match the local files exactly.
-    section("push — output")
+    # then mirror-delete so the pushed row tables match the local files exactly.
+    section("push · output (" + ", ".join(names) + ")")
     payload = {}
-    for name in OUTPUT_FILES:
-        c = load(output_path(name))
-        if c:
-            if name.endswith(".csv"):
-                print(f"      → {count_csv_rows(c)} data rows in {name}")
-            payload[name] = c
+    for n in names:
+        c = load(output_path(n))
+        if c is None:
+            continue
+        if n.endswith(".csv"):
+            print(f"      → {count_csv_rows(c)} data rows in {n}")
+        payload[n] = c
     if not payload:
-        print("  —  no output files found, skipping")
+        print("  —  nothing to push")
         return True
     r = patch("/output", payload)
     if not r.get("ok"):
-        print(f"  ❌  {r}")
+        print(f"  ❌  output push failed: {r.get('error', r)}")
         return False
-    inserted = r.get("inserted", "?")
-    print(f"  ✅  inserted ({inserted} statement(s); duplicates skipped)")
+    print(f"  ✅  {len(payload)} output file(s) → D1: {', '.join(payload)} "
+          f"({r.get('inserted', '?')} insert stmt(s); duplicates skipped)")
+    # Mirror-delete only the row tables among the files actually pushed.
+    if any(n in TABLE_FOR_FILE for n in payload):
+        section("push · mirror (remove remote rows absent locally)")
+        return mirror_delete_output(payload)
+    return True
 
-    section("push — mirror (delete remote rows absent locally)")
-    return mirror_delete_output(payload)
+def resolve_push_args(tokens):
+    """Expand CLI tokens (group names and/or file names) into a concrete file list.
+    No tokens → all files. Returns None if any token is unrecognized."""
+    if not tokens:
+        return list(PUSHABLE)
+    out = []
+    for t in tokens:
+        t = t.lower()
+        if t in GROUPS:        out += GROUPS[t]
+        elif t in PUSHABLE:    out.append(t)
+        else:                  return None
+    seen = set()
+    return [n for n in out if not (n in seen or seen.add(n))]
 
-PUSH_GROUPS = {"config": push_config, "status": push_status, "output": push_output}
-
-def push(targets=None):
-    """Push one or more groups. targets=None → all of config, status, output."""
+def push(names=None):
+    """Push a concrete list of file names (None → all), grouped by endpoint.
+    Continues through groups on error and reports an overall result."""
+    sel = names if names is not None else list(PUSHABLE)
+    cfg = [n for n in sel if n == "config.json"]
+    st  = [n for n in sel if n in STATUS_FILES]
+    out = [n for n in sel if n in OUTPUT_FILES]
     ok = True
-    for name in (targets or list(PUSH_GROUPS)):
-        if not PUSH_GROUPS[name]():
-            ok = False
-            break
-    if ok:
-        print("\n  ✅  push complete.")
+    if cfg and not push_config_file():   ok = False
+    if st  and not push_status_files(st): ok = False
+    if out and not push_output_files(out): ok = False
+    print()
+    print(f"  ✅  push complete — {', '.join(sel)}" if ok
+          else "  ⚠   push finished with errors (see above)")
     return ok
 
 # ── VERIFY: row counts / blob sizes from D1 ───────────────────────────────────
@@ -305,22 +336,33 @@ def confirm(msg):
     return input(f"  {msg} [y/N] ").strip().lower() in ("y", "yes")
 
 def ask_push_targets():
-    """Ask which group to push. Returns [] for all, ['config'] etc. for one,
-    or None if the user cancelled / typed something invalid."""
-    print("     a) all     c) config     s) status     o) output     x) cancel")
-    sub = input("  Push what? [a] ").strip().lower()
-    mapping = {"": [], "a": [], "all": [],
-               "c": ["config"], "config": ["config"],
-               "s": ["status"], "status": ["status"],
-               "o": ["output"], "output": ["output"]}
-    if sub in ("x", "cancel", "q"):
+    """Show every pushable file and let the operator pick specific ones.
+    Returns the chosen file-name list, or None to cancel."""
+    print("\n  Files to push:")
+    for i, name in enumerate(PUSHABLE, 1):
+        mark = "✓ present" if os.path.exists(local_path(name)) else "· missing"
+        print(f"    {i:>2}) {name:<20} {mark}")
+    print("     a) all      x) cancel")
+    raw = input("  Push which? (numbers e.g. '1,3', 'a', or 'x') [a] ").strip().lower()
+    if raw in ("x", "cancel", "q"):
         return None
-    if sub not in mapping:
-        print("  Invalid choice.")
-        return None
-    return mapping[sub]
+    if raw in ("", "a", "all"):
+        return list(PUSHABLE)
+    sel = []
+    for tok in re.split(r"[\s,]+", raw):
+        if not tok:
+            continue
+        if tok.isdigit() and 1 <= int(tok) <= len(PUSHABLE):
+            sel.append(PUSHABLE[int(tok) - 1])
+        elif tok in PUSHABLE:
+            sel.append(tok)
+        else:
+            print(f"  Invalid selection: {tok}")
+            return None
+    seen = set()
+    return [n for n in sel if not (n in seen or seen.add(n))] or None
 
-ACTIONS = {"pull": pull, "push": push, "verify": verify, "deploy": deploy}
+ACTIONS = {"pull": pull, "verify": verify, "deploy": deploy}   # push is dispatched separately (takes file args)
 
 def menu():
     print("\n  ┌────────────────────────────────────────────┐")
@@ -330,7 +372,7 @@ def menu():
     print(f"  Files : {rel(SCRIPT_DIR)}/  (config.json, status/, records/)")
     print("  ──────────────────────────────────────────────")
     print("    1)  Pull    download D1 → seed/ files")
-    print("    2)  Push    upload seed/ files → D1  (choose all / config / status / output)")
+    print("    2)  Push    upload seed/ files → D1  (pick individual files)")
     print("    3)  Verify  show D1 row / blob sizes")
     print("    4)  Deploy  wrangler deploy (upsert worker)")
     print("    0)  Exit")
@@ -343,16 +385,16 @@ def main():
     if len(sys.argv) > 1:
         action = sys.argv[1].lower()
         if action == "push":
-            target = sys.argv[2].lower() if len(sys.argv) > 2 else None
-            if target and target not in PUSH_GROUPS:
-                print(f"Unknown push target '{target}'. Use: {', '.join(PUSH_GROUPS)}")
+            names = resolve_push_args(sys.argv[2:])
+            if names is None:
+                print("Unknown push target. Groups: " + ", ".join(GROUPS) +
+                      " | files: " + ", ".join(PUSHABLE))
                 sys.exit(1)
-            push([target] if target else None)
+            push(names)
         elif action in ACTIONS:
             ACTIONS[action]()
         else:
-            print(f"Unknown action '{action}'. Use: {', '.join(ACTIONS)} (push takes "
-                  f"an optional target: {', '.join(PUSH_GROUPS)})")
+            print(f"Unknown action '{action}'. Use: push, {', '.join(ACTIONS)}")
             sys.exit(1)
         return
 
@@ -363,13 +405,13 @@ def main():
             if confirm("Overwrite local seed/ files with D1 contents?"):
                 pull()
         elif choice in ("2", "push"):
-            targets = ask_push_targets()
-            if targets is not None:   # None = cancelled at the sub-prompt
-                label = "all files" if not targets else targets[0]
-                warn = " (mirrors records/leakbursts — DELETES remote rows missing locally)" \
-                       if (not targets or "output" in targets) else ""
-                if confirm(f"Upload {label} to the live D1 database?{warn}"):
-                    push(targets or None)
+            names = ask_push_targets()
+            if names:   # None = cancelled
+                print(f"\n  Will push: {', '.join(names)}")
+                if any(n in TABLE_FOR_FILE for n in names):
+                    print("  ⚠  records/leakbursts are mirrored — this DELETES remote rows missing locally")
+                if confirm("Upload to the live D1 database?"):
+                    push(names)
         elif choice in ("3", "verify"):
             verify()
         elif choice in ("4", "deploy"):
