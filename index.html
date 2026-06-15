@@ -649,6 +649,16 @@
   </div>
 </div>
 
+<!-- Zone picker — shown when an assigned asset id exists in more than one zone -->
+<div class="modal-backdrop" id="zonePickModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🗺️ Which zone?</div>
+    <div class="modal-sub" id="zonePickSub">This asset exists in more than one zone.</div>
+    <div class="modal-actions" id="zonePickBtns" style="flex-direction:column"></div>
+  </div>
+</div>
+
 <script>
 // ── CONSTANTS ──────────────────────────────────────────────────────────────────
 // WORKER, RECORDS_FILE, CONFIG_FILE, ESTIMATES_FILE come from common.js
@@ -658,7 +668,9 @@ const COOLDOWN_MS  = 5 * 60 * 1000;
 let persons    = [];
 let deviceId   = '';
 let assets     = [];
-let assetMap   = {};
+let assetMap   = {};            // assetId → asset (first-seen across zones; legacy fallback)
+let assetByZoneId = {};         // `${zoneId}|${assetId}` → asset (zone-qualified, no dedup)
+let zonesForId = {};            // assetId → Set(zoneId) — to detect ids shared across zones
 let assetStatus = {};
 let zoneMap    = {};  // zoneId → manifest entry (id, name, gistFile)
 let todayRecs  = [];
@@ -730,6 +742,8 @@ async function loadAssetsFromGist() {
 
     const seen = new Set();
     const raw  = [];
+    assetByZoneId = {};
+    zonesForId    = {};
 
     // 1. Build asset list from gist status files (label / type / state)
     for (const zone of zonesToFetch) {
@@ -741,16 +755,25 @@ async function loadAssetsFromGist() {
         const statusRaw = _bootStatusFiles[zone.gistFile] || '[]';
         const data = JSON.parse(statusRaw);
         for (const entry of data) {
-          if (!entry.id || seen.has(entry.id)) continue;
-          seen.add(entry.id);
-          raw.push({
+          if (!entry.id) continue;
+          const a = {
             id:    entry.id,
             name:  entry.label ?? entry.id,
             type:  entry.type  ?? '',
             state: (entry.state ?? 'OFF').toString().toUpperCase(),
             flow:  entry.flow  ?? null,
             zone:  zone.id,
-          });
+          };
+          // Zone-qualified entry for EVERY (zone, id) — this is what lets an
+          // operator's card resolve the asset in THEIR zone even when the same
+          // assetId also exists in another zone.
+          assetByZoneId[`${zone.id}|${entry.id}`] = a;
+          (zonesForId[entry.id] = zonesForId[entry.id] || new Set()).add(zone.id);
+          // Legacy id-keyed list/map keeps first-seen (status/cooldown/records
+          // still key by bare assetId).
+          if (seen.has(entry.id)) continue;
+          seen.add(entry.id);
+          raw.push(a);
         }
       } catch { /* skip unreadable status file */ }
     }
@@ -771,8 +794,13 @@ async function loadAssetsFromGist() {
         for (const node of (await res.json()).nodes || []) {
           const d = node.data || {};
           if (assetIdSet && !assetIdSet.has(d.id)) continue;
+          if (typeof d.lat !== 'number') continue;
+          // Overlay onto the zone-qualified entry (correct coords per zone) AND
+          // the legacy id-keyed entry.
+          const za = assetByZoneId[`${zoneId}|${d.id}`];
+          if (za) { za.lat = d.lat; za.lng = d.lng; }
           const a = assetMap[d.id];
-          if (a && typeof d.lat === 'number') { a.lat = d.lat; a.lng = d.lng; }
+          if (a) { a.lat = d.lat; a.lng = d.lng; }
         }
       } catch { /* skip unreadable zone JSON */ }
     };
@@ -789,7 +817,7 @@ async function loadAssetsFromGist() {
 
   } catch(e) {
     showToast('Zone load warning: ' + e.message, 'warning');
-    assets = []; assetMap = {};
+    assets = []; assetMap = {}; assetByZoneId = {}; zonesForId = {};
   }
 }
 
@@ -939,13 +967,21 @@ $('comboDropdown').addEventListener('mousedown', e => {
 });
 document.addEventListener('click', e => { if (!$('comboWrapper').contains(e.target)) closeDropdown(); });
 
-function onPersonChange() {
+async function onPersonChange() {
   resetLoc();
   $('assetsCard').style.display = 'none';
   updateLeakBurstLock();    // unlock the section now that an operator is chosen
-  renderLeakBurstZones();   // scope the leak/burst zone cards to this operator
   const id = getPersonId();
-  if (id) { ensureWatch(); if (currentPos) onGpsUpdate(); }
+  if (id) {
+    const person = persons.find(p => p.id === id);
+    // Pin any ambiguous (duplicate-id) assets to a zone BEFORE rendering, so the
+    // card, leak/burst tabs and toggles all use the operator's chosen zone.
+    if (person) await resolveOperatorZones(person);
+    renderLeakBurstZones();   // scope the leak/burst zone cards to this operator
+    ensureWatch(); if (currentPos) onGpsUpdate();
+  } else {
+    renderLeakBurstZones();   // clears the zone cards
+  }
 }
 function getPersonId() { return $('personSelect').value; }
 
@@ -1065,9 +1101,54 @@ function resetLoc() { setLoc('idle', '📍', 'Location not checked', 'Select you
 // ── ASSET RENDER ───────────────────────────────────────────────────────────────
 const TYPE_ICON = { pump:'⚙️', valve:'🔧', zone:'🗺️' };
 
+// When an operator's assignment doesn't pin a zone AND the assetId exists in more
+// than one zone, the asset is ambiguous — ask the operator which zone to tag. The
+// choice is pinned onto the assignment (e.zone) for the session so the card,
+// GPS gate and toggle/record all use the right zone. Runs once per operator
+// selection (already-pinned assignments are skipped, so it never re-prompts).
+async function resolveOperatorZones(person) {
+  for (const e of (person.assets || [])) {
+    if (!e.id || e.zone) continue;                       // already pinned (config or earlier choice)
+    const zoneIds = zonesForId[e.id] ? [...zonesForId[e.id]] : [];
+    if (zoneIds.length <= 1) { e.zone = zoneIds[0] || null; continue; }
+    e.zone = await askZone(e.id, zoneIds);               // duplicate id → ask
+  }
+}
+
+// Modal that asks which zone an asset belongs to. Resolves to the chosen zoneId.
+let _zonePickResolve = null;
+function askZone(assetId, zoneIds) {
+  return new Promise(resolve => {
+    _zonePickResolve = resolve;
+    $('zonePickSub').textContent =
+      `Asset "${assetId}" exists in more than one zone. Which zone are you tagging?`;
+    const btns = $('zonePickBtns');
+    btns.innerHTML = '';
+    zoneIds.forEach(zid => {
+      const b = document.createElement('button');
+      b.className = 'modal-btn modal-btn-primary';
+      b.textContent = (zoneMap[zid] && zoneMap[zid].name) || zid;
+      b.onclick = () => { $('zonePickModal').classList.remove('open'); const r = _zonePickResolve; _zonePickResolve = null; r && r(zid); };
+      btns.appendChild(b);
+    });
+    $('zonePickModal').classList.add('open');
+  });
+}
+
+// Resolve the asset for an operator assignment, preferring the zone-qualified
+// entry (e.zone) so a duplicated assetId shows THIS operator's zone — falling back
+// to the legacy id-keyed map when the zone isn't pinned/known.
+function assetForAssignment(e) {
+  const za = e.zone ? assetByZoneId[`${e.zone}|${e.id}`] : null;
+  return za || assetMap[e.id] || null;
+}
+
 function renderAssets(person) {
   let list = (person.assets?.length)
-    ? person.assets.map(e => assetMap[e.id] ? { ...assetMap[e.id], tolerance: e.tolerance ?? 50, zone: e.zone || null } : null).filter(Boolean)
+    ? person.assets.map(e => {
+        const base = assetForAssignment(e);
+        return base ? { ...base, tolerance: e.tolerance ?? 50, zone: e.zone || base.zone || null } : null;
+      }).filter(Boolean)
     : assets;
 
   const el = $('assetsList');
@@ -1162,7 +1243,10 @@ const _toggleInFlight = new Set();
 
 async function doToggle(assetId, _accConfirmed, _snapshot) {
   const person = persons.find(p => p.id === getPersonId());
-  const asset  = assetMap[assetId];
+  // Resolve the asset in the operator's tagged zone (matches the card), so the
+  // GPS gate uses the right coordinates and the record stores the right name/zone.
+  const personAsset0 = person && (person.assets || []).find(a => a.id === assetId);
+  const asset  = (personAsset0?.zone && assetByZoneId[`${personAsset0.zone}|${assetId}`]) || assetMap[assetId];
   if (!person || !asset || !currentPos) { showToast('Location not available yet', 'error'); return; }
 
   const hasGps = asset.lat !== null && asset.lng !== null;
