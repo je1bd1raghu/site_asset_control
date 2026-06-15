@@ -119,10 +119,15 @@
   .chip-issue           { background:#e0e7ff; color:#4338ca; }
 
   /* ── Leak/Burst Edge Report section ── */
-  .leakburst-search-wrap { position:relative; margin-bottom:14px; }
-  .leakburst-search-input { width:100%; border:2px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px 11px 40px; font-size:15px; font-family:'Nunito','Noto Sans Bengali',sans-serif; color:var(--text); outline:none; transition:border-color .2s; }
-  .leakburst-search-input:focus { border-color:var(--primary); }
-  .leakburst-search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:15px; pointer-events:none; }
+  .leakburst-search-wrap { position:relative; margin-bottom:16px; }
+  .leakburst-search-input { width:100%; border:2px solid var(--border); border-radius:12px; padding:13px 52px 13px 44px; font-size:15px; font-family:'Nunito','Noto Sans Bengali',sans-serif; color:var(--text); outline:none; transition:border-color .25s,box-shadow .25s; background:var(--surface); }
+  .leakburst-search-input:focus { border-color:var(--primary); box-shadow:0 0 0 4px rgba(245,130,31,.12); }
+  .leakburst-search-input::placeholder { color:var(--text3); font-weight:400; }
+  .leakburst-search-icon { position:absolute; left:15px; top:50%; transform:translateY(-50%); font-size:16px; pointer-events:none; opacity:.4; }
+  .btn-leakburst-locate { position:absolute; right:5px; top:50%; transform:translateY(-50%); padding:6px 8px; background:transparent; color:var(--text3); border:none; border-radius:8px; font-size:17px; cursor:pointer; transition:background .18s,color .18s; line-height:1; display:flex; align-items:center; justify-content:center; }
+  .btn-leakburst-locate:hover { background:var(--primary-light); color:var(--primary); }
+  .btn-leakburst-locate:active { transform:translateY(-50%) scale(.93); }
+  .leakburst-locate-status { font-size:11px; font-weight:600; color:var(--text3); min-height:16px; margin:-10px 0 10px 0; text-align:center; }
   .leakburst-edge-list { max-height:220px; overflow-y:auto; border:2px solid var(--border); border-radius:var(--radius-sm); margin-bottom:14px; }
   .leakburst-edge-item { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .12s; gap:10px; }
   .leakburst-edge-item:last-child { border-bottom:none; }
@@ -457,13 +462,15 @@
         <div id="leakBurstZoneTabs" class="lbz-rail"></div>
       </div>
 
-      <!-- Search -->
+      <!-- Search + Locate -->
       <div class="leakburst-search-wrap">
         <span class="leakburst-search-icon">🔍</span>
         <input type="search" id="leakBurstSearch" class="leakburst-search-input"
-               placeholder="Search pipe by ID, source or target…"
-               oninput="filterLeakBurstEdges()" autocomplete="off">
+               placeholder="Search pipes by name…"
+               oninput="filterLeakBurstEdges()" autocomplete="off" spellcheck="false">
+        <button class="btn-leakburst-locate" id="btnLeakBurstLocate" onclick="locateNearestEdge()" title="Auto-detect nearest pipe (±15m)">📍</button>
       </div>
+      <div class="leakburst-locate-status" id="leakBurstLocateStatus"></div>
 
       <!-- Edge list -->
       <div class="leakburst-edge-list" id="leakBurstEdgeList">
@@ -1091,6 +1098,28 @@ function haversine(lat1, lng1, lat2, lng2) {
   const a  = Math.sin(dL/2)**2 + Math.cos(lat1*r)*Math.cos(lat2*r)*Math.sin(dG/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
+// Perpendicular distance (metres) from a point (lat,lng) to a line segment
+// (lat1,lng1)–(lat2,lng2).  Uses equirectangular projection to local metres
+// for the projection math, then haversine for the final distance.
+function pointToSegmentDistance(lat, lng, lat1, lng1, lat2, lng2) {
+  const R = 6371000, r = Math.PI / 180;
+  const cosLat = Math.cos((lat1 + lat2 + lat) / 3 * r);
+  // Project to local metres (origin at midpoint of the segment)
+  const mx = lng * r * cosLat * R, my = lat * r * R;
+  const a1x = lng1 * r * cosLat * R, a1y = lat1 * r * R;
+  const a2x = lng2 * r * cosLat * R, a2y = lat2 * r * R;
+  // Vector from A1 to A2, and from A1 to P
+  const ex = a2x - a1x, ey = a2y - a1y;
+  const len2 = ex*ex + ey*ey;
+  if (len2 === 0) return haversine(lat, lng, lat1, lng1);
+  let t = ((mx - a1x)*ex + (my - a1y)*ey) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = a1x + t * ex, cy = a1y + t * ey;
+  // Convert closest point back to lat/lng
+  const clng = cx / (r * cosLat * R);
+  const clat = cy / (r * R);
+  return haversine(lat, lng, clat, clng);
+}
 function setLoc(cls, icon, title, sub) {
   $('locStatus').className = 'loc-status ' + cls;
   $('locIcon').textContent  = icon;
@@ -1431,9 +1460,23 @@ async function loadAllEdges() {
         const res = await fetch(`zones/${zone.id}.json?t=${Date.now()}`);
         if (!res.ok) continue;
         const data = await res.json();
+        // Build node coordinate lookup for this zone
+        const nodeCoords = {};
+        for (const n of (data.nodes || [])) {
+          const nd = n.data || n;
+          if (typeof nd.lat === 'number' && typeof nd.lng === 'number')
+            nodeCoords[nd.id] = { lat: nd.lat, lng: nd.lng };
+        }
         for (const e of (data.edges || [])) {
           const d = e.data || e;
-          edges.push({ id: d.id, source: d.source || '', target: d.target || '', zone: zone.id, zoneName: zone.name || zone.id });
+          const src = nodeCoords[d.source];
+          const tgt = nodeCoords[d.target];
+          edges.push({
+            id: d.id, source: d.source || '', target: d.target || '',
+            zone: zone.id, zoneName: zone.name || zone.id,
+            sourceLat: src?.lat, sourceLng: src?.lng,
+            targetLat: tgt?.lat, targetLng: tgt?.lng
+          });
         }
       } catch { /* skip unreadable zone */ }
     }
@@ -1487,7 +1530,7 @@ function renderPendingEstimates() {
     const info    = latestReportInfo(e.id);
     const docket  = (info && info.docket) ? info.docket : '';
     const encId   = encodeURIComponent(e.id);
-    const encName = encodeURIComponent(`${e.id} (${e.source} → ${e.target})`);
+    const encName = encodeURIComponent(`${e.id} (${e.source} to ${e.target})`);
     const encDocket = encodeURIComponent(docket);
     const docketLine = docket
       ? `<div class="pend-docket">🎫 ${esc(docket)}</div>` : '';
@@ -1495,7 +1538,7 @@ function renderPendingEstimates() {
   <div class="pend-icon">⚠️</div>
   <div class="pend-info">
     <div class="pend-id">${esc(e.id)}</div>
-    <div class="pend-route">${esc(e.source)} → ${esc(e.target)}</div>
+    <div class="pend-route">${esc(e.source)} to ${esc(e.target)}</div>
     ${docketLine}
     <span class="pend-zone">${esc(e.zoneName || e.zone)}</span>
   </div>
@@ -1611,14 +1654,16 @@ function updateLeakBurstLock() {
 
 function filterLeakBurstEdges() { renderLeakBurstEdgeList(); }
 
+function edgeLabel(e) {
+  return `${e.source} to ${e.target}`;
+}
+
 function renderLeakBurstEdgeList() {
   const q    = ($('leakBurstSearch').value || '').trim().toLowerCase();
   const list = allEdges.filter(e => {
     if (activeLeakBurstZone && e.zone !== activeLeakBurstZone) return false;
     if (!q) return true;
-    return e.id.toLowerCase().includes(q)
-        || e.source.toLowerCase().includes(q)
-        || e.target.toLowerCase().includes(q);
+    return edgeLabel(e).toLowerCase().includes(q);
   });
 
   if (!list.length) {
@@ -1629,9 +1674,10 @@ function renderLeakBurstEdgeList() {
   $('leakBurstEdgeList').innerHTML = list.map(e => {
     const isLeakBursted = leakBurstEdgeState[e.id] === 'LEAK_BURST';
     const isSelected = e.id === selectedEdgeId;
+    const label = edgeLabel(e);
     return `<div class="leakburst-edge-item${isSelected ? ' selected' : ''}" onclick="selectLeakBurstEdge('${esc(e.id)}')">
       <div style="flex:1;min-width:0">
-        <div class="fei-id">${hi(e.source, q)} → ${hi(e.target, q)}</div>
+        <div class="fei-id">${hi(label, q)}</div>
       </div>
       ${isLeakBursted ? '<span class="fei-leakburst-badge">⚠ LEAK/BURST</span>' : ''}
     </div>`;
@@ -1645,7 +1691,7 @@ function selectLeakBurstEdge(edgeId) {
   const hasEst    = !!estimateMap[edgeId];
 
   const lbl = $('leakBurstSelectedLabel');
-  lbl.textContent = edge ? `${edge.id}  (${edge.source} → ${edge.target})` : edgeId;
+  lbl.textContent = edge ? `${edge.id}  (${edge.source} to ${edge.target})` : edgeId;
   lbl.className   = 'leakburst-selected-label' + (isLeakBursted ? ' has-leakburst' : '');
 
   const btnReport = $('btnLeakBurstReport');
@@ -1683,7 +1729,7 @@ function renderEstimatePanel(edgeId, edge, isLeakBursted, hasEst) {
   if (!isLeakBursted) { panel.style.display = 'none'; content.innerHTML = ''; return; }
 
   panel.style.display = '';
-  const assetLabel = edge ? `${edge.id} (${edge.source} → ${edge.target})` : edgeId;
+  const assetLabel = edge ? `${edge.id} (${edge.source} to ${edge.target})` : edgeId;
   const info    = latestReportInfo(edgeId);
   const docket  = (info && info.docket) ? info.docket : '';
   const encId   = encodeURIComponent(edgeId);
@@ -1743,6 +1789,34 @@ function renderEstimatePanel(edgeId, edge, isLeakBursted, hasEst) {
   }
 }
 
+const LOCATE_TOLERANCE_M = 15;
+
+function locateNearestEdge() {
+  const statusEl = $('leakBurstLocateStatus');
+  if (!currentPos) { statusEl.textContent = '⏳ Waiting for GPS location…'; return; }
+  const zoneEdges = allEdges.filter(e =>
+    (!activeLeakBurstZone || e.zone === activeLeakBurstZone) &&
+    typeof e.sourceLat === 'number'
+  );
+  if (!zoneEdges.length) { statusEl.textContent = 'No pipes with coordinates in this zone'; return; }
+
+  const scored = zoneEdges.map(e => ({
+    edge: e,
+    dist: pointToSegmentDistance(currentPos.lat, currentPos.lng, e.sourceLat, e.sourceLng, e.targetLat, e.targetLng)
+  })).filter(s => s.dist <= LOCATE_TOLERANCE_M)
+    .sort((a, b) => a.dist - b.dist);
+
+  if (!scored.length) {
+    statusEl.textContent = `📍 No pipe within ${LOCATE_TOLERANCE_M}m of your location`;
+    return;
+  }
+
+  const best = scored[0];
+  selectLeakBurstEdge(best.edge.id);
+  statusEl.textContent = `📍 Selected ${best.edge.id} · ${Math.round(best.dist)}m away`;
+  setTimeout(() => { statusEl.textContent = ''; }, 5000);
+}
+
 async function submitEdgeLeakBurst(action) {
   const pid    = getPersonId();
   const person = persons.find(p => p.id === pid);
@@ -1786,7 +1860,7 @@ async function submitEdgeLeakBurst(action) {
       personId:   person.id,
       personName: person.name,
       assetId:    selectedEdgeId,
-      assetName:  edge ? `${edge.source} → ${edge.target}` : selectedEdgeId,
+      assetName:  edge ? `${edge.source} to ${edge.target}` : selectedEdgeId,
       action:     action,
       timestamp:  now.toISOString(),
       date:       todayStr(),
@@ -1870,7 +1944,7 @@ async function submitPipeIssue() {
       personId:   person.id,
       personName: person.name,
       assetId:    selectedEdgeId,
-      assetName:  edge ? `${edge.source} → ${edge.target}` : selectedEdgeId,
+      assetName:  edge ? `${edge.source} to ${edge.target}` : selectedEdgeId,
       action:     'PIPE_ISSUE',
       issueType:  issueType,
       note:       note,
@@ -2328,7 +2402,7 @@ function buildLeakBurstShareText() {
     faulted.forEach((e, i) => {
       const info   = latestReportInfo(e.id);
       const docket = info && info.docket ? info.docket : 'N/A';
-      msg += (i + 1) + '. Pipe   : ' + e.source + ' -> ' + e.target + '\n';
+      msg += (i + 1) + '. Pipe   : ' + e.source + ' to ' + e.target + '\n';
       msg += '   Docket : ' + docket + '\n';
       if (info && info.lat && info.lng) {
         msg += '   Location: ' + info.lat + ', ' + info.lng + '\n';
