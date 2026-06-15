@@ -21,7 +21,11 @@ Every toggle decision is built from two measurements:
 A third value sets the bar:
 
 - **tolerance (`tol`)** — the per-asset allowed radius. Taken from the operator's
-  asset assignment (`tolerance`), defaulting to **50 m** when not specified.
+  asset assignment (`tolerance` in `config.json`) — the single source of truth.
+  Missing, zero, negative, or non-numeric values are sanitized to the default
+  `DEFAULT_TOLERANCE_M` (**50 m**) by `normalizeTolerance()`. The whole gate is
+  computed in one place, `gpsGate()`, shared by the card, the live tick, and the
+  toggle.
 
 ---
 
@@ -111,18 +115,20 @@ order. Failing any one stops the toggle:
 
 1. **Person, asset, and position must exist.** If no GPS fix yet → *"Location not
    available yet"* and stop.
-2. **Distance gate.** If the asset has coordinates and `bestCase > tolerance` →
-   *"Too far away (Xm ±Ym). Must be within Zm"* and stop. (Assets with no stored
-   coordinates skip this gate.)
-3. **Accuracy confirmation.** If `acc > 50 m` and not yet confirmed → show the Low
+2. **Coordinates required.** If the asset has no stored `lat`/`lng`, presence
+   cannot be verified → *"This asset has no saved location — cannot verify you are
+   on-site"* and stop. (The toggle is also disabled on the card in this case.)
+3. **Distance gate.** If `bestCase > tolerance` → *"Too far away (Xm ±Ym). Must be
+   within Zm"* and stop.
+4. **Accuracy confirmation.** If `acc > 50 m` and not yet confirmed → show the Low
    GPS Accuracy modal and stop until the operator confirms.
-4. **Cooldown.** Each operator+asset pair has a **5-minute cooldown**
+5. **Cooldown.** Each operator+asset pair has a **5-minute cooldown**
    (`COOLDOWN_MS = 5 min`) after a successful toggle. A second toggle inside that
    window → *"Wait Xm Ys before toggling again"* and stop.
-5. **In-flight guard.** If a toggle for this asset is already saving →
+6. **In-flight guard.** If a toggle for this asset is already saving →
    *"Still saving the previous change…"* and stop. (Prevents double-taps from
    issuing two concurrent writes.)
-6. **Write, then commit.** The record is written to the database first; only after
+7. **Write, then commit.** The record is written to the database first; only after
    that succeeds is the asset's ON/OFF state updated in memory and on the card. If
    the write fails, the state is left unchanged and an error is shown — the asset
    does not flip to a state that was never saved.
@@ -136,7 +142,8 @@ Two badges communicate the GPS situation at a glance:
 **Distance badge**
 - ✅ green `Xm / Ym` — within tolerance (best-case), toggle enabled
 - 📵 red `Xm / Ym` — too far (best-case), toggle disabled
-- 📍 `Unknown` — asset has no stored coordinates; distance can't be checked
+- 📍 `No location` — asset has no stored coordinates; the toggle is **disabled**
+  (presence can't be verified)
 
 **Accuracy badge** (shown whenever there is a position fix)
 - `±Xm` green — accuracy is 50 m or better (good)
@@ -155,7 +162,7 @@ best-case distance within tolerance.
 |---|---|---|
 | `GPS_FIX_BUF` | `5` | Number of recent fixes kept; tightest one wins |
 | `ACC_POOR_THRESH` | `50` m | Above this accuracy → confirmation modal required |
-| default `tolerance` | `50` m | Allowed radius when an asset assignment omits one |
+| `DEFAULT_TOLERANCE_M` | `50` m | Fallback radius when an assignment's `tolerance` is missing/≤0/invalid |
 | `COOLDOWN_MS` | `5 min` | Per-operator, per-asset wait between toggles |
 | accuracy badge: good / poor / bad | `≤50` / `≤150` / `>150` m | Card badge colour thresholds |
 

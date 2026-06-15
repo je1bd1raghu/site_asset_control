@@ -681,6 +681,7 @@ const GPS_FIX_BUF      = 5;    // Option C: keep last N fixes, use the most accu
 const GPS_FIX_MAX_AGE  = 60 * 1000;       // discard fixes older than 1 minute
 const GPS_STALE_MS     = 15 * 1000;       // Option 1: no fresh movement in this long → "signal frozen"
 const ACC_POOR_THRESH  = 50;   // Option B: above this (metres) → show confirmation modal
+const DEFAULT_TOLERANCE_M = 50; // per-asset allowed radius when an assignment omits/has an invalid one
 const gpsFixes         = [];   // Option C: rolling buffer of recent fixes
 let _lastRawFix        = null; // Option 1: last raw reading, for duplicate detection
 let _lastFreshTs       = 0;    // Option 1: timestamp of the last genuinely-different reading
@@ -1098,8 +1099,30 @@ function setLoc(cls, icon, title, sub) {
 }
 function resetLoc() { setLoc('idle', '📍', 'Location not checked', 'Select your name to begin'); }
 
+// ── TOLERANCE / DISTANCE GATE ───────────────────────────────────────────────────
+// Single source of truth for "is the operator close enough to toggle?". Tolerance
+// comes from the operator's config assignment (person.assets[].tolerance); the
+// zone-status asset objects don't carry it. All three call sites (card render, the
+// 1-second tick, and doToggle) go through gpsGate() so they can never disagree.
+function normalizeTolerance(v) {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_TOLERANCE_M;
+}
+function gpsGate(asset, tol, fix = currentPos) {
+  const t        = normalizeTolerance(tol);
+  const hasGps   = !!asset && asset.lat != null && asset.lng != null;
+  const dist     = (hasGps && fix) ? Math.round(haversine(fix.lat, fix.lng, asset.lat, asset.lng)) : null;
+  const acc      = fix?.acc ?? 0;
+  // Best-case distance: give the operator the benefit of the GPS uncertainty.
+  const bestCase = dist !== null ? Math.max(0, dist - acc) : null;
+  // No coordinates (or no fix yet) → presence can't be verified → blocked.
+  const near     = hasGps && bestCase !== null && bestCase <= t;
+  return { tol: t, hasGps, dist, acc, bestCase, near };
+}
+
 // ── ASSET RENDER ───────────────────────────────────────────────────────────────
 const TYPE_ICON = { pump:'⚙️', valve:'🔧', zone:'🗺️' };
+let currentAssets = [];   // operator's currently-rendered (zone-resolved) assets; tickCooldowns reads this
 
 // When an operator's assignment doesn't pin a zone AND the assetId exists in more
 // than one zone, the asset is ambiguous — ask the operator which zone to tag. The
@@ -1147,10 +1170,11 @@ function renderAssets(person) {
   let list = (person.assets?.length)
     ? person.assets.map(e => {
         const base = assetForAssignment(e);
-        return base ? { ...base, tolerance: e.tolerance ?? 50, zone: e.zone || base.zone || null } : null;
+        return base ? { ...base, tolerance: normalizeTolerance(e.tolerance), zone: e.zone || base.zone || null } : null;
       }).filter(Boolean)
     : assets;
 
+  currentAssets = list;   // tickCooldowns gates against this (correct tolerance + zone coords)
   const el = $('assetsList');
   el.innerHTML = list.length
     ? list.map(a => buildAssetCard(a, person.id)).join('')
@@ -1161,20 +1185,13 @@ function renderAssets(person) {
 function buildAssetCard(asset, personId) {
   const st     = assetStatus[asset.id] || { status: 'OFF' };
   const isOn   = st.status === 'ON';
-  const tol    = asset.tolerance || 50;
-  const hasGps = asset.lat !== null && asset.lng !== null;
-  const dist   = hasGps && currentPos ? Math.round(haversine(currentPos.lat, currentPos.lng, asset.lat, asset.lng)) : null;
-  const acc    = currentPos?.acc ?? 0;
+  const g      = gpsGate(asset, asset.tolerance);
+  const { tol, hasGps, dist, acc, near } = g;
+  const cdLeft = getCooldownRemaining(personId, asset.id);
 
-  // Option A — best-case position: subtract accuracy radius from measured distance.
-  // If the operator could plausibly be within tolerance, enable the toggle.
-  const bestCase = dist !== null ? Math.max(0, dist - acc) : null;
-  const near     = !hasGps || bestCase <= tol;
-  const cdLeft   = getCooldownRemaining(personId, asset.id);
-
-  const locBadge = dist !== null
-    ? `<span class="loc-badge ${near ? 'loc-near':'loc-far'}">${near?'✅':'📵'} ${dist}m / ${tol}m</span>`
-    : `<span class="loc-badge loc-unk">📍 Unknown</span>`;
+  const locBadge = hasGps
+    ? `<span class="loc-badge ${near ? 'loc-near':'loc-far'}">${near?'✅':'📵'} ${dist ?? '—'}m / ${tol}m</span>`
+    : `<span class="loc-badge loc-unk">📍 No location</span>`;
 
   // Accuracy badge — shown whenever we have a position reading
   const accBadge = currentPos
@@ -1189,7 +1206,7 @@ function buildAssetCard(asset, personId) {
   const lastText = st.lastPersonName ? `By ${esc(st.lastPersonName)} · ${fmtTime(st.lastChangedAt)}` : 'No recent activity';
   const cdBadge  = cdLeft > 0 ? `<span class="cooldown-badge" id="cd-badge-${esc(asset.id)}">⏳ ${formatCooldown(cdLeft)}</span>` : `<span id="cd-badge-${esc(asset.id)}"></span>`;
   const disabled = (!near || cdLeft > 0) ? 'disabled' : '';
-  const title    = !near ? `Move within ${tol}m to toggle` : cdLeft > 0 ? `Cooldown: ${formatCooldown(cdLeft)}` : '';
+  const title    = !hasGps ? 'No saved location for this asset' : !near ? `Move within ${tol}m to toggle` : cdLeft > 0 ? `Cooldown: ${formatCooldown(cdLeft)}` : '';
 
   return `
 <div class="asset-card ${isOn?'status-on':'status-off'}" id="asset-card-${esc(asset.id)}">
@@ -1197,7 +1214,7 @@ function buildAssetCard(asset, personId) {
     <div>
       <div class="asset-name">${esc(asset.name)}</div>
       ${typeStr ? `<div class="asset-type">${esc(typeStr)}</div>` : ''}
-      <div class="asset-dist">${dist !== null ? `${dist}m away · must be within ${tol}m` : 'Distance unknown'}</div>
+      <div class="asset-dist">${!hasGps ? 'No saved location — toggle disabled' : dist !== null ? `${dist}m away · must be within ${tol}m` : 'Distance unknown'}</div>
     </div>
     <div class="toggle-wrap">
       <button class="toggle-switch ${isOn?'on':'off'}" id="toggle-btn-${esc(asset.id)}"
@@ -1217,18 +1234,14 @@ function buildAssetCard(asset, personId) {
 function tickCooldowns() {
   const pid = getPersonId();
   if (!pid) return;
-  assets.forEach(asset => {
+  // Iterate the operator's resolved assets (correct tolerance + zone coords),
+  // and gate via the shared helper so this stays in lockstep with the card.
+  currentAssets.forEach(asset => {
     const badge = document.getElementById('cd-badge-' + asset.id);
     const btn   = document.getElementById('toggle-btn-' + asset.id);
     if (!badge || !btn) return;
     const cdLeft = getCooldownRemaining(pid, asset.id);
-    const hasGps = asset.lat !== null && asset.lng !== null;
-    const dist   = hasGps && currentPos
-                   ? Math.round(haversine(currentPos.lat, currentPos.lng, asset.lat, asset.lng)) : null;
-    const acc    = currentPos?.acc ?? 0;
-    // Option A — match buildAssetCard: gate on best-case (dist - accuracy)
-    const bestCase = dist !== null ? Math.max(0, dist - acc) : null;
-    const near     = !hasGps || bestCase <= (asset.tolerance || 50);
+    const { near } = gpsGate(asset, asset.tolerance);
     badge.className   = cdLeft > 0 ? 'cooldown-badge' : '';
     badge.textContent = cdLeft > 0 ? '⏳ ' + formatCooldown(cdLeft) : '';
     btn.disabled      = !near || cdLeft > 0;
@@ -1249,21 +1262,21 @@ async function doToggle(assetId, _accConfirmed, _snapshot) {
   const asset  = (personAsset0?.zone && assetByZoneId[`${personAsset0.zone}|${assetId}`]) || assetMap[assetId];
   if (!person || !asset || !currentPos) { showToast('Location not available yet', 'error'); return; }
 
-  const hasGps = asset.lat !== null && asset.lng !== null;
-  const tol    = asset.tolerance || 50;
-
   // Snapshot the position ONCE at decision time. The poor-accuracy modal can sit
   // open for many seconds while watchPosition keeps rewriting currentPos; on the
   // confirm re-entry we reuse the snapshot taken on the first call so the recorded
   // distance/accuracy are exactly the numbers the operator saw and acted on — not
   // a fresh reading that drifted in the meantime. This keeps screen == record.
   const fix  = _snapshot || { lat: currentPos.lat, lng: currentPos.lng, acc: currentPos.acc ?? 0 };
-  const acc  = fix.acc;
-  const dist = hasGps ? Math.round(haversine(fix.lat, fix.lng, asset.lat, asset.lng)) : null;
 
-  // Option A — best-case gate: operator must be plausibly within tolerance
-  const bestCase = dist !== null ? Math.max(0, dist - acc) : null;
-  if (hasGps && bestCase > tol) { showToast(`Too far away (${dist}m ±${acc}m). Must be within ${tol}m`, 'error'); return; }
+  // Tolerance comes from the operator's assignment (single source of truth).
+  const { tol, hasGps, dist, acc, near } = gpsGate(asset, personAsset0?.tolerance, fix);
+
+  // No coordinates → presence can't be verified → block (matches the disabled card).
+  if (!hasGps) { showToast('This asset has no saved location — cannot verify you are on-site', 'error'); return; }
+
+  // Best-case distance gate: operator must be plausibly within tolerance.
+  if (!near) { showToast(`Too far away (${dist}m ±${acc}m). Must be within ${tol}m`, 'error'); return; }
 
   // Option B — if accuracy is poor and not yet confirmed, show modal first.
   // Pass the snapshot forward so confirm records the same fix shown here.
