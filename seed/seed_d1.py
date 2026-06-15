@@ -22,10 +22,14 @@ script, not the current working directory):
     seed/records/leakbursts.csv      ← /output
     seed/records/estimates.json      ← /output
 
-Pushing is always safe to repeat — INSERT OR IGNORE means no duplicates.
+Push is a mirror: config/status/estimates are replaced, and the records /
+leakbursts row tables are made to match the local files exactly — new local rows
+are inserted AND remote rows whose `sn` is absent locally are DELETED. (The public
+worker stays append-only; only this admin tool deletes, via wrangler.) A
+present-but-empty CSV is skipped rather than wiping the whole table.
 """
 
-import json, sys, subprocess, tempfile, os
+import json, sys, subprocess, tempfile, os, csv, io
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 
@@ -185,8 +189,58 @@ def push_status():
     print(f"  ❌  {r}")
     return False
 
+# Row tables (keyed on `sn`) that push mirrors. estimates.json is a full-blob
+# replace via PATCH /output, so it needs no row deletion.
+TABLE_FOR_FILE = {"records.csv": "records", "leakbursts.csv": "leakbursts"}
+
+def csv_sns(text):
+    """Set of non-empty `sn` values in a CSV string."""
+    if not text or not text.strip():
+        return set()
+    return {(r.get("sn") or "").strip()
+            for r in csv.DictReader(io.StringIO(text)) if (r.get("sn") or "").strip()}
+
+def delete_rows(table, sns):
+    """DELETE the given sns from a table via wrangler (chunked IN lists)."""
+    CHUNK = 200
+    stmts = []
+    for i in range(0, len(sns), CHUNK):
+        vals = ",".join("'" + s.replace("'", "''") + "'" for s in sns[i:i + CHUNK])
+        stmts.append(f"DELETE FROM {table} WHERE sn IN ({vals});")
+    r = wrangler_sql("\n".join(stmts))
+    if r.returncode == 0:
+        print(f"  🗑  {table}: deleted {len(sns)} remote row(s) not present locally")
+        return True
+    print(f"  ❌  {table} delete failed:\n{r.stderr.strip()}")
+    return False
+
+def mirror_delete_output(payload):
+    """Make the remote row tables mirror the local files: delete remote rows whose
+    `sn` is absent locally. Only files actually pushed this run are touched; a
+    present-but-empty file is skipped to avoid accidentally wiping a whole table."""
+    remote = get("/output?all=1")   # all=1 → full history for a correct diff
+    if "files" not in remote:
+        print(f"  ⚠   could not read remote for mirror-delete: {remote.get('error', remote)}")
+        return False
+    ok = True
+    for fname, table in TABLE_FOR_FILE.items():
+        if fname not in payload:
+            continue   # not pushed this run → leave that table untouched
+        local_sns = csv_sns(payload[fname])
+        if not local_sns:
+            print(f"  ⚠   {fname} has no rows — skipping mirror-delete to avoid wiping {table}")
+            continue
+        to_delete = sorted(csv_sns(remote["files"].get(fname, "")) - local_sns)
+        if not to_delete:
+            print(f"  —  {table}: remote already matches local (nothing to delete)")
+            continue
+        if not delete_rows(table, to_delete):
+            ok = False
+    return ok
+
 def push_output():
-    # records + leakbursts + estimates — via PATCH /output (append-only).
+    # records + leakbursts + estimates — via PATCH /output (append-only insert),
+    # then mirror-delete so the remote row tables match the local files exactly.
     section("push — output")
     payload = {}
     for name in OUTPUT_FILES:
@@ -199,14 +253,14 @@ def push_output():
         print("  —  no output files found, skipping")
         return True
     r = patch("/output", payload)
-    if r.get("ok"):
-        inserted = r.get("inserted", "?")
-        print(f"  ✅  done  ({inserted} INSERT statements — duplicates silently skipped)")
-        if isinstance(inserted, int) and inserted == 0:
-            print("      ℹ   Zero means all rows already exist in D1 (safe on re-run)")
-        return True
-    print(f"  ❌  {r}")
-    return False
+    if not r.get("ok"):
+        print(f"  ❌  {r}")
+        return False
+    inserted = r.get("inserted", "?")
+    print(f"  ✅  inserted ({inserted} statement(s); duplicates skipped)")
+
+    section("push — mirror (delete remote rows absent locally)")
+    return mirror_delete_output(payload)
 
 PUSH_GROUPS = {"config": push_config, "status": push_status, "output": push_output}
 
@@ -312,7 +366,9 @@ def main():
             targets = ask_push_targets()
             if targets is not None:   # None = cancelled at the sub-prompt
                 label = "all files" if not targets else targets[0]
-                if confirm(f"Upload {label} to the live D1 database?"):
+                warn = " (mirrors records/leakbursts — DELETES remote rows missing locally)" \
+                       if (not targets or "output" in targets) else ""
+                if confirm(f"Upload {label} to the live D1 database?{warn}"):
                     push(targets or None)
         elif choice in ("3", "verify"):
             verify()

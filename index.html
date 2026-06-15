@@ -574,7 +574,7 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
         <button class="btn-download" onclick="downloadRecords()">⬇ Records CSV</button>
         <button class="btn-download" onclick="downloadLeakBursts()" style="background:var(--danger);white-space:nowrap;">⬇ Leak/Burst CSV</button>
-        <button class="btn-download" onclick="downloadOtherIssuesSummary()" style="background:#4338ca;white-space:nowrap;">📊 Other Issues Summary</button>
+        <button class="btn-download" onclick="downloadOtherIssues()" style="background:#4338ca;white-space:nowrap;">🛠 Other Issues CSV</button>
         <button class="btn-download" onclick="openDownloadModal()" style="background:var(--warning);white-space:nowrap;">📋 Download Estimates</button>
       </div>
       <div id="dlStatus" style="font-size:12px;font-weight:600;color:var(--text3);margin-top:8px;min-height:18px"></div>
@@ -1809,6 +1809,12 @@ async function submitPipeIssue() {
 const CSV_COLS    = ['sn','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','gpsAcc','deviceId'];
 const LB_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','assetName','action','issueType','note','timestamp','date','time','lat','lng','distance','deviceId'];
 
+// Download-only column sets (LB_CSV_COLS above stays the storage/round-trip schema).
+// Leak/burst export drops issueType/note (always blank for leaks/bursts);
+// other-issues export keeps them and drops the constant 'action' (always PIPE_ISSUE).
+const LB_DL_COLS = ['sn','docket','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','deviceId'];
+const OI_DL_COLS = ['sn','docket','personId','personName','zone','assetId','assetName','issueType','note','timestamp','date','time','lat','lng','distance','deviceId'];
+
 // Docket number for a leak/burst report: LB-YYYYMMDD-XXXX
 // XXXX is a short base36 suffix derived from the timestamp + a random nibble,
 // giving a human-readable, sortable, practically-unique reference.
@@ -1919,7 +1925,8 @@ async function downloadLeakBursts() {
   try {
     const files   = await workerGet('output');
     const allRecs = csvParse(files[LEAKBURST_FILE] || '');
-    const filtered = allRecs.filter(r => inRange(r.date, range));
+    // Leaks/bursts only — "other issue" (PIPE_ISSUE) rows have their own download.
+    const filtered = allRecs.filter(r => r.action !== 'PIPE_ISSUE' && inRange(r.date, range));
 
     if (!filtered.length) {
       status.style.color = 'var(--warning)';
@@ -1927,7 +1934,7 @@ async function downloadLeakBursts() {
       return;
     }
 
-    const csv = Papa.unparse(filtered, { columns: LB_CSV_COLS });
+    const csv = Papa.unparse(filtered, { columns: LB_DL_COLS });
     triggerCsvDownload(BOM + csv, `leakbursts_${rangeFileTag(range)}.csv`);
 
     status.style.color = 'var(--success)';
@@ -1940,13 +1947,11 @@ async function downloadLeakBursts() {
   }
 }
 
-// ── OTHER ISSUES ZONE-WISE SUMMARY ──────────────────────────────────────────────
-// Builds a matrix CSV (zones as rows × issue-type categories as columns, with a
-// per-zone Total and a grand-total row) from PIPE_ISSUE records in the date range.
-// Issue-type columns follow the #pipeIssueType <option> order, then any extra
-// types found in the data, then '(unspecified)' for rows logged before the backend
-// persisted issueType.
-async function downloadOtherIssuesSummary() {
+// ── OTHER ISSUES (PIPE_ISSUE) DETAIL DOWNLOAD ───────────────────────────────────
+// Exports the "other pipe issue" rows (action = PIPE_ISSUE) in the date range as a
+// plain detail CSV, including issueType + note. Leaks/bursts are excluded — they
+// have their own Leak/Burst CSV download.
+async function downloadOtherIssues() {
   const range = getDateRange();
   if (!range) return;
   const btns   = document.querySelectorAll('.btn-download');
@@ -1954,7 +1959,7 @@ async function downloadOtherIssuesSummary() {
 
   btns.forEach(b => b.disabled = true);
   status.style.color = 'var(--text3)';
-  status.textContent = 'Building other-issues summary…';
+  status.textContent = 'Fetching other issues…';
 
   try {
     const files = await workerGet('output');
@@ -1967,49 +1972,11 @@ async function downloadOtherIssuesSummary() {
       return;
     }
 
-    const UNSPEC = '(unspecified)';
-    const norm = r => (r.issueType || '').trim() || UNSPEC;
-
-    // Column order: the standard categories first, then any others present.
-    const known = [...$('pipeIssueType').options].map(o => o.value);
-    const present = new Set(issues.map(norm));
-    const typeCols = [
-      ...known.filter(t => present.has(t)),
-      ...[...present].filter(t => !known.includes(t) && t !== UNSPEC).sort(),
-      ...(present.has(UNSPEC) ? [UNSPEC] : []),
-    ];
-
-    // zone → { type → count }
-    const byZone = {};
-    for (const r of issues) {
-      const z = (r.zone || '').trim() || '(no zone)';
-      (byZone[z] ||= {});
-      const t = norm(r);
-      byZone[z][t] = (byZone[z][t] || 0) + 1;
-    }
-
-    const totals = Object.fromEntries(typeCols.map(t => [t, 0]));
-    const rows = Object.keys(byZone).sort().map(z => {
-      const row = { Zone: z };
-      let zoneTotal = 0;
-      for (const t of typeCols) {
-        const n = byZone[z][t] || 0;
-        row[t] = n; zoneTotal += n; totals[t] += n;
-      }
-      row.Total = zoneTotal;
-      return row;
-    });
-    const grand = { Zone: 'TOTAL' };
-    let g = 0;
-    for (const t of typeCols) { grand[t] = totals[t]; g += totals[t]; }
-    grand.Total = g;
-    rows.push(grand);
-
-    const csv = Papa.unparse(rows, { columns: ['Zone', ...typeCols, 'Total'] });
-    triggerCsvDownload(BOM + csv, `other_issues_summary_${rangeFileTag(range)}.csv`);
+    const csv = Papa.unparse(issues, { columns: OI_DL_COLS });
+    triggerCsvDownload(BOM + csv, `other_issues_${rangeFileTag(range)}.csv`);
 
     status.style.color = 'var(--success)';
-    status.textContent = `✓ Summary of ${issues.length} issue${issues.length > 1 ? 's' : ''} across ${rows.length - 1} zone(s) for ${rangeLabel(range)}.`;
+    status.textContent = `✓ Downloaded ${issues.length} other issue${issues.length > 1 ? 's' : ''} for ${rangeLabel(range)}.`;
   } catch(e) {
     status.style.color = 'var(--danger)';
     status.textContent = 'Error: ' + e.message;
