@@ -72,6 +72,12 @@
   .btn-outline:hover { background:var(--primary-light); border-color:var(--primary); color:var(--primary); }
   .btn:disabled { opacity:.45; cursor:not-allowed; }
 
+  .sr-item { padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border); transition:background .12s; }
+  .sr-item:last-child { border-bottom:none; }
+  .sr-item:hover { background:var(--primary-light); }
+  .sr-title { font-size:13px; font-weight:800; color:var(--text); }
+  .sr-sub   { font-size:11px; font-weight:600; color:var(--text3); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
   .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--text); color:#fff; padding:14px 24px; border-radius:50px; font-size:14px; font-weight:700; z-index:9999; transition:transform .35s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; max-width:88vw; text-align:center; }
   .toast.show    { transform:translateX(-50%) translateY(0); }
   .toast.success { background:var(--success); }
@@ -90,6 +96,19 @@
 </div>
 
 <div class="card-wrapper">
+
+  <!-- Search card -->
+  <div class="card" style="padding:16px 20px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:16px;flex-shrink:0;">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search estimates by asset, docket, or title…"
+        style="flex:1;border:2px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;font-family:'Nunito',sans-serif;font-weight:600;color:var(--text);outline:none;"
+        onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"
+        oninput="filterEstimates()">
+      <button class="btn btn-outline" onclick="clearSearch()" id="clearSearchBtn" style="display:none;padding:8px 12px;font-size:12px;">✕</button>
+    </div>
+    <div id="searchResults" style="display:none;margin-top:10px;max-height:260px;overflow-y:auto;border:2px solid var(--border);border-radius:var(--radius-sm);"></div>
+  </div>
 
   <!-- Asset context banner -->
   <div class="card" id="assetBannerCard">
@@ -143,6 +162,8 @@
         style="width:100%;border:2px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;font-size:15px;font-family:'Nunito',sans-serif;font-weight:600;color:var(--text);outline:none;transition:border-color .2s;"
         onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
     </div>
+
+    <datalist id="particularsList"></datalist>
 
     <div class="field-label">Line Items</div>
     <div class="tbl-wrap">
@@ -208,6 +229,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   loadEstimates();
+  loadParticulars();
 });
 
 async function loadEstimates() {
@@ -220,6 +242,118 @@ async function loadEstimates() {
     estimates = [];
   }
   renderPage();
+}
+
+// ── IndexedDB for particular suggestions ──
+const DB_NAME = 'EstimateDB';
+const DB_VER  = 1;
+const STORE   = 'particulars';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: 'text' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+async function loadParticulars() {
+  try {
+    const db  = await openDB();
+    const tx  = db.transaction(STORE, 'readonly');
+    const all = await new Promise((res, rej) => {
+      const req = tx.objectStore(STORE).getAll();
+      req.onsuccess = () => res(req.result || []);
+      req.onerror   = () => rej(req.error);
+    });
+    db.close();
+    const dl = document.getElementById('particularsList');
+    dl.innerHTML = all
+      .sort((a, b) => (b.count||0) - (a.count||0))
+      .map(p => `<option value="${esc(p.text)}">`).join('');
+  } catch(e) { /* silent */ }
+}
+
+async function saveParticulars(items) {
+  try {
+    const db  = await openDB();
+    const tx  = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    for (const item of items) {
+      const text = (item.particulars || '').trim();
+      if (!text) continue;
+      const existing = await new Promise((res, rej) => {
+        const r = store.get(text);
+        r.onsuccess = () => res(r.result);
+        r.onerror   = () => rej(r.error);
+      });
+      if (existing) {
+        existing.count = (existing.count || 0) + 1;
+        store.put(existing);
+      } else {
+        store.put({ text, count: 1 });
+      }
+    }
+    await new Promise((res, rej) => {
+      const r = tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+    db.close();
+    loadParticulars();
+  } catch(e) { /* silent */ }
+}
+
+function filterEstimates() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const container = document.getElementById('searchResults');
+  const clearBtn  = document.getElementById('clearSearchBtn');
+  clearBtn.style.display = q ? '' : 'none';
+  if (!q || !estimates.length) { container.style.display = 'none'; return; }
+
+  const matches = estimates.filter(e =>
+    (e.assetName || '').toLowerCase().includes(q) ||
+    (e.name || '').toLowerCase().includes(q) ||
+    (e.docket || '').toLowerCase().includes(q) ||
+    (e.assetId || '').toLowerCase().includes(q)
+  );
+  if (!matches.length) {
+    container.style.display = '';
+    container.innerHTML = '<div style="padding:14px;font-size:13px;font-weight:600;color:var(--text3);text-align:center;">No matching estimates found</div>';
+    return;
+  }
+  container.style.display = '';
+  container.innerHTML = matches.map(e => {
+    const label = e.name || e.assetName || e.assetId;
+    const sub = [e.docket && '🎫 '+e.docket, e.assetName, e.items.length+' items', '₹'+fmtNum(e.total), e.date].filter(Boolean).join(' · ');
+    return '<div class="sr-item" onclick="selectEstimate(\''+esc(e.assetId)+'\')">' +
+      '<div class="sr-title">' + esc(label) + '</div>' +
+      '<div class="sr-sub">' + esc(sub) + '</div></div>';
+  }).join('');
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchResults').style.display = 'none';
+  document.getElementById('clearSearchBtn').style.display = 'none';
+}
+
+function selectEstimate(id) {
+  assetId   = id;
+  const est = estimates.find(e => e.assetId === id);
+  assetName = (est && est.assetName) || id;
+  docket    = (est && est.docket) || '';
+  document.getElementById('assetBannerTitle').textContent = '⚠ Leak/Burst: ' + assetName;
+  document.getElementById('assetBannerSub').textContent   =
+    (docket ? '🎫 Docket: ' + docket + '  ·  ' : '') + 'Linked to asset: ' + assetId;
+  clearSearch();
+  renderPage();
+  document.getElementById('assetBannerCard').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 function getForAsset() {
@@ -310,7 +444,7 @@ function renderEditTable() {
   document.getElementById('editBody').innerHTML = rows.map((r,i) => `
     <tr>
       <td class="sno">${i+1}</td>
-      <td><input class="pi" type="text" value="${esc(r.particulars)}" placeholder="Description…" oninput="rowChange(${i},'particulars',this.value)"></td>
+      <td><input class="pi" type="text" value="${esc(r.particulars)}" placeholder="Description…" list="particularsList" autocomplete="off" oninput="rowChange(${i},'particulars',this.value)"></td>
       <td><input class="ri" type="number" min="0" step="any" value="${r.quantity||''}" placeholder="0" style="width:100%;border:none;outline:none;background:transparent;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;text-align:right;" oninput="rowChange(${i},'quantity',this.value)"></td>
       <td><input type="text" value="${esc(r.unit)}" placeholder="m/nos…" oninput="rowChange(${i},'unit',this.value)" style="width:100%;border:none;outline:none;background:transparent;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;"></td>
       <td><input class="ri" type="number" min="0" step="any" value="${r.rate||''}" placeholder="0" style="width:100%;border:none;outline:none;background:transparent;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;text-align:right;" oninput="rowChange(${i},'rate',this.value)"></td>
@@ -369,6 +503,7 @@ async function saveEstimate() {
   try {
     const compact = '[\n' + estimates.map(e => '  ' + JSON.stringify(e)).join(',\n') + '\n]';
     await workerPatch({ [ESTIMATES_FILE]: compact });
+    saveParticulars(items);
     showToast('💾 Estimate saved', 'success');
     cancelRevise();
     renderPage();
