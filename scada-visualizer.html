@@ -851,19 +851,14 @@
     function bindMapSync() {
         if (!map) return;
         map.off('move zoom moveend zoomend', syncNodesToMap);
-        map.off('zoomend', _onZoomResize);
         map.on('move zoom moveend zoomend', syncNodesToMap);
-        map.on('zoomend', _onZoomResize);
         mapSyncBound = true;
     }
 
-    // Recompute density-based size after a zoom gesture settles. Preserves the
-    // user's manual offset (only the auto baseline changes).
-    function _onZoomResize() {
-        if (!cy || !mapVisible || !zoneHasGps()) return;
-        recomputeAutoStep(cy.nodes().length);
-        _applyNodeSizeStyle();
-    }
+    // NOTE: map zoom only re-syncs node POSITIONS (syncNodesToMap), never node
+    // sizes. The density-based size is set once when the map opens (enterMapMode)
+    // and then stays a constant on-screen size while the map is zoomed — the
+    // slider is the way to fine-tune it from there.
 
     // Fit the Leaflet map to all GPS nodes, then sync node positions.
     function fitMapToGpsNodes() {
@@ -1061,15 +1056,16 @@
     // SMALL end of the old scale — tuned so nodes don't overwhelm the satellite map.
     const SIZE_MIN = -10;       // smallest size step (slider far-left)
     const SIZE_MAX = -1;        // largest size step  (slider far-right)
-    // Typed-node baselines at step 0 (mirror scada-core.js static sizes)
+    // Typed-node baselines at step 0 (kept small so icons sit close in scale to
+    // the labels + arrowheads rather than dominating them).
     const NSC_DOT_BASE  = 4;    // untyped junction dot size at step 0
     const NSC_DOT_STEP  = 0.5;  // dot px change per step (smaller than typed nodes)
-    const NSC_VALVE_SZ  = 44;   // valve baseline px
-    const NSC_PUMP_SZ   = 48;   // pump baseline px
-    const NSC_ZONE_W    = 56;   // zone width baseline px
-    const NSC_ZONE_H    = 44;   // zone height baseline px
+    const NSC_VALVE_SZ  = 30;   // valve baseline px
+    const NSC_PUMP_SZ   = 32;   // pump baseline px
+    const NSC_ZONE_W    = 38;   // zone width baseline px
+    const NSC_ZONE_H    = 30;   // zone height baseline px
     const NSC_BASE_FONT = 12;   // typed label font px at step 0
-    const NSC_STEP_PX   = 3;    // px change per step for typed nodes
+    const NSC_STEP_PX   = 2;    // px change per step for typed nodes
     const NSC_STEP_FONT = 1;    // font px change per step
 
     // ── Adaptive (scale-aware) sizing ────────────────────────────────────────
@@ -1084,17 +1080,18 @@
     //  • DIAGRAM MODE (no map / no GPS): no geographic area exists, so we fall
     //    back to a log-of-count curve: step = CNT_A − CNT_B·log10(N).
     //
-    // Both regimes emit a "step" on the linear scale (valve baseline 44px,
-    // ±3px per step), clamped to [SIZE_MIN, SIZE_MAX].
+    // Both regimes emit a "step" on the linear scale (valve baseline 30px,
+    // ±2px per step), clamped to [SIZE_MIN, SIZE_MAX].
     const CNT_A = -0.6;         // count-mode curve intercept (shifted into the new range)
     const CNT_B = 2.6;          // count-mode curve slope
-    const TARGET_FRAC = 0.55;   // map-mode: icon diameter ÷ nearest-neighbour spacing
+    const TARGET_FRAC = 0.42;   // map-mode: icon diameter ÷ nearest-neighbour spacing
     // Above this node count, per-frame animations are skipped to avoid memory /
     // main-thread freeze (each anim loop iterates pump/valve nodes every frame).
     const ANIM_NODE_LIMIT = 1000;
 
     let _autoStep     = SIZE_MAX;   // baseline derived from density (map) or count (diagram)
     let _manualOffset = 0;          // user's slider nudges, applied on top of the baseline
+    let _sizeZoomRaf  = null;       // rAF handle: throttles constant-screen resize on zoom
 
     // Convert a desired icon diameter (px) into the nearest valid size step.
     function _pxToStep(targetPx) {
@@ -1161,17 +1158,15 @@
         return pts;
     }
 
-    // DIAGRAM MODE coords: use raw node MODEL positions (zoom-independent).
-    // Node sizes are model-space units too, so deriving the step from model
-    // spacing keeps the icon-to-spacing ratio constant at every zoom level —
-    // Cytoscape magnifies icons and spacing by the same zoom factor. (Using
-    // rendered px = model × zoom here would inflate the step on zoom-in and
-    // make icons grow faster than the gaps between them, causing overlap.)
+    // DIAGRAM MODE coords: use RENDERED (on-screen px) positions. The default
+    // size is derived from how crowded the graph looks on screen at open, then
+    // held constant on-screen while zooming (see _applyNodeSizeStyle). This is
+    // only sampled once per open (not per zoom), so it can't run away.
     function _canvasPoints() {
         if (!cy) return [];
         const pts = [];
         cy.nodes().forEach(n => {
-            const p = n.position();
+            const p = n.renderedPosition();
             pts.push([p.x, p.y]);
         });
         return pts;
@@ -1216,17 +1211,29 @@
         const s        = Math.max(SIZE_MIN, Math.min(SIZE_MAX, _autoStep + _manualOffset));
         const dSz      = s * NSC_STEP_PX;   // signed delta for typed nodes
         const rawFont  = NSC_BASE_FONT + s * NSC_STEP_FONT;
-        const font     = (rawFont < 6 ? '0' : Math.max(6, rawFont)) + 'px';
-        // Each typed node type scales from its own baseline
-        const valveSz  = Math.max(8,  NSC_VALVE_SZ + dSz);
-        const pumpSz   = Math.max(10, NSC_PUMP_SZ  + dSz);
-        const zoneW    = Math.max(12, NSC_ZONE_W   + dSz);
-        const zoneH    = Math.max(8,  NSC_ZONE_H   + dSz);
-        // Edge + arrowhead proportional to typed-node midpoint
-        const edgeW      = Math.min(8, Math.max(0.6, 4 + s * 0.35));
-        const arrowScale = Math.min(2.5, Math.max(0.35, 1.2 + s * 0.1));
+        // Counter-scale every model dimension by the current render zoom so icons
+        // and labels keep a CONSTANT ON-SCREEN size: Cytoscape draws model units ×
+        // zoom, so model = target_px / zoom. Map mode pins cy.zoom() to 1 (the
+        // Leaflet map does the zooming), so this is a no-op there.
+        const z          = cy.zoom() || 1;
+        // Labels stay visible (min 6px) across the whole range and only hide at
+        // the very smallest size step.
+        const fontPx     = (s <= SIZE_MIN) ? 0 : Math.max(6, rawFont);
+        const font       = (fontPx ? fontPx / z : 0) + 'px';
+        // Each typed node type scales from its own baseline (target px ÷ zoom)
+        const valveSz  = Math.max(8,  NSC_VALVE_SZ + dSz) / z;
+        const pumpSz   = Math.max(10, NSC_PUMP_SZ  + dSz) / z;
+        const zoneW    = Math.max(12, NSC_ZONE_W   + dSz) / z;
+        const zoneH    = Math.max(8,  NSC_ZONE_H   + dSz) / z;
+        // Edge width is also model-space (÷ zoom); arrow-scale is unitless and
+        // already tracks the edge width, so it needs no counter-scaling. Arrow
+        // scale is kept low — and its floor pulled down — so that on dense maps
+        // (very negative s) arrowheads keep shrinking with the tiny icons instead
+        // of bottoming out at a chunky minimum.
+        const edgeW      = Math.min(8, Math.max(0.6, 4 + s * 0.35)) / z;
+        const arrowScale = Math.min(0.8, Math.max(0.12, 0.4 + s * 0.04));
         // Untyped dot scales with steps; min 2 so it stays visible
-        const dotSz      = Math.max(2, NSC_DOT_BASE + s * NSC_DOT_STEP);
+        const dotSz      = Math.max(2, NSC_DOT_BASE + s * NSC_DOT_STEP) / z;
         cy.style()
           // Untyped dot scales and can reach 0 (hidden)
           .selector('node')
@@ -1522,10 +1529,18 @@
             if (evt.target === cy) closeNodePanel();
         });
 
-        // Diagram mode needs no per-zoom resize: the auto-step is derived from
-        // zoom-independent MODEL spacing, and Cytoscape scales icons and gaps by
-        // the same zoom factor, so their ratio stays constant. (Map mode handles
-        // its own sizing via the map 'zoomend' handler.)
+        // Constant on-screen sizing: re-derive model sizes whenever the render
+        // zoom changes so icons + labels stay the same pixel size at any zoom.
+        // The density-based default (auto step) is set once on open and is NOT
+        // recomputed here — only the zoom counter-scale is reapplied. Throttled to
+        // one update per frame. (Map mode pins cy.zoom to 1, so this stays inert.)
+        cy.on('zoom', () => {
+            if (_sizeZoomRaf) return;
+            _sizeZoomRaf = requestAnimationFrame(() => {
+                _sizeZoomRaf = null;
+                _applyNodeSizeStyle();
+            });
+        });
 
         bindEdgeTap();
     }
