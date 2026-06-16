@@ -2386,7 +2386,6 @@ function buildLeakBurstShareText() {
   const SEP = '------------------------------------';
 
   let msg = 'LEAK / BURST REPORT\n';
-  msg    += 'SCADA Asset Control\n';
   msg    += SEP + '\n';
   msg    += 'Zone     : ' + zoneName + '\n';
   msg    += 'Date     : ' + dateStr + '\n';
@@ -2404,6 +2403,11 @@ function buildLeakBurstShareText() {
       const docket = info && info.docket ? info.docket : 'N/A';
       msg += (i + 1) + '. Pipe   : ' + e.source + ' to ' + e.target + '\n';
       msg += '   Docket : ' + docket + '\n';
+      if (info) {
+        const d = info.date ? new Date(info.date + 'T' + (info.time || '00:00:00')) : null;
+        const dateReported = d ? d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) + ' ' + d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : '—';
+        msg += '   Date Reported: ' + dateReported + '\n';
+      }
       if (info && info.lat && info.lng) {
         msg += '   Location: ' + info.lat + ', ' + info.lng + '\n';
         msg += '   Map    : https://maps.google.com/?q=' + info.lat + ',' + info.lng + '\n';
