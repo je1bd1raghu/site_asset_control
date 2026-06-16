@@ -247,8 +247,8 @@ function renderPage() {
         <td class="sno">${i+1}</td>
         <td>${esc(it.particulars)}</td>
         <td style="text-align:right;">${fmtNum(it.quantity, false)} ${esc(it.unit)}</td>
-        <td style="text-align:right;">₹${fmtNum(it.rate)}</td>
-        <td style="text-align:right;font-weight:800;color:var(--primary);">₹${fmtNum(it.amount)}</td>
+        <td style="text-align:right;">${it.rate ? '₹'+fmtNum(it.rate) : '—'}</td>
+        <td style="text-align:right;font-weight:800;color:var(--primary);">${it.amount && it.rate ? '₹'+fmtNum(it.amount) : '—'}</td>
       </tr>`).join('');
     document.getElementById('existingTotal').textContent = '₹' + fmtNum(existing.total);
     document.getElementById('formCard').style.display = 'none';
@@ -314,7 +314,7 @@ function renderEditTable() {
       <td><input class="ri" type="number" min="0" step="any" value="${r.quantity||''}" placeholder="0" style="width:100%;border:none;outline:none;background:transparent;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;text-align:right;" oninput="rowChange(${i},'quantity',this.value)"></td>
       <td><input type="text" value="${esc(r.unit)}" placeholder="m/nos…" oninput="rowChange(${i},'unit',this.value)" style="width:100%;border:none;outline:none;background:transparent;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;"></td>
       <td><input class="ri" type="number" min="0" step="any" value="${r.rate||''}" placeholder="0" style="width:100%;border:none;outline:none;background:transparent;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;text-align:right;" oninput="rowChange(${i},'rate',this.value)"></td>
-      <td style="text-align:right;font-weight:800;color:var(--primary);" id="amt${i}">${fmtNum(rowAmt(r))}</td>
+      <td style="text-align:right;font-weight:800;color:var(--primary);" id="amt${i}">${r.rate ? fmtNum(rowAmt(r)) : '—'}</td>
       <td><button class="btn-del" onclick="delRow(${i})">🗑</button></td>
     </tr>`).join('');
   updateTotal();
@@ -323,7 +323,7 @@ function renderEditTable() {
 function rowChange(i, field, val) {
   rows[i][field] = val;
   const cell = document.getElementById('amt'+i);
-  if (cell) cell.textContent = fmtNum(rowAmt(rows[i]));
+  if (cell) cell.textContent = rows[i].rate ? fmtNum(rowAmt(rows[i])) : '—';
   updateTotal();
 }
 
