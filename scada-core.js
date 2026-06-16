@@ -245,6 +245,18 @@ const CY_STYLE = [
         'border-color': '#f1c40f',
         'border-style': 'solid'
     }
+},
+
+// ── Search-highlighted edge ─────────────────────────────────────────────────
+// Keep the edge's own colour; add a yellow halo/border via underlay instead.
+{
+    selector: 'edge.highlight',
+    style: {
+        'underlay-color':   '#ffeb3b',
+        'underlay-padding':  5,
+        'underlay-opacity':  0.9,
+        'z-index': 999
+    }
 }
 ];
 

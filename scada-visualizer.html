@@ -74,27 +74,95 @@
             display: none;
         }
 
-        #zone-select {
-            padding: 5px 10px;
+        /* Zone selector — a button that opens a modal */
+        #zone-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
             border-radius: 6px;
             border: 1px solid #495057;
             background: #343A40;
             color: white;
             font-size: 0.85rem;
+            font-family: inherit;
             cursor: pointer;
             min-width: 220px;
+            max-width: 320px;
+            transition: border-color 0.15s, background 0.15s;
         }
-        #zone-select option { background: #343A40; }
+        #zone-btn:hover { border-color: #F5821F; background: #3b4248; }
+        #zone-btn-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+        #zone-btn .zb-caret { flex-shrink: 0; opacity: 0.6; font-size: 0.7rem; }
 
+        /* Zone selector modal */
+        .zone-modal-overlay {
+            position: fixed; inset: 0; z-index: 1000;
+            display: none; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(2px);
+            padding: 20px;
+        }
+        .zone-modal-overlay.show { display: flex; }
+        .zone-modal {
+            width: 100%; max-width: 460px; max-height: 80vh;
+            display: flex; flex-direction: column;
+            background: #2b3035;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 14px;
+            box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+            overflow: hidden;
+            animation: zoneModalIn 0.18s ease-out;
+        }
+        @keyframes zoneModalIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+        .zone-modal-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px;
+            font-size: 0.95rem; font-weight: 700; letter-spacing: 0.3px;
+            color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .zone-modal-close {
+            border: none; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.75);
+            width: 28px; height: 28px; border-radius: 50%; font-size: 18px; line-height: 1;
+            cursor: pointer; transition: background 0.12s, color 0.12s;
+        }
+        .zone-modal-close:hover { background: rgba(245,130,31,0.35); color: #fff; }
+        .zone-list { overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+        .zone-item {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            width: 100%; text-align: left;
+            padding: 12px 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 9px;
+            background: rgba(255,255,255,0.03);
+            color: #e9ecef; font-family: inherit; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: background 0.12s, border-color 0.12s;
+        }
+        .zone-item:hover { background: rgba(245,130,31,0.14); border-color: rgba(245,130,31,0.5); }
+        .zone-item.active { background: rgba(245,130,31,0.2); border-color: #F5821F; }
+        .zone-item .zi-check { color: #F5821F; font-weight: 800; flex-shrink: 0; }
+
+        /* Sync indicator — a quiet status dot, not a loud pill */
         #sync-status {
             margin-left: auto;
-            font-size: 0.75rem;
-            padding: 4px 12px;
-            border-radius: 12px;
-            background: #495057;
-            transition: background 0.4s;
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 0.72rem; color: rgba(255,255,255,0.6);
             flex-shrink: 0;
+            cursor: default;
         }
+        #sync-dot {
+            width: 9px; height: 9px; border-radius: 50%;
+            background: #6c757d;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+        #sync-status.ok    #sync-dot { background: #27ae60; }
+        #sync-status.error #sync-dot { background: #e74c3c; }
+        #sync-status.busy  #sync-dot { background: #f0a020; animation: syncPulse 1s ease-in-out infinite; }
+        @keyframes syncPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        #sync-status.error #sync-text { color: #f1948a; }
+        #sync-text:empty { display: none; }
 
         #cy-container {
             position: relative;
@@ -154,40 +222,81 @@
         #locate-btn:hover { background: rgba(245,130,31,0.18); border-color: #F5821F; }
         #locate-btn.locating { opacity: 0.6; cursor: progress; }
         #locate-btn.active { background: rgba(245,130,31,0.25); border-color: #F5821F; }
+        /* Search bar */
+        #search-wrap { position:absolute; top:16px; left:16px; z-index:12; width:220px; }
+        #search-input { width:100%; padding:8px 34px 8px 12px; border:2px solid rgba(127,219,202,0.5); border-radius:8px; background:rgba(33,37,41,0.82); color:#fff; font-size:13px; font-family:'Nunito','Noto Sans Bengali',sans-serif; font-weight:600; outline:none; box-shadow:0 2px 6px rgba(0,0,0,0.35); transition:border-color .15s; }
+        #search-input::placeholder { color:rgba(255,255,255,0.45); font-weight:400; }
+        #search-input:focus { border-color:#F5821F; }
+        #search-clear { position:absolute; top:7px; right:7px; width:22px; height:22px; display:none; align-items:center; justify-content:center; border:none; border-radius:50%; background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.7); font-size:15px; line-height:1; cursor:pointer; padding:0; transition:background .12s,color .12s; }
+        #search-clear:hover { background:rgba(245,130,31,0.35); color:#fff; }
+        #search-clear.show { display:flex; }
+        #search-results { position:absolute; top:100%; left:0; right:0; margin-top:4px; border-radius:8px; background:rgba(33,37,41,0.92); border:1px solid rgba(255,255,255,0.12); overflow:hidden; display:none; box-shadow:0 4px 16px rgba(0,0,0,0.45); }
+        .sr-item { padding:8px 12px; cursor:pointer; font-size:12px; font-weight:600; color:#ddd; border-bottom:1px solid rgba(255,255,255,0.06); transition:background .12s; }
+        .sr-item:last-child { border-bottom:none; }
+        .sr-item:hover { background:rgba(245,130,31,0.25); color:#fff; }
+        .sr-item .sr-sub { font-size:10px; color:rgba(255,255,255,0.45); font-weight:400; margin-top:1px; }
         /* Leaflet attribution: keep it out of the way */
         .leaflet-control-attribution { font-size: 9px !important; }
 
-        /* Node size controls (+/-) — matches Graph Analyzer style */
+        /* Node size control — collapsible slider */
         .node-size-controls {
             position: absolute;
             bottom: 20px;
             right: 16px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 4px;
+            align-items: flex-end;
+            gap: 8px;
             z-index: 15;
         }
-        .node-size-controls .nsc-label {
-            font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.85);
-            font-family: 'Nunito', sans-serif; letter-spacing: 0.4px;
-            text-transform: uppercase; user-select: none; text-align: center;
-            background: rgba(33,37,41,0.82); border-radius: 4px;
-            padding: 1px 5px; line-height: 1.4;
-        }
-        .nsc-btn {
-            width: 32px; height: 32px; border-radius: 8px;
+        /* Toggle button (always visible) — matches the other glassy corner buttons */
+        .nsc-toggle {
+            width: 36px; height: 36px; border-radius: 8px;
             border: 2px solid rgba(245,130,31,0.5);
             background: rgba(33,37,41,0.82); color: #F5821F;
-            font-size: 20px; font-weight: 800; line-height: 1;
             cursor: pointer; display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 6px rgba(0,0,0,0.35);
             transition: background 0.15s, border-color 0.15s;
             padding: 0;
         }
-        .nsc-btn:hover { background: rgba(245,130,31,0.18); border-color: #F5821F; }
-        .nsc-btn:active { background: #F5821F; color: #212529; }
-        .nsc-btn:focus-visible { outline: 3px solid #F5821F; outline-offset: 2px; }
+        .nsc-toggle:hover { background: rgba(245,130,31,0.18); border-color: #F5821F; }
+        .nsc-toggle:focus-visible { outline: 3px solid #F5821F; outline-offset: 2px; }
+        .node-size-controls.expanded .nsc-toggle { background: rgba(245,130,31,0.22); border-color: #F5821F; }
+
+        /* Slider panel — hidden until expanded, pops up above the toggle */
+        .nsc-panel {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 10px;
+            border: 2px solid rgba(245,130,31,0.5);
+            background: rgba(33,37,41,0.9);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+        }
+        .node-size-controls.expanded .nsc-panel { display: flex; animation: nscPanelIn 0.16s ease-out; }
+        @keyframes nscPanelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        .nsc-end { color: rgba(245,130,31,0.85); user-select: none; line-height: 1; flex-shrink: 0; }
+        .nsc-end-sm { font-size: 9px; }
+        .nsc-end-lg { font-size: 16px; }
+        .nsc-slider {
+            -webkit-appearance: none; appearance: none;
+            width: 130px; height: 4px; border-radius: 3px;
+            background: rgba(255,255,255,0.25);
+            outline: none; cursor: pointer; margin: 0;
+            accent-color: #F5821F;
+        }
+        .nsc-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #F5821F; border: 2px solid #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4); cursor: pointer;
+        }
+        .nsc-slider::-moz-range-thumb {
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #F5821F; border: 2px solid #fff; cursor: pointer;
+        }
+        .nsc-slider:focus-visible { outline: 3px solid #F5821F; outline-offset: 4px; }
 
         /* Loading overlay */
         #loading {
@@ -239,17 +348,15 @@
             .header h1 { font-size: 0.78rem; }
             a[href="graph-analyzer.html"] .bl-label { display: none; }
             .back-link { padding: 4px 8px; }
-            #zone-select { flex: 1 1 130px; min-width: 0; width: auto; font-size: 0.8rem; }
-            #sync-status { font-size: 0.68rem; padding: 3px 8px; }
+            #zone-btn { flex: 1 1 130px; min-width: 0; max-width: none; width: auto; font-size: 0.8rem; }
+            #sync-status { font-size: 0.66rem; }
+            #sync-status #sync-text { display: none; }   /* dot only on phones */
 
-            /* Node size +/- : keep bottom-right (vertical), out of the way of the
+            /* Node size slider: keep bottom-right, out of the way of the
                top-corner map buttons and the bottom-left legend. */
-            .node-size-controls {
-                top: auto; bottom: 16px; right: 10px;
-                flex-direction: column; gap: 6px;
-            }
-            .node-size-controls .nsc-label { display: none; }
-            .nsc-btn { width: 38px; height: 38px; font-size: 22px; }
+            .node-size-controls { top: auto; bottom: 16px; right: 10px; gap: 8px; }
+            .nsc-toggle { width: 38px; height: 38px; }
+            .nsc-slider { width: 120px; }
 
             /* Locate + map-toggle: vertical stack in the top-right corner. */
             #locate-btn     { top: 10px; right: 10px; }
@@ -282,7 +389,7 @@
         /* Tablet breakpoint (481-767px) */
         @media (min-width: 481px) and (max-width: 767px) {
             .header { padding: 8px 14px; gap: 10px; }
-            #zone-select { min-width: 160px; font-size: 0.82rem; }
+            #zone-btn { min-width: 160px; font-size: 0.82rem; }
             .node-size-controls { bottom: 16px; right: 12px; }
             .legend { bottom: 16px; left: 10px; font-size: 0.75rem; padding: 9px 12px; }
             .legend-toggle { display: inline; }
@@ -507,8 +614,25 @@
     <a href="index.html" class="back-link"><span aria-hidden="true">←</span> <span class="bl-label">Asset Control</span></a>
     <a href="graph-analyzer.html" class="back-link" title="Open Graphical Network Analyzer"><span aria-hidden="true">⬡</span> <span class="bl-label">Graphical Network Analyzer</span></a>
     <h1>🌊 SCADA View</h1>
-    <select id="zone-select"><option>Loading zones...</option></select>
-    <div id="sync-status">Initializing...</div>
+    <button id="zone-btn" type="button" onclick="openZoneModal()" title="Change zone">
+        <span id="zone-btn-label">Loading zones…</span>
+        <span class="zb-caret" aria-hidden="true">▾</span>
+    </button>
+    <div id="sync-status" class="busy" title="Initializing…">
+        <span id="sync-dot"></span>
+        <span id="sync-text"></span>
+    </div>
+</div>
+
+<!-- Zone selector modal -->
+<div id="zone-modal" class="zone-modal-overlay" onclick="if(event.target===this)closeZoneModal()">
+    <div class="zone-modal" role="dialog" aria-modal="true" aria-label="Select a zone">
+        <div class="zone-modal-head">
+            <span>Select a zone</span>
+            <button class="zone-modal-close" type="button" onclick="closeZoneModal()" aria-label="Close">×</button>
+        </div>
+        <div id="zone-list" class="zone-list"></div>
+    </div>
 </div>
 
 <div id="cy-container">
@@ -518,6 +642,12 @@
 
     <button id="locate-btn" title="Show my location" onclick="locateMe()">📍</button>
     <button id="map-toggle-btn" title="Toggle satellite map" onclick="toggleMap()">🗺️</button>
+
+    <div id="search-wrap">
+      <input type="text" id="search-input" placeholder="Search pipe…" autocomplete="off" oninput="filterEdges()" onblur="setTimeout(()=>{document.getElementById('search-results').style.display='none'},200)" onfocus="filterEdges()">
+      <button id="search-clear" type="button" title="Clear search" aria-label="Clear search" onmousedown="event.preventDefault()" onclick="clearSearch()">×</button>
+      <div id="search-results"></div>
+    </div>
 
     <!-- Compass rose — shown only when GPS layout is active -->
     <svg id="compass" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -536,11 +666,24 @@
         <text x="10" y="36" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="'Nunito', 'Noto Sans Bengali', sans-serif">W</text>
     </svg>
 
-    <!-- Node size controls -->
-    <div class="node-size-controls" aria-label="Node size controls">
-        <span class="nsc-label">Node<br>Size</span>
-        <button class="nsc-btn" onclick="adjustNodeSize(1)" title="Increase node &amp; label size" aria-label="Increase node size">+</button>
-        <button class="nsc-btn" onclick="adjustNodeSize(-1)" title="Decrease node &amp; label size" aria-label="Decrease node size">−</button>
+    <!-- Node size control — collapsible slider -->
+    <div class="node-size-controls" id="nodeSizeControls" aria-label="Node size control">
+        <div class="nsc-panel" id="nscPanel" role="group" aria-label="Node and label size">
+            <span class="nsc-end nsc-end-sm" aria-hidden="true">●</span>
+            <input type="range" id="nodeSizeSlider" class="nsc-slider"
+                   min="-4" max="5" step="0.5" value="0"
+                   aria-label="Node and label size"
+                   oninput="onNodeSizeSlider(this.value)">
+            <span class="nsc-end nsc-end-lg" aria-hidden="true">●</span>
+        </div>
+        <button class="nsc-toggle" id="nscToggle" type="button" aria-expanded="false"
+                title="Adjust node &amp; label size" aria-label="Adjust node size"
+                onclick="toggleNodeSizePanel()">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <circle cx="7.5" cy="16.5" r="3" fill="currentColor"/>
+                <circle cx="15.5" cy="9" r="5.2" fill="currentColor"/>
+            </svg>
+        </button>
     </div>
 
     <div class="legend" id="legend">
@@ -642,6 +785,7 @@
     let cy            = null;
     let refreshTimer  = null;
     let currentZone   = null;
+    let selectedSearchEdgeId = null;   // edge highlighted via search; persists across syncs
     let stopAnims     = null;   // teardown handle returned by startAnimations()
 
     // ─── LEAFLET MAP STATE ────────────────────────────────────────────────────
@@ -654,7 +798,9 @@
     function initializeMap() {
         if (map) return;
         map = L.map('map-container', {
-            zoomControl: true,
+            // No built-in zoom control: the app's node-size +/- is the only on-screen
+            // +/- pair, so they're not confused. Map still zooms via pinch / scroll.
+            zoomControl: false,
             attributionControl: true,
             zoomSnap: 0   // allow fractional zoom so forwarded pinch gestures are smooth
         }).setView([24.19, 88.30], 11);
@@ -1039,11 +1185,26 @@
         _autoStep = step;
     }
 
-    function adjustNodeSize(delta) {
-        // Clamp the *effective* step (auto + manual) to the valid range.
-        const eff = Math.max(-4, Math.min(5, _autoStep + _manualOffset + delta));
+    // Slider sets the *effective* step directly; manual offset is derived from it.
+    function onNodeSizeSlider(val) {
+        const eff = Math.max(-4, Math.min(5, parseFloat(val)));
         _manualOffset = eff - _autoStep;
         _applyNodeSizeStyle();
+    }
+
+    // Collapse/expand the slider panel.
+    function toggleNodeSizePanel() {
+        const c = document.getElementById('nodeSizeControls');
+        if (!c) return;
+        const expanded = c.classList.toggle('expanded');
+        const t = document.getElementById('nscToggle');
+        if (t) t.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
+    function collapseNodeSizePanel() {
+        const c = document.getElementById('nodeSizeControls');
+        if (c) c.classList.remove('expanded');
+        const t = document.getElementById('nscToggle');
+        if (t) t.setAttribute('aria-expanded', 'false');
     }
     function _applyNodeSizeStyle() {
         if (!cy) return;
@@ -1078,47 +1239,158 @@
           .style({ 'width': edgeW, 'arrow-scale': arrowScale })
           .update();
 
-        // Reflect auto vs manual sizing in the control label.
-        const lbl = document.querySelector('.nsc-label');
-        if (lbl) lbl.innerHTML = (_manualOffset === 0 ? 'Auto' : 'Node') + '<br>Size';
+        // Keep the slider in sync with the effective step (e.g. after an auto
+        // recompute on zone change), without disturbing an in-progress drag.
+        const slider = document.getElementById('nodeSizeSlider');
+        if (slider) slider.value = s;
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    // ─── LOAD MANIFEST → POPULATE DROPDOWN ───────────────────────────────────
+    // ─── EDGE SEARCH ─────────────────────────────────────────────────────────
+    function filterEdges() {
+      const el  = document.getElementById('search-input');
+      const res = document.getElementById('search-results');
+      const clr = document.getElementById('search-clear');
+      const q   = (el.value || '').trim().toLowerCase();
+      if (clr) clr.classList.toggle('show', !!(el.value || '').length);
+      if (!q || !cy) {
+        res.style.display = 'none';
+        // Emptying the box deselects the pipe.
+        if (!q) clearSearchSelection();
+        return;
+      }
+
+      // Match against the combined "<from> to <target>" label (mirrors the
+      // leak/burst search in index.html), with edge id as a secondary match.
+      const edges = cy.edges().filter(e => {
+        const src   = (e.data('source') || '').toLowerCase();
+        const tgt   = (e.data('target') || '').toLowerCase();
+        const id    = (e.data('id') || '').toLowerCase();
+        const label = src + ' to ' + tgt;
+        return label.includes(q) || id.includes(q);
+      });
+
+      if (!edges.length) {
+        res.style.display = 'block';
+        res.innerHTML = '<div class="sr-item" style="color:rgba(255,255,255,0.4)">No matching pipes</div>';
+        return;
+      }
+
+      res.style.display = 'block';
+      res.innerHTML = edges.slice(0, 20).map(e => {
+        const src = esc(e.data('source') || '');
+        const tgt = esc(e.data('target') || '');
+        const id  = esc(e.data('id') || '');
+        return '<div class="sr-item" onclick="zoomToEdge(\'' + id + '\')">'
+          + src + ' → ' + tgt
+          + '<div class="sr-sub">' + id + '</div></div>';
+      }).join('');
+    }
+
+    function clearSearchSelection() {
+      selectedSearchEdgeId = null;
+      if (cy) cy.edges('.highlight').removeClass('highlight');
+    }
+
+    // Clear button (×): empty the box, hide results, drop the highlight.
+    function clearSearch() {
+      const el  = document.getElementById('search-input');
+      const res = document.getElementById('search-results');
+      const clr = document.getElementById('search-clear');
+      if (el)  el.value = '';
+      if (res) res.style.display = 'none';
+      if (clr) clr.classList.remove('show');
+      clearSearchSelection();
+      if (el) el.focus();
+    }
+
+    function zoomToEdge(edgeId) {
+      if (!cy) return;
+      const el = cy.getElementById(edgeId);
+      if (!el || !el.length) return;
+
+      // Zoom the Leaflet satellite map to the pipe's two endpoints so the
+      // imagery follows (nodes are projected onto the map). Fall back to a
+      // Cytoscape fit when the map is hidden or the edge lacks coordinates.
+      const srcN = cy.getElementById(el.data('source'));
+      const tgtN = cy.getElementById(el.data('target'));
+      const valid = n => n && n.length &&
+        typeof n.data('lat') === 'number' && typeof n.data('lng') === 'number';
+
+      if (map && mapVisible && valid(srcN) && valid(tgtN)) {
+        const pts = [
+          [srcN.data('lat'), srcN.data('lng')],
+          [tgtN.data('lat'), tgtN.data('lng')]
+        ];
+        map.fitBounds(L.latLngBounds(pts), { padding: [80, 80], maxZoom: 19 });
+        syncNodesToMap();
+      } else {
+        cy.fit(el, 60);
+      }
+
+      // Persist the highlight (no auto-clear) so the selected pipe stays marked.
+      cy.edges('.highlight').removeClass('highlight');
+      el.addClass('highlight');
+      selectedSearchEdgeId = edgeId;
+
+      document.getElementById('search-results').style.display = 'none';
+      document.getElementById('search-input').blur();
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ─── ZONE SELECTOR (MODAL) ───────────────────────────────────────────────
+    let zonesList = [];   // manifest zones, kept for the modal
+
+    function openZoneModal()  { document.getElementById('zone-modal').classList.add('show'); }
+    function closeZoneModal() { document.getElementById('zone-modal').classList.remove('show'); }
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeZoneModal(); collapseNodeSizePanel(); }
+    });
+    // Collapse the node-size slider when tapping anywhere outside it.
+    document.addEventListener('pointerdown', e => {
+        const c = document.getElementById('nodeSizeControls');
+        if (c && c.classList.contains('expanded') && !c.contains(e.target)) {
+            collapseNodeSizePanel();
+        }
+    });
+
+    function renderZoneList(activeId) {
+        const list = document.getElementById('zone-list');
+        list.innerHTML = zonesList.map(z =>
+            `<button type="button" class="zone-item${z.id === activeId ? ' active' : ''}" onclick="selectZone('${esc(z.id)}')">
+               <span class="zi-name">${esc(z.name)}</span>
+               ${z.id === activeId ? '<span class="zi-check" aria-hidden="true">✓</span>' : ''}
+             </button>`).join('');
+    }
+
+    function selectZone(id) {
+        const zone = zonesList.find(z => z.id === id);
+        if (!zone) return;
+        closeZoneModal();
+        document.getElementById('zone-btn-label').textContent = zone.name;
+        renderZoneList(id);
+        currentZone = null;   // clear guard so the same zone can reload
+        loadZone(zone);
+    }
+
     async function loadManifest() {
-        const select = document.getElementById('zone-select');
         try {
             const res = await fetch('manifest.json?t=' + Date.now());
             if (!res.ok) throw new Error('manifest.json not found');
-            const zones = await res.json();
+            zonesList = await res.json();
 
-            select.innerHTML = '<option value="">— Select a zone —</option>';
-            zones.forEach(z => {
-                const opt = document.createElement('option');
-                opt.value       = JSON.stringify(z);   // store full zone object
-                opt.textContent = z.name;
-                select.appendChild(opt);
-            });
-
-            // Wire up zone switching
-            select.addEventListener('change', () => {
-                const val = select.value;
-                if (!val) return;
-                const zone = JSON.parse(val);
-                currentZone = null;   // clear guard so same zone can reload
-                loadZone(zone);
-            });
-
-            // Restore the last-viewed zone (or fall back to first)
-            if (zones.length > 0) {
-                const savedId = localStorage.getItem('scada_last_zone');
-                const savedIdx = savedId ? zones.findIndex(z => z.id === savedId) : -1;
-                const zoneToLoad = savedIdx >= 0 ? zones[savedIdx] : zones[0];
-                select.selectedIndex = (savedIdx >= 0 ? savedIdx : 0) + 1; // +1 for placeholder option
+            if (zonesList.length > 0) {
+                // Restore the last-viewed zone (or fall back to the first).
+                const savedId    = localStorage.getItem('scada_last_zone');
+                const zoneToLoad = (savedId && zonesList.find(z => z.id === savedId)) || zonesList[0];
+                document.getElementById('zone-btn-label').textContent = zoneToLoad.name;
+                renderZoneList(zoneToLoad.id);
                 loadZone(zoneToLoad);
+            } else {
+                document.getElementById('zone-btn-label').textContent = 'No zones';
             }
         } catch (err) {
-            select.innerHTML = '<option>Error loading manifest</option>';
+            document.getElementById('zone-btn-label').textContent = 'Error loading zones';
             console.error(err);
         }
     }
@@ -1133,8 +1405,17 @@
         if (refreshTimer) clearInterval(refreshTimer);
         if (stopAnims)    stopAnims();
 
+        // Reset pipe search — the previous zone's selected edge no longer exists.
+        selectedSearchEdgeId = null;
+        const _si = document.getElementById('search-input');
+        if (_si) _si.value = '';
+        const _sr = document.getElementById('search-results');
+        if (_sr) _sr.style.display = 'none';
+        const _sc = document.getElementById('search-clear');
+        if (_sc) _sc.classList.remove('show');
+
         showLoading(true);
-        setStatus('Loading ' + zone.name + '...', '#495057');
+        setStatus('Loading ' + zone.name + '…', 'busy');
 
         try {
             const res = await fetch(`zones/${zone.id}.json?t=` + Date.now());
@@ -1200,7 +1481,7 @@
 
         } catch (err) {
             showLoading(false);
-            setStatus('⚠ ' + err.message, '#c0392b');
+            setStatus('⚠ ' + err.message, 'error');
             console.error(err);
         }
     }
@@ -1299,7 +1580,7 @@
     // ─── FETCH LIVE STATUS FROM GIST ─────────────────────────────────────────
     async function refreshStatus(zone) {
         if (!cy || !zone) return;
-        setStatus('Syncing...', '#495057');
+        setStatus('Syncing…', 'busy');
         try {
             // Read zone status via the worker (D1-backed) instead of raw Gist URL.
             // workerGet returns { files: { "zone_a_status.json": "[...]", ... } }
@@ -1313,18 +1594,31 @@
             // can overwrite edge flow values set by leak/burst reports
             applyLeakBurstOverlay();
 
-            setStatus(`✓ Synced ${new Date().toLocaleTimeString()} (${updated} elements)`, '#27ae60');
+            // Re-assert the search highlight so the selected pipe survives the sync.
+            if (selectedSearchEdgeId) {
+                const sel = cy.getElementById(selectedSearchEdgeId);
+                if (sel && sel.length) sel.addClass('highlight');
+            }
+
+            setStatus(`Synced ${new Date().toLocaleTimeString()} (${updated} elements)`, 'ok');
         } catch (err) {
-            setStatus('⚠ ' + err.message, '#c0392b');
+            setStatus('⚠ ' + err.message, 'error');
             console.error('Refresh error:', err);
         }
     }
 
     // ─── UI HELPERS ───────────────────────────────────────────────────────────
-    function setStatus(msg, bg) {
+    // Quiet sync indicator: a coloured dot + tooltip. Text only shows on error,
+    // so routine background syncs no longer flash a pill in the header.
+    // state: 'busy' | 'ok' | 'error'
+    function setStatus(msg, state) {
         const el = document.getElementById('sync-status');
-        el.innerText = msg;
-        el.style.background = bg;
+        if (!el) return;
+        el.classList.remove('busy', 'ok', 'error');
+        el.classList.add(state);
+        el.title = msg;
+        const txt = document.getElementById('sync-text');
+        if (txt) txt.textContent = (state === 'error') ? msg : '';
     }
 
     function showLoading(visible) {
