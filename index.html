@@ -2453,17 +2453,10 @@ function latestReportInfo(assetId) {
   return best;   // {docket, lat, lng, personName, timestamp, ...} or null
 }
 
-// Combined, formal, plain-text (no-emoji) pipe issue report. Covers active
-// leaks/bursts (Section A) and other pipe issues logged today (Section B), scoped
-// to the active zone.
 function buildLeakBurstShareText() {
   const zoneName = activeLeakBurstZone
     ? ((zoneMap[activeLeakBurstZone] && zoneMap[activeLeakBurstZone].name) || activeLeakBurstZone)
     : 'All Zones';
-
-  const faulted = allEdges.filter(e =>
-    leakBurstEdgeState[e.id] === 'LEAK_BURST' &&
-    (!activeLeakBurstZone || e.zone === activeLeakBurstZone));
 
   const pid      = getPersonId();
   const reporter = (persons.find(p => p.id === pid) || {}).name || '\u2014';
@@ -2473,7 +2466,7 @@ function buildLeakBurstShareText() {
   const tStr    = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
   const SEP = '------------------------------------';
 
-  let msg = 'LEAK / BURST REPORT\n';
+  let msg = 'PIPE ISSUE REPORT\n';
   msg    += SEP + '\n';
   msg    += 'Zone     : ' + zoneName + '\n';
   msg    += 'Date     : ' + dateStr + '\n';
@@ -2481,12 +2474,28 @@ function buildLeakBurstShareText() {
   msg    += 'Reporter : ' + reporter + '\n';
   msg    += SEP + '\n';
 
-  // Active leaks/bursts only \u2014 other pipe issues are log-only and excluded here
-  msg += 'LEAKS / BURSTS (ACTIVE)\n';
-  if (!faulted.length) {
-    msg += '   None.\n';
-  } else {
-    faulted.forEach((e, i) => {
+  const leaks  = allEdges.filter(e =>
+    leakBurstEdgeState[e.id] === 'LEAK_BURST' &&
+    (!activeLeakBurstZone || e.zone === activeLeakBurstZone));
+
+  const edgedIssues = allEdges.filter(e =>
+    leakBurstEdgeState[e.id] === 'PIPE_ISSUE' &&
+    (!activeLeakBurstZone || e.zone === activeLeakBurstZone));
+
+  const zoneNameForMatch = activeLeakBurstZone
+    ? (zoneMap[activeLeakBurstZone]?.name || activeLeakBurstZone)
+    : null;
+
+  const nonEdgedIssues = !zoneNameForMatch
+    ? []
+    : pendingPipeIssueRecords.filter(r =>
+        r.zone === activeLeakBurstZone || r.zone === zoneNameForMatch);
+
+  const issues = [...edgedIssues, ...nonEdgedIssues];
+
+  if (leaks.length) {
+    msg += 'LEAKS / BURSTS (ACTIVE)\n';
+    leaks.forEach((e, i) => {
       const info   = latestReportInfo(e.id);
       const docket = info && info.docket ? info.docket : 'N/A';
       msg += (i + 1) + '. Pipe   : ' + e.source + ' to ' + e.target + '\n';
@@ -2503,21 +2512,52 @@ function buildLeakBurstShareText() {
         msg += '   Location: not recorded\n';
       }
     });
+    msg += '\n';
   }
+
+  if (issues.length) {
+    msg += 'OTHER ISSUES (ACTIVE)\n';
+    issues.forEach((item, i) => {
+      const isEdge  = item.id !== undefined;
+      const info    = isEdge ? latestReportInfo(item.id) : item;
+      const docket  = (info && info.docket) ? info.docket : 'N/A';
+      const type    = isEdge ? (info && info.issueType || '') : (item.issueType || '');
+      const lat     = isEdge ? (info && info.lat) : (item.lat || '');
+      const lng     = isEdge ? (info && info.lng) : (item.lng || '');
+      const label   = isEdge ? (item.source + ' to ' + item.target) : (item.note || item.assetName || '—');
+      msg += (i + 1) + '. ' + (isEdge ? 'Pipe   ' : 'Note   ') + ': ' + label + '\n';
+      msg += '   Docket : ' + docket + '\n';
+      if (type) msg += '   Type   : ' + type + '\n';
+      if (lat && lng) {
+        msg += '   Location: ' + lat + ', ' + lng + '\n';
+        msg += '   Map    : https://maps.google.com/?q=' + lat + ',' + lng + '\n';
+      } else {
+        msg += '   Location: not recorded\n';
+      }
+    });
+    msg += '\n';
+  }
+
   msg += SEP + '\n';
-  msg += 'Summary: ' + faulted.length + ' active leak(s)/burst(s).\n';
+  const summaryParts = [];
+  if (leaks.length)  summaryParts.push(leaks.length + ' leak(s)/burst(s)');
+  if (issues.length) summaryParts.push(issues.length + ' other issue(s)');
+  msg += 'Summary: ' + (summaryParts.length ? summaryParts.join(', ') + ' active.' : 'No active issues.') + '\n';
   msg += 'End of report.';
 
-  return { msg, zoneName, leakCount: faulted.length, issueCount: 0 };
+  return { msg, zoneName, leakCount: leaks.length, issueCount: issues.length };
 }
 
 function shareLeakBursts() {
   const r = buildLeakBurstShareText();
   _shareText = r.msg;
   $('sharePreviewText').textContent = r.msg;
-  $('shareSheetSub').textContent = r.leakCount
-    ? (r.leakCount + ' active leak/burst in ' + r.zoneName)
-    : ('No active leaks/bursts in ' + r.zoneName);
+  const parts = [];
+  if (r.leakCount)  parts.push(r.leakCount + ' leak/burst');
+  if (r.issueCount) parts.push(r.issueCount + ' other issue');
+  $('shareSheetSub').textContent = parts.length
+    ? parts.join(', ') + ' active in ' + r.zoneName
+    : 'No active issues in ' + r.zoneName;
   $('btnNativeShare').style.display = navigator.share ? 'inline-flex' : 'none';
   $('shareSheetBackdrop').classList.add('open');
 }
