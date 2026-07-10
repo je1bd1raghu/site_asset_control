@@ -332,6 +332,12 @@
   .btn-upload-est { flex-shrink:0; padding:8px 13px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:12px; font-weight:800; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; transition:background .2s; }
   .btn-upload-est:hover { background:var(--primary-dark); }
 
+  .pend-pagination { display:flex; align-items:center; justify-content:center; gap:12px; margin-top:12px; }
+  .pend-page-arrow { width:32px; height:32px; border-radius:8px; border:2px solid var(--border); background:var(--surface); color:var(--text2); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s, border-color .15s; font-family:'Nunito',sans-serif; font-weight:700; }
+  .pend-page-arrow:hover { background:var(--primary-light); border-color:var(--primary); color:var(--primary); }
+  .pend-page-arrow:disabled { opacity:.3; cursor:not-allowed; }
+  .pend-page-info { font-size:12px; font-weight:700; color:var(--text3); white-space:nowrap; }
+
 
   /* ── Collapsible section toggle buttons ── */
   .section-toggle-btn {
@@ -443,7 +449,7 @@
       <div class="stb-left">
         <span class="stb-icon">⚠️</span>
         <div class="stb-texts">
-          <span class="stb-title">Report Leak / Burst</span>
+          <span class="stb-title">Report Leak / Burst / Issues</span>
           <span class="stb-sub">Select a pipe and report or clear a leak/burst</span>
         </div>
       </div>
@@ -489,18 +495,22 @@
       <div class="pipe-issue-panel">
         <div class="pipe-issue-title">🛠 Report another pipe issue</div>
         <select id="pipeIssueType" class="pipe-issue-select">
-          <option value="Low pressure">Low pressure</option>
-          <option value="No water / supply interruption">No water / supply interruption</option>
-          <option value="Contamination / dirty water">Contamination / dirty water</option>
-          <option value="Valve fault">Valve fault</option>
-          <option value="Illegal connection">Illegal connection</option>
-          <option value="Exposed pipe">Exposed pipe</option>
-          <option value="Road damage">Road damage</option>
-          <option value="Damage from Electric Poll">Damage from Electric Poll</option>          
-          <option value="Other">Other</option>
+          <option value="FHTC Leakage">Leakage of House Connection [FHTC]</option>
+          <option value="No-Node Leakage">Pipe Leakage Near Household / Institution / Landmark</option>
+          <option value="Low pressure">Low pressure at tap (<20L/min)</option>
+          <option value="No water">No water supply at tap</option>
+          <option value="Contamination">Contamination / dirty water in tap</option>
+          <option value="Valve fault">Valve Not Working</option>
+          <option value="Illegal connection">Illegal tap / motor connection</option>
+          <option value="Pipe Exposed">Pipe Exposed above Surface</option>
+          <option value="Pipe Sunk">Pipe Sunk below Trench / Pond</option>
+          <option value="Road Damage">Damage by Road Construction [PWD/ZP/PS/GP]</option>
+          <option value="Drain Damage">Damage by Drain Construction [PWD/ZP/PS/GP]</option>
+          <option value="WBSEDCL Damage">Damage by Electric Post [WBSEDCL]</option>          
+          <option value="Other">Other (Please Mention)</option>
         </select>
-        <textarea id="pipeIssueNote" class="pipe-issue-note" placeholder="Optional note / description…" autocomplete="off"></textarea>
-        <button class="btn-pipe-issue" id="btnPipeIssue" onclick="showLocWarn(() => submitPipeIssue())" disabled>📝 Log Issue</button>
+        <textarea id="pipeIssueNote" class="pipe-issue-note" placeholder="Describe the issue (required)…" autocomplete="off"></textarea>
+        <button class="btn-pipe-issue" id="btnPipeIssue" onclick="showLocWarn(() => submitPipeIssue())">📝 Log Issue</button>
         <div class="pipe-issue-status" id="pipeIssueSubmitStatus"></div>
       </div>
 
@@ -518,7 +528,7 @@
         <span class="stb-icon">📋</span>
         <div class="stb-texts">
           <span class="stb-title">Pending Estimates</span>
-          <span class="stb-sub">Leaks/Bursts awaiting cost estimate upload</span>
+          <span class="stb-sub">Leaks/bursts and issues awaiting cost estimate upload</span>
         </div>
       </div>
       <div class="stb-right">
@@ -1434,10 +1444,13 @@ function renderRecords() {
 
 // ── LEAK/BURST EDGE REPORT ─────────────────────────────────────────────────────────
 let allEdges       = [];   // [{ id, source, target, zone, zoneName }]
-let leakBurstEdgeState = {};   // edgeId → 'LEAK_BURST' | 'LEAK_BURST_CLEAR'
+let leakBurstEdgeState = {};   // edgeId → 'LEAK_BURST' | 'LEAK_BURST_CLEAR' | 'PIPE_ISSUE'
+let pendingPipeIssueRecords = [];  // PIPE_ISSUE records without a known edge, pending estimate
 let estimateMap    = {};   // assetId → estimate object
 let selectedEdgeId = null;
 let activeLeakBurstZone = null;
+let _pendPage = 0;
+const PEND_PAGE_SIZE = 5;
 
 // ── ESTIMATE LOAD ────────────────────────────────────────────────────────────
 async function checkEstimate(files) {
@@ -1447,7 +1460,10 @@ async function checkEstimate(files) {
     estimateMap = {};
     if (raw) {
       const ests = JSON.parse(raw);
-      if (Array.isArray(ests)) ests.forEach(e => { if (e.assetId) estimateMap[e.assetId] = e; });
+      if (Array.isArray(ests)) ests.forEach(e => {
+        if (e.assetId) estimateMap[e.assetId] = e;
+        if (e.docket) estimateMap[e.docket] = e;
+      });
     }
   } catch { estimateMap = {}; }
 }
@@ -1483,8 +1499,8 @@ async function loadAllEdges() {
       } catch { /* skip unreadable zone */ }
     }
     allEdges = edges;   // commit only after a successful manifest load
-    buildLeakBurstZoneTabs(zones);
     deriveLeakBurstStateFromRecords();
+    buildLeakBurstZoneTabs(zones);
     renderLeakBurstEdgeList();
     renderPendingEstimates();
   } catch(e) {
@@ -1495,17 +1511,25 @@ async function loadAllEdges() {
 
 function deriveLeakBurstStateFromRecords() {
   leakBurstEdgeState = {};
+  pendingPipeIssueRecords = [];
   const recs = (window._allLeakBurstRecs || todayRecs);
+  const edgeIds = new Set(allEdges.map(e => e.id));
   // Track the latest timestamp per assetId so a newer LEAK_BURST_CLEAR doesn't get
   // overwritten by an older LEAK/BURST that appears later in the array.
   const latestTs = {};
   recs.forEach(r => {
     const action = r.action;
-    if ((action === 'LEAK_BURST' || action === 'LEAK_BURST_CLEAR') && r.assetId) {
+    if ((action === 'LEAK_BURST' || action === 'LEAK_BURST_CLEAR' || action === 'PIPE_ISSUE') && r.assetId) {
       const ts = r.timestamp || '';
       if (!latestTs[r.assetId] || ts > latestTs[r.assetId]) {
         latestTs[r.assetId] = ts;
         leakBurstEdgeState[r.assetId] = action;
+      }
+    }
+    // Collect PIPE_ISSUE records without a matching edge for pending estimates
+    if (action === 'PIPE_ISSUE' && r.docket && !edgeIds.has(r.assetId)) {
+      if (!pendingPipeIssueRecords.some(p => p.docket === r.docket)) {
+        pendingPipeIssueRecords.push(r);
       }
     }
   });
@@ -1514,30 +1538,24 @@ function deriveLeakBurstStateFromRecords() {
 // ── PENDING ESTIMATES ─────────────────────────────────────────────────────────
 function renderPendingEstimates() {
   // Active leaks/bursts with no estimate uploaded yet
-  const pending = allEdges.filter(e =>
-    leakBurstEdgeState[e.id] === 'LEAK_BURST' && !estimateMap[e.id]
+  const pendingLeaks = allEdges.filter(e =>
+    (leakBurstEdgeState[e.id] === 'LEAK_BURST' || leakBurstEdgeState[e.id] === 'PIPE_ISSUE') && !estimateMap[e.id]
   );
 
-  const badge = $('pendingCount');
-  badge.textContent = pending.length;
-  badge.className   = 'stb-badge' + (pending.length === 0 ? ' zero' : '');
+  // PIPE_ISSUE records without a known edge, no estimate by docket
+  const pendingIssues = pendingPipeIssueRecords.filter(r => !estimateMap[r.docket]);
 
-  const el = $('pendingEstList');
-  if (!pending.length) {
-    el.innerHTML = '<div class="empty-state"><div class="e-icon">✅</div>All active leaks/bursts have estimates</div>';
-    return;
-  }
-
-  el.innerHTML = pending.map(e => {
-    const info    = latestReportInfo(e.id);
-    const docket  = (info && info.docket) ? info.docket : '';
-    const encId   = encodeURIComponent(e.id);
-    const encName = encodeURIComponent(`${e.id} (${e.source} to ${e.target})`);
-    const encDocket = encodeURIComponent(docket);
-    const docketLine = docket
-      ? `<div class="pend-docket">🎫 ${esc(docket)}</div>` : '';
-    return `<div class="pend-item">
-  <div class="pend-icon">⚠️</div>
+  const all = [
+    ...pendingLeaks.map(e => {
+      const info    = latestReportInfo(e.id);
+      const docket  = (info && info.docket) ? info.docket : '';
+      const encId   = encodeURIComponent(e.id);
+      const encName = encodeURIComponent(`${e.id} (${e.source} to ${e.target})`);
+      const encDocket = encodeURIComponent(docket);
+      const docketLine = docket
+        ? `<div class="pend-docket">🎫 ${esc(docket)}</div>` : '';
+      return `<div class="pend-item">
+  <div class="pend-icon">${leakBurstEdgeState[e.id] === 'LEAK_BURST' ? '⚠️' : '🛠'}</div>
   <div class="pend-info">
     <div class="pend-id">${esc(e.id)}</div>
     <div class="pend-route">${esc(e.source)} to ${esc(e.target)}</div>
@@ -1546,10 +1564,59 @@ function renderPendingEstimates() {
   </div>
   <a class="btn-upload-est" href="estimate.html?asset=${encId}&name=${encName}&docket=${encDocket}">📋 Upload</a>
 </div>`;
-  }).join('');
+    }),
+    ...pendingIssues.map(r => {
+      const encDocket = encodeURIComponent(r.docket);
+      const encName = encodeURIComponent(r.issueType || 'Pipe Issue');
+      const docketLine = `<div class="pend-docket">🎫 ${esc(r.docket)}</div>`;
+      return `<div class="pend-item">
+  <div class="pend-icon">🛠</div>
+  <div class="pend-info">
+    <div class="pend-id">${esc(r.issueType || 'Pipe Issue')}</div>
+    <div class="pend-route">${r.note ? esc(r.note) : ''}</div>
+    ${docketLine}
+    <span class="pend-zone">${esc(r.zone || '—')}</span>
+  </div>
+  <a class="btn-upload-est" href="estimate.html?docket=${encDocket}&name=${encName}">📋 Upload</a>
+</div>`;
+    }),
+  ];
+
+  const total = all.length;
+
+  const badge = $('pendingCount');
+  badge.textContent = total;
+  badge.className   = 'stb-badge' + (total === 0 ? ' zero' : '');
+
+  const el = $('pendingEstList');
+  if (!total) {
+    el.innerHTML = '<div class="empty-state"><div class="e-icon">✅</div>All items have estimates</div>';
+    return;
+  }
+
+  // Clamp page
+  const maxPage = Math.ceil(total / PEND_PAGE_SIZE) - 1;
+  if (_pendPage > maxPage) _pendPage = maxPage;
+  if (_pendPage < 0) _pendPage = 0;
+
+  const start = _pendPage * PEND_PAGE_SIZE;
+  const page = all.slice(start, start + PEND_PAGE_SIZE);
+
+  el.innerHTML = page.join('') + `
+<div class="pend-pagination">
+  <button class="pend-page-arrow" onclick="pendPage(-1)" ${_pendPage <= 0 ? 'disabled' : ''}>◀</button>
+  <span class="pend-page-info">${_pendPage + 1} / ${maxPage + 1}</span>
+  <button class="pend-page-arrow" onclick="pendPage(1)" ${_pendPage >= maxPage ? 'disabled' : ''}>▶</button>
+</div>`;
+}
+
+function pendPage(dir) {
+  _pendPage += dir;
+  renderPendingEstimates();
 }
 
 async function refreshPendingEstimates() {
+  _pendPage = 0;
   // Fetch the gist output once and share it between both loaders (avoids a
   // concurrent-request race), then reload edges and re-render the list.
   const files = await workerGet('output');
@@ -1581,6 +1648,12 @@ function operatorZoneIds() {
 function zoneActiveLeakCount(zoneId) {
   return allEdges.filter(e => e.zone === zoneId && leakBurstEdgeState[e.id] === 'LEAK_BURST').length;
 }
+function zoneOtherIssueCount(zoneId) {
+  const edgeCount = allEdges.filter(e => e.zone === zoneId && leakBurstEdgeState[e.id] === 'PIPE_ISSUE').length;
+  const zoneName = (zoneMap[zoneId] && zoneMap[zoneId].name) || zoneId;
+  const pendingCount = pendingPipeIssueRecords.filter(r => r.zone === zoneId || r.zone === zoneName).length;
+  return edgeCount + pendingCount;
+}
 
 // Render the operator's zones as a horizontal, swipeable card rail.
 function renderLeakBurstZones() {
@@ -1599,9 +1672,13 @@ function renderLeakBurstZones() {
   }
 
   rail.innerHTML = zones.map(z => {
-    const cnt   = zoneActiveLeakCount(z.id);
-    const badge = cnt
-      ? `<span class="lbz-card-badge">⚠ ${cnt} active</span>`
+    const lb  = zoneActiveLeakCount(z.id);
+    const oi  = zoneOtherIssueCount(z.id);
+    const parts = [];
+    if (lb) parts.push(`⚠ ${lb} leak`);
+    if (oi) parts.push(`🛠 ${oi} issue`);
+    const badge = parts.length
+      ? `<span class="lbz-card-badge">${parts.join(' · ')}</span>`
       : `<span class="lbz-card-badge ok">✓ All clear</span>`;
     return `<button class="lbz-card" id="fztab-${esc(z.id)}" onclick="setLeakBurstZone('${esc(z.id)}')">
         <span class="lbz-card-kicker">Zone</span>
@@ -1715,9 +1792,7 @@ function selectLeakBurstEdge(edgeId) {
 
   $('leakBurstSubmitStatus').textContent = '';
 
-  // Other-issue panel: enabled whenever a pipe is selected (log-only, independent
-  // of leak/burst state). Reset note + status on each fresh selection.
-  $('btnPipeIssue').disabled = false;
+  // Reset other-issue panel note + status on each fresh selection.
   $('pipeIssueNote').value   = '';
   $('pipeIssueSubmitStatus').textContent = '';
 
@@ -1925,12 +2000,13 @@ async function submitPipeIssue() {
   const pid    = getPersonId();
   const person = persons.find(p => p.id === pid);
   if (!person)         { setPipeIssueSubmitStatus('Select your name above first', 'var(--warning)'); return; }
-  if (!selectedEdgeId) { setPipeIssueSubmitStatus('Select a pipe first', 'var(--warning)'); return; }
   if (!currentPos)     { setPipeIssueSubmitStatus('⏳ Waiting for GPS location…', 'var(--warning)'); return; }
 
-  const edge      = allEdges.find(e => e.id === selectedEdgeId);
+  const edge      = selectedEdgeId ? allEdges.find(e => e.id === selectedEdgeId) : null;
   const issueType = $('pipeIssueType').value;
   const note      = $('pipeIssueNote').value.trim();
+
+  if (!note) { setPipeIssueSubmitStatus('Please describe the issue', 'var(--warning)'); return; }
 
   $('btnPipeIssue').disabled = true;
   setPipeIssueSubmitStatus('Saving…', 'var(--text3)');
@@ -1945,8 +2021,8 @@ async function submitPipeIssue() {
       deviceId:   deviceId,
       personId:   person.id,
       personName: person.name,
-      assetId:    selectedEdgeId,
-      assetName:  edge ? `${edge.source} to ${edge.target}` : selectedEdgeId,
+      assetId:    selectedEdgeId || '',
+      assetName:  edge ? `${edge.source} to ${edge.target}` : issueType,
       action:     'PIPE_ISSUE',
       issueType:  issueType,
       note:       note,
@@ -1956,13 +2032,23 @@ async function submitPipeIssue() {
       lat:        currentPos.lat.toFixed(7),
       lng:        currentPos.lng.toFixed(7),
       distance:   '',
-      zone:       edge?.zoneName || ''
+      zone:       edge?.zoneName || (activeLeakBurstZone && (zoneMap[activeLeakBurstZone]?.name || activeLeakBurstZone)) || ''
     };
     existing.push(rec);
     await workerPatch({ [LEAKBURST_FILE]: csvStringifyLB(existing) });
 
     todayRecs.push(rec);
     if (Array.isArray(window._allLeakBurstRecs)) window._allLeakBurstRecs.push(rec);
+
+    // Track for pending estimates
+    if (selectedEdgeId && allEdges.some(e => e.id === selectedEdgeId)) {
+      leakBurstEdgeState[selectedEdgeId] = 'PIPE_ISSUE';
+    } else if (!selectedEdgeId) {
+      pendingPipeIssueRecords.push(rec);
+    }
+    renderLeakBurstZones();
+    renderPendingEstimates();
+
     renderRecords();
 
     $('pipeIssueNote').value = '';
@@ -1972,7 +2058,7 @@ async function submitPipeIssue() {
   } catch(e) {
     setPipeIssueSubmitStatus('Error: ' + e.message, 'var(--danger)');
   } finally {
-    if (selectedEdgeId) $('btnPipeIssue').disabled = false;
+    $('btnPipeIssue').disabled = false;
   }
 }
 
@@ -1988,7 +2074,7 @@ const LB_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','ass
 const LB_DL_COLS = ['sn','docket','personId','personName','zone','assetId','assetName','action','timestamp','date','time','lat','lng','distance','deviceId'];
 const OI_DL_COLS = ['sn','docket','personId','personName','zone','assetId','assetName','issueType','note','timestamp','date','time','lat','lng','distance','deviceId'];
 
-// Docket number for a leak/burst report: LB-YYYYMMDD-XXXX
+// Docket number: LBYYYYMMDDXXXX (no special characters).
 // XXXX is a short base36 suffix derived from the timestamp + a random nibble,
 // giving a human-readable, sortable, practically-unique reference.
 function makeDocket(now, prefix = 'LB') {
@@ -1997,7 +2083,7 @@ function makeDocket(now, prefix = 'LB') {
   const rand = Math.floor(Math.random() * 36);
   const suffix = (d.getTime() % 1000000).toString(36).toUpperCase().padStart(4,'0').slice(-3)
                + rand.toString(36).toUpperCase();
-  return `${prefix}-${ymd}-${suffix}`;
+  return `${prefix}${ymd}${suffix}`;
 }
 function csvParse(text) {
   if (!text?.trim()) return [];
@@ -2355,12 +2441,12 @@ function toggleSection(bodyId, btn) {
 // ── LEAK/BURST SHARE ───────────────────────────────────────────────────────────
 let _shareText = '';
 
-// Most-recent docket + reporter coords per active edge, derived from records.
+// Most-recent docket + reporter coords per asset, derived from records.
 function latestReportInfo(assetId) {
   const recs = (window._allLeakBurstRecs || todayRecs);
   let best = null;
   recs.forEach(r => {
-    if (r.assetId === assetId && r.action === 'LEAK_BURST') {
+    if (r.assetId === assetId && (r.action === 'LEAK_BURST' || r.action === 'PIPE_ISSUE')) {
       if (!best || (r.timestamp || '') > (best.timestamp || '')) best = r;
     }
   });

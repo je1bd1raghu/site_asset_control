@@ -219,10 +219,14 @@ window.addEventListener('DOMContentLoaded', () => {
   assetName = params.get('name')   || assetId;
   docket    = params.get('docket') || '';
 
-  if (assetId) {
+  if (docket) {
+    document.getElementById('assetBannerTitle').textContent = '🎫 ' + docket;
+    document.getElementById('assetBannerSub').textContent   =
+      (assetId ? 'Asset: ' + assetName + '  ·  ' : '') + 'Issue: ' + assetName;
+  } else if (assetId) {
     document.getElementById('assetBannerTitle').textContent = '⚠ Leak/Burst: ' + assetName;
     document.getElementById('assetBannerSub').textContent   =
-      (docket ? '🎫 Docket: ' + docket + '  ·  ' : '') + 'Linked to asset: ' + assetId;
+      'Linked to asset: ' + assetId;
   } else {
     document.getElementById('assetBannerTitle').textContent = 'No leak/burst asset specified';
     document.getElementById('assetBannerSub').textContent   = 'Open this page from the leak/burst report section in Asset Control';
@@ -331,7 +335,8 @@ function filterEstimates() {
   container.innerHTML = matches.map(e => {
     const label = e.name || e.assetName || e.assetId;
     const sub = [e.docket && '🎫 '+e.docket, e.assetName, e.items.length+' items', '₹'+fmtNum(e.total), e.date].filter(Boolean).join(' · ');
-    return '<div class="sr-item" onclick="selectEstimate(\''+esc(e.assetId)+'\')">' +
+    const clickId = e.assetId || e.docket;
+    return '<div class="sr-item" onclick="selectEstimate(\''+esc(clickId)+'\')">' +
       '<div class="sr-title">' + esc(label) + '</div>' +
       '<div class="sr-sub">' + esc(sub) + '</div></div>';
   }).join('');
@@ -344,20 +349,31 @@ function clearSearch() {
 }
 
 function selectEstimate(id) {
-  assetId   = id;
-  const est = estimates.find(e => e.assetId === id);
-  assetName = (est && est.assetName) || id;
-  docket    = (est && est.docket) || '';
-  document.getElementById('assetBannerTitle').textContent = '⚠ Leak/Burst: ' + assetName;
-  document.getElementById('assetBannerSub').textContent   =
-    (docket ? '🎫 Docket: ' + docket + '  ·  ' : '') + 'Linked to asset: ' + assetId;
+  const byAsset = estimates.find(e => e.assetId === id);
+  const byDocket = !byAsset ? estimates.find(e => e.docket === id) : null;
+  const est = byAsset || byDocket;
+  if (!est) return;
+  assetId   = est.assetId || '';
+  assetName = est.assetName || id;
+  docket    = est.docket || '';
+  const titleEl = document.getElementById('assetBannerTitle');
+  const subEl   = document.getElementById('assetBannerSub');
+  if (docket) {
+    titleEl.textContent = '🎫 ' + docket;
+    subEl.textContent   = assetId ? 'Asset: ' + assetName : assetName || 'Pipe issue';
+  } else {
+    titleEl.textContent = '⚠ Leak/Burst: ' + assetName;
+    subEl.textContent   = 'Linked to asset: ' + assetId;
+  }
   clearSearch();
   renderPage();
   document.getElementById('assetBannerCard').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 function getForAsset() {
-  return estimates.find(e => e.assetId === assetId) || null;
+  if (assetId) return estimates.find(e => e.assetId === assetId) || null;
+  if (docket)  return estimates.find(e => e.docket === docket) || null;
+  return null;
 }
 
 function renderPage() {
@@ -365,10 +381,10 @@ function renderPage() {
   // If the URL didn't carry a docket but a stored estimate has one, surface it.
   if (!docket && existing && existing.docket) {
     docket = existing.docket;
-    if (assetId) {
-      document.getElementById('assetBannerSub').textContent =
-        '🎫 Docket: ' + docket + '  ·  Linked to asset: ' + assetId;
-    }
+    const titleEl = document.getElementById('assetBannerTitle');
+    const subEl   = document.getElementById('assetBannerSub');
+    titleEl.textContent = '🎫 ' + docket;
+    subEl.textContent   = assetId ? 'Asset: ' + assetName : assetName || 'Pipe issue';
   }
   if (existing) {
     document.getElementById('existingCard').style.display = '';
@@ -468,7 +484,7 @@ function updateTotal() {
 }
 
 async function saveEstimate() {
-  if (!assetId) { showToast('No leak/burst asset — open from leak/burst section','warning'); return; }
+  if (!assetId && !docket) { showToast('No leak/burst asset — open from leak/burst section','warning'); return; }
   const name = (document.getElementById('estName').value||'').trim();
   if (!name)   { showToast('Enter an estimate title','warning'); document.getElementById('estName').focus(); return; }
   const hasContent = rows.some(r => r.particulars || r.rate || r.quantity);
@@ -488,16 +504,18 @@ async function saveEstimate() {
   const dateStr = `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}, ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
   // Keep the docket linked to the estimate: use the one passed in the URL, or
-  // preserve a docket already stored on a prior estimate for this asset.
-  const prior  = estimates.find(e => e.assetId === assetId);
+  // preserve a docket already stored on a prior estimate for this asset/docket.
+  const prior  = assetId ? estimates.find(e => e.assetId === assetId) : estimates.find(e => e.docket === docket);
   const docketRef = docket || (prior && prior.docket) || '';
 
-  const est = { id: Date.now().toString(), assetId, assetName, docket: docketRef, name, date: dateStr, items, total };
+  const est = { id: Date.now().toString(), assetId: assetId || '', assetName, docket: docketRef, name, date: dateStr, items, total };
 
   document.getElementById('btnSave').disabled        = true;
   document.getElementById('saveStatus').textContent  = 'Saving…';
 
-  const idx = estimates.findIndex(e => e.assetId === assetId);
+  const idx = assetId
+    ? estimates.findIndex(e => e.assetId === assetId)
+    : estimates.findIndex(e => e.docket === docket);
   if (idx >= 0) estimates[idx] = est; else estimates.push(est);
 
   try {

@@ -509,103 +509,7 @@
             flex: 1;
         }
 
-        /* ── Leak/Burst report action bar ───────────────────────────────────── */
-        .nip-leakburst-bar {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            padding: 8px 0 0;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            margin-top: 8px;
-        }
-        .nip-leakburst-person {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .nip-leakburst-person label {
-            font-size: 0.68rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: rgba(255,255,255,0.4);
-            white-space: nowrap;
-        }
-        .nip-leakburst-person select {
-            background: #343A40;
-            color: #ecf0f1;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 5px;
-            padding: 4px 8px;
-            font-family: 'Nunito', 'Noto Sans Bengali', sans-serif;
-            font-size: 0.78rem;
-            font-weight: 600;
-            flex: 1;
-            min-width: 0;
-            outline: none;
-        }
-        .nip-leakburst-person select:focus { border-color: #F5821F; }
-        .nip-leakburst-btns {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .btn-leakburst-report {
-            background: #c0392b;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 5px 12px;
-            font-family: 'Nunito', 'Noto Sans Bengali', sans-serif;
-            font-size: 0.78rem;
-            font-weight: 800;
-            cursor: pointer;
-            transition: background 0.2s;
-            white-space: nowrap;
-        }
-        .btn-leakburst-report:hover { background: #e74c3c; }
-        .btn-leakburst-report:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn-leakburst-clear {
-            background: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 5px 12px;
-            font-family: 'Nunito', 'Noto Sans Bengali', sans-serif;
-            font-size: 0.78rem;
-            font-weight: 800;
-            cursor: pointer;
-            transition: background 0.2s;
-            white-space: nowrap;
-        }
-        .btn-leakburst-clear:hover { background: #2ecc71; }
-        .btn-leakburst-clear:disabled { opacity: 0.4; cursor: not-allowed; }
-        .nip-leakburst-status {
-            font-size: 0.72rem;
-            font-weight: 600;
-            color: rgba(255,255,255,0.45);
-            min-height: 16px;
-        }
-        .nip-leakburst-status.ok   { color: #2ecc71; }
-        .nip-leakburst-status.err  { color: #e74c3c; }
-        .nip-leakburst-status.warn { color: #f39c12; }
 
-        /* ── Location warning modal ── */
-        .locwarn-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:1200; display:flex; align-items:center; justify-content:center; padding:24px; opacity:0; pointer-events:none; transition:opacity .25s; }
-        .locwarn-backdrop.open { opacity:1; pointer-events:auto; }
-        .locwarn-box { background:#fff; border-radius:16px; width:100%; max-width:360px; padding:26px 22px 22px; box-shadow:0 8px 32px rgba(0,0,0,.18); transform:scale(.92); transition:transform .25s cubic-bezier(.34,1.4,.64,1); text-align:center; }
-        .locwarn-backdrop.open .locwarn-box { transform:scale(1); }
-        .locwarn-icon  { font-size:44px; margin-bottom:10px; }
-        .locwarn-title { font-size:18px; font-weight:800; color:#1e293b; margin-bottom:8px; }
-        .locwarn-text  { font-size:14px; font-weight:600; color:#475569; line-height:1.55; margin-bottom:20px; }
-        .locwarn-btn-row { display:flex; gap:10px; }
-        .locwarn-btn { flex:1; padding:13px; border:none; border-radius:10px; font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:800; cursor:pointer; transition:background .2s; }
-        .locwarn-btn-back    { background:#f0f4ff; color:#475569; border:2px solid #e2e8f0; }
-        .locwarn-btn-back:hover { background:#e2e8f0; }
-        .locwarn-btn-confirm { background:#d97706; color:#fff; }
-        .locwarn-btn-confirm:hover { background:#b45309; }
     </style>
 </head>
 <body>
@@ -735,18 +639,7 @@
                 <button class="nip-close" onclick="closeNodePanel()" aria-label="Close info panel">✕ Close</button>
             </div>
             <div class="nip-fields" id="nip-fields"></div>
-            <!-- Leak/Burst report bar — shown only for edges -->
-            <div class="nip-leakburst-bar" id="nip-leakburst-bar" style="display:none">
-                <div class="nip-leakburst-person">
-                    <label for="leakburst-person-select">Your Name</label>
-                    <select id="leakburst-person-select"><option value="">— select —</option></select>
-                </div>
-                <div class="nip-leakburst-btns">
-                    <button class="btn-leakburst-report" id="btn-leakburst-report" onclick="showLocWarn(() => submitLeakBurst('LEAK_BURST'))" disabled>⚠ Report Leak/Burst</button>
-                    <button class="btn-leakburst-clear"  id="btn-leakburst-clear"  onclick="submitLeakBurst('LEAK_BURST_CLEAR')" disabled>✓ Clear Leak/Burst</button>
-                    <span class="nip-leakburst-status" id="nip-leakburst-status"></span>
-                </div>
-            </div>
+
         </div>
     </div>
 </div>
@@ -775,12 +668,9 @@
     // WORKER, RECORDS_FILE, CONFIG_FILE come from common.js
     // ─────────────────────────────────────────────────────────────────────────
 
-    let persons    = [];   // loaded from config.json
     let deviceId   = '';   // FingerprintJS visitor ID
     let leakBurstState  = {};   // edgeId → 'LEAK_BURST' | 'LEAK_BURST_CLEAR' | undefined
-    let leakBurstDocket = {};   // edgeId → latest LEAK_BURST docket (for estimate links)
-    let estimateMap     = {};   // edgeId (assetId) → estimate object; gates clearing
-    let _currentLeakBurstEdgeId = null;   // edge currently shown in info panel
+
 
     let cy            = null;
     let refreshTimer  = null;
@@ -1536,6 +1426,10 @@
             showNodePanel(n);
         });
 
+        cy.on('tap', 'edge', function(evt) {
+            showEdgeLeakBurstPanel(evt.target);
+        });
+
         // Tap on background dismisses the panel
         cy.on('tap', function(evt) {
             if (evt.target === cy) closeNodePanel();
@@ -1553,8 +1447,6 @@
                 _applyNodeSizeStyle();
             });
         });
-
-        bindEdgeTap();
     }
 
     // ─── NODE INFO PANEL ─────────────────────────────────────────────────────
@@ -1599,8 +1491,6 @@
         }
 
         fields.innerHTML = html;
-        document.getElementById('nip-leakburst-bar').style.display = 'none';
-        _currentLeakBurstEdgeId = null;
         panel.classList.add('visible');
     }
 
@@ -1661,21 +1551,6 @@
     // ─── WORKER HELPERS ───────────────────────────────────────────────────────
     // workerGet, workerPatch, getDeviceId come from common.js
 
-    // ─── PERSONS CONFIG ───────────────────────────────────────────────────────
-    async function loadPersonsConfig() {
-        try {
-            const files = await workerGet('config');
-            persons = JSON.parse(files[CONFIG_FILE] || '{}').persons || [];
-            persons.sort((a, b) => a.name.localeCompare(b.name));
-            const sel = document.getElementById('leakburst-person-select');
-            sel.innerHTML = '<option value="">— select —</option>'
-                + persons.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.designation ? ' — ' + p.designation : ''}</option>`).join('');
-            sel.addEventListener('change', onLeakBurstPersonChange);
-        } catch(e) {
-            console.warn('Config load failed:', e.message);
-        }
-    }
-
     // ─── LEAK/BURST STATE FROM RECORDS ─────────────────────────────────────────────
     // Reads leakbursts.csv and derives the latest leak/burst state per edge.
     async function loadLeakBurstState() {
@@ -1683,21 +1558,11 @@
             const files = await workerGet('output');
             const rows  = csvParseLeakBurst(files[LEAKBURST_FILE] || '');
             leakBurstState  = {};
-            leakBurstDocket = {};
-            // Process in timestamp order so the newest action per edge wins.
             rows.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
                 .forEach(r => {
                     if ((r.action === 'LEAK_BURST' || r.action === 'LEAK_BURST_CLEAR') && r.assetId)
                         leakBurstState[r.assetId] = r.action;
-                    if (r.action === 'LEAK_BURST' && r.assetId && r.docket)
-                        leakBurstDocket[r.assetId] = r.docket;   // latest wins (sorted asc)
                 });
-            // Load estimates so a leak/burst can only be cleared once one is uploaded.
-            estimateMap = {};
-            try {
-                const ests = JSON.parse(files[ESTIMATES_FILE] || '[]');
-                if (Array.isArray(ests)) ests.forEach(e => { if (e.assetId) estimateMap[e.assetId] = e; });
-            } catch { /* leave estimateMap empty */ }
         } catch(e) {
             console.warn('Leak/Burst state load failed:', e.message);
         }
@@ -1721,26 +1586,7 @@
         return Papa.parse(text.trim(), { header: true, skipEmptyLines: true }).data;
     }
 
-    const LEAK_BURST_CSV_COLS = ['sn','docket','personId','personName','zone','assetId','assetName',
-                            'action','timestamp','date','time','lat','lng','distance','deviceId'];
-    // pad2, esc, todayStr, timeStr come from common.js
-    // Docket number: LB-YYYYMMDD-XXXX (matches the format used in Asset Control).
-    function makeDocketLB(now) {
-        const d = now || new Date();
-        const ymd = `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`;
-        const rand = Math.floor(Math.random() * 36);
-        const suffix = (d.getTime() % 1000000).toString(36).toUpperCase().padStart(4,'0').slice(-3)
-                     + rand.toString(36).toUpperCase();
-        return `LB-${ymd}-${suffix}`;
-    }
 
-    // ─── EDGE TAP → LEAK/BURST PANEL ───────────────────────────────────────────────
-    // Called from initCytoscape after cy is ready
-    function bindEdgeTap() {
-        cy.on('tap', 'edge', function(evt) {
-            showEdgeLeakBurstPanel(evt.target);
-        });
-    }
 
     // ─── SHOW MY LOCATION ──────────────────────────────────────────────────────
     // Center the satellite map on the user's current GPS fix and drop a marker
@@ -1797,28 +1643,14 @@
         );
     }
 
-    let _geoPos = null;
-    function ensureGeoWatch() {
-        if (_geoPos !== null || !navigator.geolocation) return;
-        _geoPos = 'pending';
-        navigator.geolocation.watchPosition(
-            pos => { _geoPos = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }; },
-            ()  => { _geoPos = null; },
-            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-        );
-    }
-
     function showEdgeLeakBurstPanel(edge) {
         const panel  = document.getElementById('node-info-panel');
         const title  = document.getElementById('nip-title');
         const fields = document.getElementById('nip-fields');
-        const bar    = document.getElementById('nip-leakburst-bar');
 
-        _currentLeakBurstEdgeId = edge.id();
         const src   = edge.data('source') || '';
         const tgt   = edge.data('target') || '';
         const flow  = edge.data('flow')   || '';
-        const isLeakBursted = (leakBurstState[edge.id()] === 'LEAK_BURST') || (flow === 'leakburst');
 
         title.textContent = `Pipe: ${src} → ${tgt}`;
 
@@ -1837,172 +1669,7 @@
                          + field('To', tgt)
                          + field('Flow', flowLabel, flowCls);
 
-        // Leak/Burst bar
-        bar.style.display = 'flex';
-        bar.style.flexDirection = 'column';
-        setLeakBurstStatus('');
-        onLeakBurstPersonChange();   // update button states
-
-        // An open report blocks re-reporting until cleared; the Clear button is
-        // the only way forward while a report is active.
-        const rptBtn = document.getElementById('btn-leakburst-report');
-        document.getElementById('btn-leakburst-clear').style.display = isLeakBursted ? '' : 'none';
-        if (isLeakBursted) {
-            rptBtn.textContent = '⚠ Reported';
-            rptBtn.title       = 'Already reported — clear it before reporting again';
-        } else {
-            rptBtn.textContent = '⚠ Report Leak/Burst';
-            rptBtn.title       = '';
-        }
-
-        // A reported pipe with no estimate yet: point the user to upload one —
-        // clearing stays locked until then.
-        if (isLeakBursted && !currentEdgeHasEstimate()) {
-            const s = document.getElementById('nip-leakburst-status');
-            s.innerHTML = `📋 <a href="${buildEstimateLink(edge)}" style="color:#F5821F;font-weight:800;text-decoration:underline;">Upload estimate</a> to enable clearing`;
-            s.className = 'nip-leakburst-status warn';
-        }
-
         panel.classList.add('visible');
-        ensureGeoWatch();
-    }
-
-    function currentEdgeIsLeakBursted() {
-        if (!_currentLeakBurstEdgeId) return false;
-        if (leakBurstState[_currentLeakBurstEdgeId] === 'LEAK_BURST') return true;
-        if (cy) {
-            const el = cy.getElementById(_currentLeakBurstEdgeId);
-            if (el && el.length && el.data('flow') === 'leakburst') return true;
-        }
-        return false;
-    }
-
-    // A leak/burst can only be cleared after a cost estimate has been uploaded
-    // for that pipe (mirrors the Asset Control lock).
-    function currentEdgeHasEstimate() {
-        return !!(_currentLeakBurstEdgeId && estimateMap[_currentLeakBurstEdgeId]);
-    }
-
-    // Link to the estimate uploader for an edge, carrying its id, label and the
-    // open report's docket so the estimate stays tied to the same reference.
-    function buildEstimateLink(edge) {
-        const id   = edge ? edge.id() : _currentLeakBurstEdgeId;
-        const src  = edge ? (edge.data('source') || '') : '';
-        const tgt  = edge ? (edge.data('target') || '') : '';
-        const name = `${id} (${src} → ${tgt})`;
-        const docket = leakBurstDocket[id] || '';
-        return `estimate.html?asset=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}&docket=${encodeURIComponent(docket)}`;
-    }
-
-    function onLeakBurstPersonChange() {
-        const pid = document.getElementById('leakburst-person-select').value;
-        const ok  = !!pid;
-        // Report is blocked while an open report exists for this edge; clearing
-        // it needs a selected person AND an uploaded estimate for the pipe.
-        const faulted = currentEdgeIsLeakBursted();
-        const hasEst  = currentEdgeHasEstimate();
-        document.getElementById('btn-leakburst-report').disabled = !ok || faulted;
-        const clrBtn = document.getElementById('btn-leakburst-clear');
-        clrBtn.disabled = !ok || !hasEst;
-        clrBtn.title    = hasEst ? '' : 'Upload an estimate for this leak/burst first';
-    }
-
-    function setLeakBurstStatus(msg, cls) {
-        const el = document.getElementById('nip-leakburst-status');
-        el.textContent = msg;
-        el.className   = 'nip-leakburst-status' + (cls ? ' ' + cls : '');
-    }
-
-    async function submitLeakBurst(action) {
-        const pid    = document.getElementById('leakburst-person-select').value;
-        const person = persons.find(p => p.id === pid);
-        if (!person) { setLeakBurstStatus('Select your name first', 'err'); return; }
-        if (!_currentLeakBurstEdgeId) { setLeakBurstStatus('No pipe selected', 'err'); return; }
-        if (action === 'LEAK_BURST' && currentEdgeIsLeakBursted()) {
-            setLeakBurstStatus('⚠ Already reported — clear it first', 'warn');
-            return;
-        }
-        if (action === 'LEAK_BURST_CLEAR' && !currentEdgeHasEstimate()) {
-            setLeakBurstStatus('⚠ Upload an estimate for this leak/burst before clearing', 'err');
-            return;
-        }
-
-        // Location check — must have a GPS fix
-        if (_geoPos === null || _geoPos === 'pending') {
-            setLeakBurstStatus('⏳ Waiting for GPS…', 'warn');
-            ensureGeoWatch();
-            return;
-        }
-
-        // Find the zone this edge belongs to (from currentZone)
-        const zoneId = currentZone?.id || '';
-
-        document.getElementById('btn-leakburst-report').disabled = true;
-        document.getElementById('btn-leakburst-clear').disabled  = true;
-        setLeakBurstStatus('Saving…', '');
-
-        try {
-            const edge     = cy.getElementById(_currentLeakBurstEdgeId);
-            const edgeName = `${edge.data('source') || ''} → ${edge.data('target') || ''}`;
-            const now      = new Date();
-
-            const allFiles   = await workerGet('output');
-            const allRecs    = csvParseLeakBurst(allFiles[LEAKBURST_FILE] || '');
-            // New report gets a fresh docket; a clear reuses the docket of the
-            // report it resolves so the pair shares one reference.
-            let docket = '';
-            if (action === 'LEAK_BURST') {
-                docket = makeDocketLB(now);
-            } else if (action === 'LEAK_BURST_CLEAR') {
-                const prior = [...allRecs].reverse().find(r =>
-                    r.assetId === _currentLeakBurstEdgeId && r.action === 'LEAK_BURST' && r.docket);
-                docket = prior ? prior.docket : makeDocketLB(now);
-            }
-            const rec = {
-                sn:         makeSn(),
-                docket:     docket,
-                deviceId:   deviceId,
-                personId:   person.id,
-                personName: person.name,
-                assetId:    _currentLeakBurstEdgeId,
-                assetName:  edgeName,
-                action:     action,
-                timestamp:  now.toISOString(),
-                date:       todayStr(),
-                time:       timeStr(now),
-                lat:        _geoPos.lat.toFixed(7),
-                lng:        _geoPos.lng.toFixed(7),
-                distance:   '',
-                zone:       zoneId
-            };
-            allRecs.push(rec);
-            await workerPatch({ [LEAKBURST_FILE]: Papa.unparse(allRecs, { columns: LEAK_BURST_CSV_COLS }) });
-
-            // Update local leak/burst state and overlay on graph
-            leakBurstState[_currentLeakBurstEdgeId] = action;
-            if (edge.length) {
-                if (action === 'LEAK_BURST')
-                    edge.data('flow', 'leakburst');
-                else if (action === 'LEAK_BURST_CLEAR')
-                    edge.data('flow', '');
-            }
-
-            const msg = action === 'LEAK_BURST' ? '⚠ Leak/Burst reported' : '✓ Leak/Burst cleared';
-            setLeakBurstStatus(msg, action === 'LEAK_BURST' ? 'err' : 'ok');
-
-            // Refresh panel state: after a report the pipe is now faulted, so
-            // the Report button shows "Reported" and only Clear is offered.
-            const rptBtn = document.getElementById('btn-leakburst-report');
-            document.getElementById('btn-leakburst-clear').style.display = action === 'LEAK_BURST' ? '' : 'none';
-            rptBtn.textContent = action === 'LEAK_BURST' ? '⚠ Reported' : '⚠ Report Leak/Burst';
-            rptBtn.title       = action === 'LEAK_BURST' ? 'Already reported — clear it before reporting again' : '';
-        } catch(e) {
-            setLeakBurstStatus('Error: ' + e.message, 'err');
-        } finally {
-            // Re-derive button states via the shared gate: Report blocked while a
-            // report is open; Clear needs a person AND an uploaded estimate.
-            onLeakBurstPersonChange();
-        }
     }
 
 
@@ -2010,37 +1677,8 @@
     (async () => {
         initializeMap();                 // create Leaflet map first
         deviceId = await getDeviceId();
-        await loadPersonsConfig();
         loadManifest();
     })();
-</script>
-
-<!-- Report-from-actual-location warning modal -->
-<div class="locwarn-backdrop" id="locWarnBackdrop">
-    <div class="locwarn-box">
-        <div class="locwarn-icon">📍</div>
-        <div class="locwarn-title">Report From the Actual Location</div>
-        <div class="locwarn-text">Please make sure you are physically at the leak/burst site before reporting. The report records your current GPS coordinates, which the field team relies on to locate the problem.</div>
-        <div class="locwarn-btn-row">
-            <button class="locwarn-btn locwarn-btn-back"    onclick="closeLocWarn()">← Go back</button>
-            <button class="locwarn-btn locwarn-btn-confirm" onclick="confirmLocWarn()">I understand</button>
-        </div>
-    </div>
-</div>
-<script>
-    let _locWarnCallback = null;
-    function showLocWarn(callback) {
-        _locWarnCallback = callback || null;
-        document.getElementById('locWarnBackdrop').classList.add('open');
-    }
-    function confirmLocWarn() {
-        document.getElementById('locWarnBackdrop').classList.remove('open');
-        if (_locWarnCallback) { const cb = _locWarnCallback; _locWarnCallback = null; cb(); }
-    }
-    function closeLocWarn() {
-        _locWarnCallback = null;
-        document.getElementById('locWarnBackdrop').classList.remove('open');
-    }
 </script>
 </body>
 </html>
