@@ -273,11 +273,30 @@
   .chip-off { background:var(--danger-light);  color:var(--danger); }
 
   .empty-state { text-align:center; padding:28px 0; color:var(--text3); font-weight:700; font-size:14px; }
-  .dl-select { padding:10px 12px; border:2px solid var(--border); border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:600; color:var(--text); background:#fff; cursor:pointer; outline:none; transition:border-color .2s; }
+  .dl-card { background:var(--surface2); border:2px solid var(--border); border-radius:var(--radius-sm); padding:16px; margin-bottom:12px; }
+  .dl-card-header { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.7px; color:var(--text3); margin-bottom:12px; }
+  .dl-date-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .dl-date-group { display:flex; flex-direction:column; gap:4px; flex:1; min-width:140px; }
+  .dl-date-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--text3); }
+  .dl-date-sep { font-size:16px; font-weight:800; color:var(--text3); padding-top:16px; }
+  .dl-select { padding:10px 12px; border:2px solid var(--border); border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:600; color:var(--text); background:#fff; cursor:pointer; outline:none; transition:border-color .2s; width:100%; box-sizing:border-box; }
   .dl-select:focus { border-color:var(--primary); }
-  .btn-download { padding:10px 18px; background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:background .2s; white-space:nowrap; }
-  .btn-download:hover { background:var(--primary-dark); }
-  .btn-download:disabled { opacity:.5; cursor:not-allowed; }
+  .dl-select[readonly] { cursor:pointer; background:var(--surface); }
+  .dl-btn-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .btn-download { padding:14px 12px; background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm); font-family:'Nunito','Noto Sans Bengali',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:all .2s; white-space:nowrap; display:flex; flex-direction:column; align-items:center; gap:2px; line-height:1.3; }
+  .btn-download:hover { background:var(--primary-dark); transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,.1); }
+  .btn-download:active { transform:translateY(0); }
+  .btn-download:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+  .dl-btn-icon { font-size:20px; }
+  .dl-btn-lbl { font-size:13px; font-weight:800; }
+  .dl-btn-fmt { font-size:10px; font-weight:700; opacity:.75; }
+  .btn-dl-danger { background:var(--danger); }
+  .btn-dl-danger:hover { background:#b91c1c; }
+  .btn-dl-issue { background:#4338ca; }
+  .btn-dl-issue:hover { background:#3730a3; }
+  .btn-dl-est { background:var(--warning); }
+  .btn-dl-est:hover { background:#b45309; }
+  .dl-status { font-size:12px; font-weight:600; color:var(--text3); text-align:center; min-height:20px; padding:4px 0; }
   .empty-state .e-icon { font-size:36px; margin-bottom:8px; }
 
   .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--text); color:#fff; padding:14px 24px; border-radius:50px; font-size:14px; font-weight:700; z-index:9999; transition:transform .35s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; max-width:88vw; text-align:center; }
@@ -586,17 +605,48 @@
     </button>
 
     <div class="collapsible-body" id="downloadBody">
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:13px;font-weight:700;color:var(--text2)">From <input type="date" id="dlFrom" class="dl-select" style="cursor:text"></label>
-        <label style="font-size:13px;font-weight:700;color:var(--text2)">To <input type="date" id="dlTo" class="dl-select" style="cursor:text"></label>
+      <div class="dl-card">
+        <div class="dl-card-header">Select date range</div>
+        <div class="dl-date-row">
+          <div class="dl-date-group">
+            <label class="dl-date-label">From</label>
+            <input type="text" id="dlFromDisplay" class="dl-select" placeholder="dd mmm yyyy" readonly>
+            <input type="date" id="dlFrom" style="display:none">
+          </div>
+          <span class="dl-date-sep">→</span>
+          <div class="dl-date-group">
+            <label class="dl-date-label">To</label>
+            <input type="text" id="dlToDisplay" class="dl-select" placeholder="dd mmm yyyy" readonly>
+            <input type="date" id="dlTo" style="display:none">
+          </div>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
-        <button class="btn-download" onclick="downloadRecords()">⬇ Records CSV</button>
-        <button class="btn-download" onclick="downloadLeakBursts()" style="background:var(--danger);white-space:nowrap;">⬇ Leak/Burst CSV</button>
-        <button class="btn-download" onclick="downloadOtherIssues()" style="background:#4338ca;white-space:nowrap;">🛠 Other Issues CSV</button>
-        <button class="btn-download" onclick="openDownloadModal()" style="background:var(--warning);white-space:nowrap;">📋 Download Estimates</button>
+      <div class="dl-card">
+        <div class="dl-card-header">Export</div>
+        <div class="dl-btn-grid">
+          <button class="btn-download" onclick="downloadRecords()">
+            <span class="dl-btn-icon">📋</span>
+            <span class="dl-btn-lbl">Records</span>
+            <span class="dl-btn-fmt">CSV</span>
+          </button>
+          <button class="btn-download btn-dl-danger" onclick="downloadLeakBursts()">
+            <span class="dl-btn-icon">⚠️</span>
+            <span class="dl-btn-lbl">Leak/Burst</span>
+            <span class="dl-btn-fmt">CSV</span>
+          </button>
+          <button class="btn-download btn-dl-issue" onclick="downloadOtherIssues()">
+            <span class="dl-btn-icon">🛠</span>
+            <span class="dl-btn-lbl">Other Issues</span>
+            <span class="dl-btn-fmt">CSV</span>
+          </button>
+          <button class="btn-download btn-dl-est" onclick="openDownloadModal()">
+            <span class="dl-btn-icon">📊</span>
+            <span class="dl-btn-lbl">Estimates</span>
+            <span class="dl-btn-fmt">CSV / ZIP</span>
+          </button>
+        </div>
       </div>
-      <div id="dlStatus" style="font-size:12px;font-weight:600;color:var(--text3);margin-top:8px;min-height:18px"></div>
+      <div class="dl-status" id="dlStatus"></div>
     </div>
   </div>
 
@@ -729,8 +779,10 @@ async function initApp() {
   await loadAllEdges();
   updateLeakBurstLock();   // start locked until an operator is picked
 
-  setProgress(100); setLoadText('Ready!');
+  linkDateDisplay('dlFrom', 'dlFromDisplay');
+  linkDateDisplay('dlTo',   'dlToDisplay');
   setDefaultDateRange();
+  setProgress(100); setLoadText('Ready!');
   setTimeout(hideLoading, 500);
 }
 
@@ -1774,6 +1826,23 @@ function renderLeakBurstEdgeList() {
 }
 
 function selectLeakBurstEdge(edgeId) {
+  // Toggle: clicking the same pipe deselects it.
+  if (selectedEdgeId === edgeId) {
+    selectedEdgeId = null;
+    $('leakBurstSelectedLabel').textContent = 'No pipe selected';
+    $('leakBurstSelectedLabel').className   = 'leakburst-selected-label';
+    $('btnLeakBurstReport').disabled  = true;
+    $('btnLeakBurstReport').textContent = '⚠ Report';
+    $('btnLeakBurstReport').title     = '';
+    $('btnLeakBurstClear').style.display = 'none';
+    $('leakBurstSubmitStatus').textContent = '';
+    $('pipeIssueNote').value   = '';
+    $('pipeIssueSubmitStatus').textContent = '';
+    renderEstimatePanel(null, null, false, false);
+    renderLeakBurstEdgeList();
+    return;
+  }
+
   selectedEdgeId = edgeId;
   const edge      = allEdges.find(e => e.id === edgeId);
   const isLeakBursted = leakBurstEdgeState[edgeId] === 'LEAK_BURST';
@@ -1785,8 +1854,6 @@ function selectLeakBurstEdge(edgeId) {
 
   const btnReport = $('btnLeakBurstReport');
   if (isLeakBursted) {
-    // An open report already exists for this pipe — re-reporting is blocked
-    // until it has been cleared. The Clear button is the way forward.
     btnReport.disabled    = true;
     btnReport.textContent = '⚠ Reported';
     btnReport.title       = 'Already reported — clear the existing report before reporting again';
@@ -1801,8 +1868,6 @@ function selectLeakBurstEdge(edgeId) {
   }
 
   $('leakBurstSubmitStatus').textContent = '';
-
-  // Reset other-issue panel note + status on each fresh selection.
   $('pipeIssueNote').value   = '';
   $('pipeIssueSubmitStatus').textContent = '';
 
@@ -2108,11 +2173,32 @@ function csvStringifyLB(recs) {
 
 // ── CSV DOWNLOAD ───────────────────────────────────────────────────────────────
 // Default the From/To pickers to month-to-date (1st of this month → today).
+function fmtDateDisplay(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  if (!y || !m || !d) return iso;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${+d} ${months[+m - 1]} ${y}`;
+}
+
 function setDefaultDateRange() {
   const now = new Date();
   const first = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+  const last  = todayStr();
   $('dlFrom').value = first;
-  $('dlTo').value   = todayStr();
+  $('dlTo').value   = last;
+  $('dlFromDisplay').value = fmtDateDisplay(first);
+  $('dlToDisplay').value   = fmtDateDisplay(last);
+}
+
+function linkDateDisplay(inputId, displayId) {
+  const input   = $(inputId);
+  const display = $(displayId);
+  display.addEventListener('click', () => { input.showPicker(); });
+  display.addEventListener('focus',  () => { input.showPicker(); });
+  input.addEventListener('change',  () => {
+    display.value = fmtDateDisplay(input.value);
+  });
 }
 
 // Read the chosen [from, to] range. Record `date` fields are 'YYYY-MM-DD', which
