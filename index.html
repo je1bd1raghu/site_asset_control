@@ -1646,12 +1646,22 @@ function operatorZoneIds() {
 
 // Count of currently-active leaks/bursts in a zone (drives the card badge).
 function zoneActiveLeakCount(zoneId) {
-  return allEdges.filter(e => e.zone === zoneId && leakBurstEdgeState[e.id] === 'LEAK_BURST').length;
+  return allEdges.filter(e =>
+    e.zone === zoneId &&
+    leakBurstEdgeState[e.id] === 'LEAK_BURST' &&
+    !estimateMap[e.id]
+  ).length;
 }
 function zoneOtherIssueCount(zoneId) {
-  const edgeCount = allEdges.filter(e => e.zone === zoneId && leakBurstEdgeState[e.id] === 'PIPE_ISSUE').length;
+  const edgeCount = allEdges.filter(e =>
+    e.zone === zoneId &&
+    leakBurstEdgeState[e.id] === 'PIPE_ISSUE' &&
+    !estimateMap[e.id]
+  ).length;
   const zoneName = (zoneMap[zoneId] && zoneMap[zoneId].name) || zoneId;
-  const pendingCount = pendingPipeIssueRecords.filter(r => r.zone === zoneId || r.zone === zoneName).length;
+  const pendingCount = pendingPipeIssueRecords.filter(r =>
+    (r.zone === zoneId || r.zone === zoneName) && !estimateMap[r.docket]
+  ).length;
   return edgeCount + pendingCount;
 }
 
