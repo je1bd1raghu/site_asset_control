@@ -1143,6 +1143,14 @@
               'text-outline-width': labelOutlineW,
               'text-outline-opacity': onMap ? 0.85 : 0
           })
+          // Counter-scale border widths too — otherwise they grow
+          // disproportionately when zooming in.
+          .selector('node[type]')
+          .style({ 'border-width': Math.max(0.3, 2 / z) })
+          .selector('node[type][state="ON"]')
+          .style({ 'border-width': Math.max(0.3, 3 / z) })
+          .selector('node[comment]')
+          .style({ 'border-width': Math.max(0.3, 3 / z) })
           .selector('node[type="valve"]')
           .style({ 'width': valveSz, 'height': valveSz })
           .selector('node[type="pump"]')

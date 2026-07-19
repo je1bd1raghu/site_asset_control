@@ -399,11 +399,13 @@ function startAnimations(cy) {
     // ── 2. Pump ON: border-width pulse (replaces old SVG rotation) ────────────
     // Pumps are native circles so there's nothing to spin.
     // A green border pulse communicates "running" clearly.
+    // Border is counter-scaled by zoom so it stays constant on-screen.
     let pumpPhase = 0;
     function animatePumps() {
         if (!running) return;
         pumpPhase = (pumpPhase + 0.07) % (Math.PI * 2);
-        const bw = 3 + Math.sin(pumpPhase) * 2.5;    // oscillates ~0.5 → 5.5 px
+        const z  = cy.zoom() || 1;
+        const bw = (3 + Math.sin(pumpPhase) * 2.5) / z;    // oscillates ~0.5 → 5.5 px, then ÷zoom
         cy.batch(() => {
             cy.nodes('[type="pump"][state="ON"]').forEach(n => {
                 n.style('border-width', bw);
@@ -418,7 +420,8 @@ function startAnimations(cy) {
     function animateValves() {
         if (!running) return;
         valvePhase = (valvePhase + 0.05) % (Math.PI * 2);
-        const bw = 2.5 + Math.sin(valvePhase) * 1.5;  // oscillates 1 → 4 px
+        const z  = cy.zoom() || 1;
+        const bw = (2.5 + Math.sin(valvePhase) * 1.5) / z;  // oscillates 1 → 4 px, then ÷zoom
         cy.batch(() => {
             cy.nodes('[type="valve"][state="ON"]').forEach(n => {
                 n.style('border-width', bw);

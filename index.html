@@ -368,7 +368,7 @@
   .section-toggle-btn:focus-visible { outline:2px solid var(--primary); border-radius:8px; }
   .stb-left { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
   .stb-icon { font-size:20px; flex-shrink:0; }
-  .stb-texts { display:flex; flex-direction:column; gap:1px; }
+  .stb-texts { display:flex; flex-direction:column; gap:1px; min-width:0; overflow:hidden; }
   .stb-title { font-size:15px; font-weight:800; color:var(--text); letter-spacing:-.2px; }
   .stb-sub { font-size:11px; font-weight:600; color:var(--text3); }
   .stb-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
@@ -456,11 +456,22 @@
   </div>
 
   <div class="card" id="assetsCard" style="display:none">
-    <div class="section-header">
-      <div class="section-title" style="margin-bottom:0">Assigned Assets / Sites</div>
-      <button class="btn-refresh" onclick="refreshAll()">↻ Refresh</button>
+    <button class="section-toggle-btn" onclick="toggleSection('assetsBody',this)" aria-expanded="false">
+      <div class="stb-left">
+        <span class="stb-icon">🏭</span>
+        <div class="stb-texts">
+          <span class="stb-title">Assigned Assets / Sites</span>
+          <span class="stb-sub">Your assigned sites and equipment</span>
+        </div>
+      </div>
+      <div class="stb-right">
+        <span class="btn-refresh" onclick="event.stopPropagation();refreshAll()" role="button" tabindex="0" title="Refresh">↻</span>
+        <div class="stb-chevron" id="assetsChevron">▾</div>
+      </div>
+    </button>
+    <div class="collapsible-body" id="assetsBody">
+      <div id="assetsList"></div>
     </div>
-    <div id="assetsList"></div>
   </div>
 
   <div class="card" id="leakBurstCard">
