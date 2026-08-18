@@ -50,7 +50,7 @@
 
     /* ── HEADER ── */
     .header {
-      background: var(--primary); color: white;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white;
       padding: 20px 20px 60px; text-align: center; position: relative;
     }
     .header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
@@ -66,18 +66,20 @@
       border-radius: 10px; color: white;
       padding: 6px 12px; font-size: 12px; font-weight: 800;
       font-family: 'Nunito', sans-serif; text-decoration: none;
-      letter-spacing: 0.4px; transition: background 0.2s, border-color 0.2s; white-space: nowrap;
+      letter-spacing: 0.4px; transition: background 0.2s, border-color 0.2s, transform 0.1s; white-space: nowrap;
     }
     .scada-link:hover, .scada-link:focus-visible {
       background: rgba(255,255,255,0.28); border-color: rgba(255,255,255,0.6);
       outline: 2px solid white; outline-offset: 2px;
     }
+    .scada-link:active { transform: scale(0.96); }
 
     /* ── CARD WRAPPER ── */
     .card-wrapper { padding: 0 8px; margin-top: -40px; position: relative; z-index: 10; }
     .card {
       background: var(--surface); border-radius: var(--radius);
       box-shadow: var(--shadow-lg); padding: 14px; margin-bottom: 16px;
+      transition: box-shadow 0.25s;
     }
     @media (min-width: 640px) {
       .card-wrapper { padding: 0 16px; }
@@ -105,9 +107,10 @@
       background: var(--primary); color: white; border: none;
       border-radius: var(--radius-sm); padding: 11px 18px; margin-bottom: 14px;
       font-size: 15px; font-family: 'Nunito', sans-serif; font-weight: 700;
-      cursor: pointer; transition: background 0.2s, outline 0.1s; width: 100%;
+      cursor: pointer; transition: background 0.2s, outline 0.1s, transform 0.1s; width: 100%;
     }
     button:hover { background: var(--primary-dark); }
+    button:active { transform: scale(0.97); }
     button:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
 
     /* ── GRAPH CANVAS ── */
@@ -226,10 +229,11 @@
     }
     .tab-list button {
       background: var(--surface2); border: none; outline: none;
-      cursor: pointer; padding: 14px 16px; transition: background 0.2s, color 0.2s;
+      cursor: pointer; padding: 14px 16px; transition: background 0.2s, color 0.2s, transform 0.1s;
       font-size: 15px; font-weight: 700; flex: 1; border-radius: 0; margin-bottom: 0; color: var(--text2);
     }
     .tab-list button:hover  { background: var(--primary-light); color: var(--primary); }
+    .tab-list button:active { transform: scale(0.98); }
     .tab-list button[aria-selected="true"] { background: var(--primary); color: white; }
     .tab-list button:focus-visible { outline: 3px solid var(--primary); outline-offset: -3px; }
 

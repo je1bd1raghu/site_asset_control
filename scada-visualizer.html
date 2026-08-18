@@ -57,9 +57,10 @@
             text-decoration: none;
             letter-spacing: 0.3px;
             flex-shrink: 0;
-            transition: background 0.2s;
+            transition: background 0.2s, transform 0.1s;
         }
         .back-link:hover { background: rgba(255,255,255,0.22); }
+        .back-link:active { transform: scale(0.96); }
 
         /* Compass rose */
         #compass {
@@ -89,9 +90,10 @@
             cursor: pointer;
             min-width: 220px;
             max-width: 320px;
-            transition: border-color 0.15s, background 0.15s;
+            transition: border-color 0.15s, background 0.15s, transform 0.1s;
         }
         #zone-btn:hover { border-color: #F5821F; background: #3b4248; }
+        #zone-btn:active { transform: scale(0.97); }
         #zone-btn-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
         #zone-btn .zb-caret { flex-shrink: 0; opacity: 0.6; font-size: 0.7rem; }
 
@@ -100,7 +102,8 @@
             position: fixed; inset: 0; z-index: 1000;
             display: none; align-items: center; justify-content: center;
             background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             padding: 20px;
         }
         .zone-modal-overlay.show { display: flex; }
@@ -200,9 +203,10 @@
             z-index: 12;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-            transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+            transition: background 0.15s, border-color 0.15s, opacity 0.15s, transform 0.1s;
         }
         #map-toggle-btn:hover { background: rgba(245,130,31,0.18); border-color: #F5821F; }
+        #map-toggle-btn:active { transform: scale(0.92); }
         #map-toggle-btn.map-off { opacity: 0.5; }
         /* Show-my-location button — sits to the left of the map toggle */
         #locate-btn {
@@ -217,9 +221,10 @@
             z-index: 12;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-            transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+            transition: background 0.15s, border-color 0.15s, opacity 0.15s, transform 0.1s;
         }
         #locate-btn:hover { background: rgba(245,130,31,0.18); border-color: #F5821F; }
+        #locate-btn:active { transform: scale(0.92); }
         #locate-btn.locating { opacity: 0.6; cursor: progress; }
         #locate-btn.active { background: rgba(245,130,31,0.25); border-color: #F5821F; }
         /* Search bar */
@@ -256,10 +261,11 @@
             background: rgba(33,37,41,0.82); color: #F5821F;
             cursor: pointer; display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-            transition: background 0.15s, border-color 0.15s;
+            transition: background 0.15s, border-color 0.15s, transform 0.1s;
             padding: 0;
         }
         .nsc-toggle:hover { background: rgba(245,130,31,0.18); border-color: #F5821F; }
+        .nsc-toggle:active { transform: scale(0.92); }
         .nsc-toggle:focus-visible { outline: 3px solid #F5821F; outline-offset: 2px; }
         .node-size-controls.expanded .nsc-toggle { background: rgba(245,130,31,0.22); border-color: #F5821F; }
 
@@ -317,13 +323,16 @@
             position: absolute;
             bottom: 20px;
             left: 12px;
-            background: white;
-            border-radius: 8px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 10px;
             padding: 10px 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
             font-size: 0.78rem;
             z-index: 15;
             max-width: calc(100vw - 100px);
+            border: 1px solid rgba(0,0,0,0.06);
         }
         .legend-toggle {
             display: none;
@@ -429,15 +438,17 @@
         #node-info-panel {
             position: fixed;
             bottom: 0; left: 0; right: 0;
-            background: #212529;
+            background: rgba(33,37,41,0.97);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             color: #ecf0f1;
-            border-top: 2px solid #343A40;
+            border-top: 1px solid rgba(255,255,255,0.08);
             padding: 10px 20px;
             z-index: 30;
             display: none;
             font-family: 'Nunito', 'Noto Sans Bengali', sans-serif;
             font-size: 0.82rem;
-            box-shadow: 0 -4px 16px rgba(0,0,0,0.35);
+            box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
         }
         #node-info-panel.visible { display: flex; }
         .nip-header {
