@@ -503,7 +503,7 @@
       <div class="lbz-section">
         <div class="lbz-header">
           <span class="lbz-label">📍 Your Zone</span>
-          <button class="btn-share-lb" onclick="shareLeakBursts()" title="Share active leaks/bursts in this zone">Share &#10148;</button>
+          <button class="btn-share-lb" onclick="shareLeakBursts()" title="Share items pending estimate in this zone">Share &#10148;</button>
         </div>
         <div id="leakBurstZoneTabs" class="lbz-rail"></div>
       </div>
@@ -697,12 +697,12 @@
   </div>
 </div>
 
-<!-- Share active leaks/bursts sheet -->
+<!-- Share pending-estimate leaks/bursts sheet -->
 <div class="share-sheet-backdrop" id="shareSheetBackdrop" onclick="closeShareSheet(event)">
   <div class="share-sheet">
     <div class="share-handle"></div>
-    <div class="share-title">&#128228; Share Leak / Burst Report</div>
-    <div class="share-sub" id="shareSheetSub">Active leaks/bursts in zone</div>
+    <div class="share-title">&#128228; Share Pending Estimates</div>
+    <div class="share-sub" id="shareSheetSub">Items pending estimate in zone</div>
     <div class="share-preview" id="sharePreviewText"></div>
     <div class="share-btn-row">
       <button class="share-btn share-btn-whatsapp" onclick="shareViaWhatsApp()">&#128241; WhatsApp</button>
@@ -2593,10 +2593,12 @@ function buildLeakBurstShareText() {
 
   const leaks  = allEdges.filter(e =>
     leakBurstEdgeState[e.id] === 'LEAK_BURST' &&
+    !estimateMap[e.id] &&
     (!activeLeakBurstZone || e.zone === activeLeakBurstZone));
 
   const edgedIssues = allEdges.filter(e =>
     leakBurstEdgeState[e.id] === 'PIPE_ISSUE' &&
+    !estimateMap[e.id] &&
     (!activeLeakBurstZone || e.zone === activeLeakBurstZone));
 
   const zoneNameForMatch = activeLeakBurstZone
@@ -2606,12 +2608,13 @@ function buildLeakBurstShareText() {
   const nonEdgedIssues = !zoneNameForMatch
     ? []
     : pendingPipeIssueRecords.filter(r =>
-        r.zone === activeLeakBurstZone || r.zone === zoneNameForMatch);
+        !estimateMap[r.docket] &&
+        (r.zone === activeLeakBurstZone || r.zone === zoneNameForMatch));
 
   const issues = [...edgedIssues, ...nonEdgedIssues];
 
   if (leaks.length) {
-    msg += 'LEAKS / BURSTS (ACTIVE)\n';
+    msg += 'LEAKS / BURSTS (PENDING ESTIMATE)\n';
     leaks.forEach((e, i) => {
       const info   = latestReportInfo(e.id);
       const docket = info && info.docket ? info.docket : 'N/A';
@@ -2633,7 +2636,7 @@ function buildLeakBurstShareText() {
   }
 
   if (issues.length) {
-    msg += 'OTHER ISSUES (ACTIVE)\n';
+    msg += 'OTHER ISSUES (PENDING ESTIMATE)\n';
     issues.forEach((item, i) => {
       const isEdge  = item.id !== undefined;
       const info    = isEdge ? latestReportInfo(item.id) : item;
@@ -2659,7 +2662,7 @@ function buildLeakBurstShareText() {
   const summaryParts = [];
   if (leaks.length)  summaryParts.push(leaks.length + ' leak(s)/burst(s)');
   if (issues.length) summaryParts.push(issues.length + ' other issue(s)');
-  msg += 'Summary: ' + (summaryParts.length ? summaryParts.join(', ') + ' active.' : 'No active issues.') + '\n';
+  msg += 'Summary: ' + (summaryParts.length ? summaryParts.join(', ') + ' pending estimate.' : 'No items pending estimate.') + '\n';
   msg += 'End of report.';
 
   return { msg, zoneName, leakCount: leaks.length, issueCount: issues.length };
@@ -2673,8 +2676,8 @@ function shareLeakBursts() {
   if (r.leakCount)  parts.push(r.leakCount + ' leak/burst');
   if (r.issueCount) parts.push(r.issueCount + ' other issue');
   $('shareSheetSub').textContent = parts.length
-    ? parts.join(', ') + ' active in ' + r.zoneName
-    : 'No active issues in ' + r.zoneName;
+    ? parts.join(', ') + ' pending estimate in ' + r.zoneName
+    : 'No items pending estimate in ' + r.zoneName;
   $('btnNativeShare').style.display = navigator.share ? 'inline-flex' : 'none';
   $('shareSheetBackdrop').classList.add('open');
 }
@@ -2691,7 +2694,7 @@ function shareViaWhatsApp() {
 
 async function shareNative() {
   try {
-    await navigator.share({ title: 'Leak / Burst Report', text: _shareText });
+    await navigator.share({ title: 'Pending Estimates Report', text: _shareText });
     $('shareSheetBackdrop').classList.remove('open');
   } catch(err) { /* user cancelled */ }
 }
