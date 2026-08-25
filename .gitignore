@@ -9,3 +9,4 @@ server.py
 seed/config.json
 seed/status/
 seed/records/
+excel/

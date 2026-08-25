@@ -43,7 +43,7 @@ CONFIG_PATH = os.path.join(SCRIPT_DIR, "config.json")
 STATUS_DIR  = os.path.join(SCRIPT_DIR, "status")
 RECORDS_DIR = os.path.join(SCRIPT_DIR, "records")
 
-STATUS_FILES = ["zone_a_status.json", "zone_b_status.json", "zone_c_status.json"]
+STATUS_FILES = ["zone_a_status.json", "zone_b_status.json", "zone_c_status.json","zone_ayeshbag_status.json"]
 OUTPUT_FILES = ["records.csv", "leakbursts.csv", "estimates.json"]
 
 # Every individually-pushable file, in display order, plus the group shortcuts that
