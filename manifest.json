@@ -1,6 +1,6 @@
 [
-  { "id": "zone_rm_28", "name": "Rising Main Central Sector Part-I (28MLD)", "gistFile": "zone_a_status.json" },
-  { "id": "zone_rampur", "name": "Rampur Distribution Central Sector Part-I-C1 (1100M3)", "gistFile": "zone_b_status.json" },
-  { "id": "zone_amaipara", "name": "Amaipara Distribution Central Sector Part-I-A1 (800M3)",   "gistFile": "zone_c_status.json" },
-  { "id": "zone_ayeshbag", "name": "Ayeshbag Distribution Central Sector Part-I-E1 (1100M3)", "gistFile": "zone_ayeshbag_status.json" }
+  { "id": "zone_rm_28", "name": "Rising Main Central Sector Part-I (28MLD)", "gistFile": "zone_a_status.json", "kmlFile": "zone_rm_28.kml" },
+  { "id": "zone_rampur", "name": "Rampur Distribution Central Sector Part-I-C1 (1100M3)", "gistFile": "zone_b_status.json", "kmlFile": "zone_rampur.kml" },
+  { "id": "zone_amaipara", "name": "Amaipara Distribution Central Sector Part-I-A1 (800M3)", "gistFile": "zone_c_status.json", "kmlFile": "zone_amaipara.kml" },
+  { "id": "zone_ayeshbag", "name": "Ayeshbag Distribution Central Sector Part-I-E1 (1100M3)", "gistFile": "zone_ayeshbag_status.json", "kmlFile": "zone_ayeshbag.kml" }
 ]

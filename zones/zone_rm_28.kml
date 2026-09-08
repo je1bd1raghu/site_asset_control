@@ -1,0 +1,958 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>Rising Main Central Sector Part-I (28MLD)</name>
+  <Placemark>
+    <name>WTP</name>
+    <ExtendedData>
+      <Data name="id"><value>WTP</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.2780134,24.1702138</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-1</name>
+    <ExtendedData>
+      <Data name="id"><value>J-1</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.27909988,24.1691157</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-3</name>
+    <ExtendedData>
+      <Data name="id"><value>J-3</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.3173001,24.17678557</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>BIRAMPUR-(D2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>BIRAMPUR-(D2)-NEW</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.33615394,24.15991491</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-4</name>
+    <ExtendedData>
+      <Data name="id"><value>J-4</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.33280597,24.19181056</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>TENTULIA-(C2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>TENTULIA-(C2)-NEW</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.35539812,24.20098789</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-5</name>
+    <ExtendedData>
+      <Data name="id"><value>J-5</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.33554331,24.18761671</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>BEGAMNAGAR-(D1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>BEGAMNAGAR-(D1)-EXISTING</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.3356329,24.18730618</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-7</name>
+    <ExtendedData>
+      <Data name="id"><value>J-7</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.38192063,24.14645254</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-9</name>
+    <ExtendedData>
+      <Data name="id"><value>J-9</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.4161793,24.15027993</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>DAKSHIN-HASANPUR-(G2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>DAKSHIN-HASANPUR-(G2)-NEW</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.411428,24.155399</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>CHAIGHARI-(G3)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>CHAIGHARI-(G3)-EXISTING</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.41155871,24.15518464</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>HABIBPUR-(G1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>HABIBPUR-(G1)-EXISTING</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.43916407,24.14082417</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-10</name>
+    <ExtendedData>
+      <Data name="id"><value>J-10</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.38384812,24.12507222</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>DAULATABAD-(F1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>DAULATABAD-(F1)-EXISTING</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.38308734,24.12424822</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>SALAMATPUR-(F2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>SALAMATPUR-(F2)-NEW</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.40440585,24.09839928</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>MSD-MUNCY-(BULK-SUPPLY)</name>
+    <ExtendedData>
+      <Data name="id"><value>MSD-MUNCY-(BULK-SUPPLY)</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.28133741,24.1718973</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>AYESHBAG-(E1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>AYESHBAG-(E1)-EXISTING</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.295683,24.152873</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>TALGACHHI-(E3)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>TALGACHHI-(E3)-NEW</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.278736,24.147232</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>SANNYASIDANGA-(E2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>SANNYASIDANGA-(E2)-NEW</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.273869,24.134417</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-2</name>
+    <ExtendedData>
+      <Data name="id"><value>J-2</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.28705261,24.17151639</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-6</name>
+    <ExtendedData>
+      <Data name="id"><value>J-6</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.36712471,24.17666274</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-8</name>
+    <ExtendedData>
+      <Data name="id"><value>J-8</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.36741306,24.17686044</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>RAMPUR-(C1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>RAMPUR-(C1)-EXISTING</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.383311,24.192446</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-11</name>
+    <ExtendedData>
+      <Data name="id"><value>J-11</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.35711262,24.18171853</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-12</name>
+    <ExtendedData>
+      <Data name="id"><value>J-12</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.36356503,24.16976895</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-14</name>
+    <ExtendedData>
+      <Data name="id"><value>J-14</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.35502827,24.17028717</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-13</name>
+    <ExtendedData>
+      <Data name="id"><value>J-13</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.35492237,24.17234939</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>PROPOSED-INDRADANGA-IBPS</name>
+    <ExtendedData>
+      <Data name="id"><value>PROPOSED-INDRADANGA-IBPS</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.35426807,24.17001434</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-15</name>
+    <ExtendedData>
+      <Data name="id"><value>J-15</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.36337693,24.1697775</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-16</name>
+    <ExtendedData>
+      <Data name="id"><value>J-16</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.36274296,24.16998237</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-17</name>
+    <ExtendedData>
+      <Data name="id"><value>J-17</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.35524107,24.17231017</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-18</name>
+    <ExtendedData>
+      <Data name="id"><value>J-18</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.2884551,24.17966672</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-19</name>
+    <ExtendedData>
+      <Data name="id"><value>J-19</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.28584739,24.23631987</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>JIAGANJ-MUNCY-(BULK-SUPPLY)</name>
+    <ExtendedData>
+      <Data name="id"><value>JIAGANJ-MUNCY-(BULK-SUPPLY)</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.28327596,24.23561624</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-20</name>
+    <ExtendedData>
+      <Data name="id"><value>J-20</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.28392256,24.24175703</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>DAKSHIN-GANESHPUR-(A2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>DAKSHIN-GANESHPUR-(A2)-NEW</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.26173953,24.26583565</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>AMAIPARA-(A1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>AMAIPARA-(A1)-EXISTING</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.28491871,24.24223347</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-21</name>
+    <ExtendedData>
+      <Data name="id"><value>J-21</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.28741882,24.18303908</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>J-22</name>
+    <ExtendedData>
+      <Data name="id"><value>J-22</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.29425967,24.18588799</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>KAPASDANGA-(B2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>KAPASDANGA-(B2)-NEW</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.31739092,24.19580711</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>SASHIDHARPUR-(B1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>SASHIDHARPUR-(B1)-EXISTING</value></Data>
+    </ExtendedData>
+    <Point>
+      <coordinates>88.29469,24.19371</coordinates>
+    </Point>
+  </Placemark>
+  <Placemark>
+    <name>WTP-J-1</name>
+    <ExtendedData>
+      <Data name="id"><value>WTP-J-1</value></Data>
+      <Data name="source"><value>WTP</value></Data>
+      <Data name="target"><value>J-1</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.2780134,24.1702138
+        88.27909988,24.1691157
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-3-BIRAMPUR-(D2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>J-3-BIRAMPUR-(D2)-NEW</value></Data>
+      <Data name="source"><value>J-3</value></Data>
+      <Data name="target"><value>BIRAMPUR-(D2)-NEW</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.3173001,24.17678557
+        88.33615394,24.15991491
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-3-J-4</name>
+    <ExtendedData>
+      <Data name="id"><value>J-3-J-4</value></Data>
+      <Data name="source"><value>J-3</value></Data>
+      <Data name="target"><value>J-4</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.3173001,24.17678557
+        88.33280597,24.19181056
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-4-TENTULIA-(C2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>J-4-TENTULIA-(C2)-NEW</value></Data>
+      <Data name="source"><value>J-4</value></Data>
+      <Data name="target"><value>TENTULIA-(C2)-NEW</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.33280597,24.19181056
+        88.35539812,24.20098789
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-4-J-5</name>
+    <ExtendedData>
+      <Data name="id"><value>J-4-J-5</value></Data>
+      <Data name="source"><value>J-4</value></Data>
+      <Data name="target"><value>J-5</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.33280597,24.19181056
+        88.33554331,24.18761671
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-5-BEGAMNAGAR-(D1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>J-5-BEGAMNAGAR-(D1)-EXISTING</value></Data>
+      <Data name="source"><value>J-5</value></Data>
+      <Data name="target"><value>BEGAMNAGAR-(D1)-EXISTING</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.33554331,24.18761671
+        88.3356329,24.18730618
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-7-J-9</name>
+    <ExtendedData>
+      <Data name="id"><value>J-7-J-9</value></Data>
+      <Data name="source"><value>J-7</value></Data>
+      <Data name="target"><value>J-9</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.38192063,24.14645254
+        88.4161793,24.15027993
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-9-DAKSHIN-HASANPUR-(G2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>J-9-DAKSHIN-HASANPUR-(G2)-NEW</value></Data>
+      <Data name="source"><value>J-9</value></Data>
+      <Data name="target"><value>DAKSHIN-HASANPUR-(G2)-NEW</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.4161793,24.15027993
+        88.411428,24.155399
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-9-CHAIGHARI-(G3)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>J-9-CHAIGHARI-(G3)-EXISTING</value></Data>
+      <Data name="source"><value>J-9</value></Data>
+      <Data name="target"><value>CHAIGHARI-(G3)-EXISTING</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.4161793,24.15027993
+        88.41155871,24.15518464
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-9-HABIBPUR-(G1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>J-9-HABIBPUR-(G1)-EXISTING</value></Data>
+      <Data name="source"><value>J-9</value></Data>
+      <Data name="target"><value>HABIBPUR-(G1)-EXISTING</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.4161793,24.15027993
+        88.43916407,24.14082417
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-7-J-10</name>
+    <ExtendedData>
+      <Data name="id"><value>J-7-J-10</value></Data>
+      <Data name="source"><value>J-7</value></Data>
+      <Data name="target"><value>J-10</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.38192063,24.14645254
+        88.38384812,24.12507222
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-10-DAULATABAD-(F1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>J-10-DAULATABAD-(F1)-EXISTING</value></Data>
+      <Data name="source"><value>J-10</value></Data>
+      <Data name="target"><value>DAULATABAD-(F1)-EXISTING</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.38384812,24.12507222
+        88.38308734,24.12424822
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-10-SALAMATPUR-(F2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>J-10-SALAMATPUR-(F2)-NEW</value></Data>
+      <Data name="source"><value>J-10</value></Data>
+      <Data name="target"><value>SALAMATPUR-(F2)-NEW</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.38384812,24.12507222
+        88.40440585,24.09839928
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-1-MSD-MUNCY-(BULK-SUPPLY)</name>
+    <ExtendedData>
+      <Data name="id"><value>J-1-MSD-MUNCY-(BULK-SUPPLY)</value></Data>
+      <Data name="source"><value>J-1</value></Data>
+      <Data name="target"><value>MSD-MUNCY-(BULK-SUPPLY)</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.27909988,24.1691157
+        88.28133741,24.1718973
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-1-AYESHBAG-(E1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>J-1-AYESHBAG-(E1)-EXISTING</value></Data>
+      <Data name="source"><value>J-1</value></Data>
+      <Data name="target"><value>AYESHBAG-(E1)-EXISTING</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.27909988,24.1691157
+        88.295683,24.152873
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>WTP-TALGACHHI-(E3)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>WTP-TALGACHHI-(E3)-NEW</value></Data>
+      <Data name="source"><value>WTP</value></Data>
+      <Data name="target"><value>TALGACHHI-(E3)-NEW</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.2780134,24.1702138
+        88.278736,24.147232
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>TALGACHHI-(E3)-NEW-SANNYASIDANGA-(E2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>TALGACHHI-(E3)-NEW-SANNYASIDANGA-(E2)-NEW</value></Data>
+      <Data name="source"><value>TALGACHHI-(E3)-NEW</value></Data>
+      <Data name="target"><value>SANNYASIDANGA-(E2)-NEW</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.278736,24.147232
+        88.273869,24.134417
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-1-J-2</name>
+    <ExtendedData>
+      <Data name="id"><value>J-1-J-2</value></Data>
+      <Data name="source"><value>J-1</value></Data>
+      <Data name="target"><value>J-2</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.27909988,24.1691157
+        88.28705261,24.17151639
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-6-J-8</name>
+    <ExtendedData>
+      <Data name="id"><value>J-6-J-8</value></Data>
+      <Data name="source"><value>J-6</value></Data>
+      <Data name="target"><value>J-8</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.36712471,24.17666274
+        88.36741306,24.17686044
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-8-RAMPUR-(C1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>J-8-RAMPUR-(C1)-EXISTING</value></Data>
+      <Data name="source"><value>J-8</value></Data>
+      <Data name="target"><value>RAMPUR-(C1)-EXISTING</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.36741306,24.17686044
+        88.383311,24.192446
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-5-J-11</name>
+    <ExtendedData>
+      <Data name="id"><value>J-5-J-11</value></Data>
+      <Data name="source"><value>J-5</value></Data>
+      <Data name="target"><value>J-11</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.33554331,24.18761671
+        88.35711262,24.18171853
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-12-J-6</name>
+    <ExtendedData>
+      <Data name="id"><value>J-12-J-6</value></Data>
+      <Data name="source"><value>J-12</value></Data>
+      <Data name="target"><value>J-6</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.36356503,24.16976895
+        88.36712471,24.17666274
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-12-J-7</name>
+    <ExtendedData>
+      <Data name="id"><value>J-12-J-7</value></Data>
+      <Data name="source"><value>J-12</value></Data>
+      <Data name="target"><value>J-7</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.36356503,24.16976895
+        88.38192063,24.14645254
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-14-J-13</name>
+    <ExtendedData>
+      <Data name="id"><value>J-14-J-13</value></Data>
+      <Data name="source"><value>J-14</value></Data>
+      <Data name="target"><value>J-13</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.35502827,24.17028717
+        88.35492237,24.17234939
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>PROPOSED-INDRADANGA-IBPS-J-14</name>
+    <ExtendedData>
+      <Data name="id"><value>PROPOSED-INDRADANGA-IBPS-J-14</value></Data>
+      <Data name="source"><value>PROPOSED-INDRADANGA-IBPS</value></Data>
+      <Data name="target"><value>J-14</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.35426807,24.17001434
+        88.35502827,24.17028717
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-15-J-12</name>
+    <ExtendedData>
+      <Data name="id"><value>J-15-J-12</value></Data>
+      <Data name="source"><value>J-15</value></Data>
+      <Data name="target"><value>J-12</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.36337693,24.1697775
+        88.36356503,24.16976895
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-16-J-15</name>
+    <ExtendedData>
+      <Data name="id"><value>J-16-J-15</value></Data>
+      <Data name="source"><value>J-16</value></Data>
+      <Data name="target"><value>J-15</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.36274296,24.16998237
+        88.36337693,24.1697775
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-17-J-16</name>
+    <ExtendedData>
+      <Data name="id"><value>J-17-J-16</value></Data>
+      <Data name="source"><value>J-17</value></Data>
+      <Data name="target"><value>J-16</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.35524107,24.17231017
+        88.36274296,24.16998237
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-2-J-18</name>
+    <ExtendedData>
+      <Data name="id"><value>J-2-J-18</value></Data>
+      <Data name="source"><value>J-2</value></Data>
+      <Data name="target"><value>J-18</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.28705261,24.17151639
+        88.2884551,24.17966672
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-18-J-3</name>
+    <ExtendedData>
+      <Data name="id"><value>J-18-J-3</value></Data>
+      <Data name="source"><value>J-18</value></Data>
+      <Data name="target"><value>J-3</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.2884551,24.17966672
+        88.3173001,24.17678557
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-19-JIAGANJ-MUNCY-(BULK-SUPPLY)</name>
+    <ExtendedData>
+      <Data name="id"><value>J-19-JIAGANJ-MUNCY-(BULK-SUPPLY)</value></Data>
+      <Data name="source"><value>J-19</value></Data>
+      <Data name="target"><value>JIAGANJ-MUNCY-(BULK-SUPPLY)</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.28584739,24.23631987
+        88.28327596,24.23561624
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-19-J-20</name>
+    <ExtendedData>
+      <Data name="id"><value>J-19-J-20</value></Data>
+      <Data name="source"><value>J-19</value></Data>
+      <Data name="target"><value>J-20</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.28584739,24.23631987
+        88.28392256,24.24175703
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-20-DAKSHIN-GANESHPUR-(A2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>J-20-DAKSHIN-GANESHPUR-(A2)-NEW</value></Data>
+      <Data name="source"><value>J-20</value></Data>
+      <Data name="target"><value>DAKSHIN-GANESHPUR-(A2)-NEW</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.28392256,24.24175703
+        88.26173953,24.26583565
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-20-AMAIPARA-(A1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>J-20-AMAIPARA-(A1)-EXISTING</value></Data>
+      <Data name="source"><value>J-20</value></Data>
+      <Data name="target"><value>AMAIPARA-(A1)-EXISTING</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.28392256,24.24175703
+        88.28491871,24.24223347
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-18-J-21</name>
+    <ExtendedData>
+      <Data name="id"><value>J-18-J-21</value></Data>
+      <Data name="source"><value>J-18</value></Data>
+      <Data name="target"><value>J-21</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.2884551,24.17966672
+        88.28741882,24.18303908
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-21-J-19</name>
+    <ExtendedData>
+      <Data name="id"><value>J-21-J-19</value></Data>
+      <Data name="source"><value>J-21</value></Data>
+      <Data name="target"><value>J-19</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.28741882,24.18303908
+        88.28584739,24.23631987
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-21-J-22</name>
+    <ExtendedData>
+      <Data name="id"><value>J-21-J-22</value></Data>
+      <Data name="source"><value>J-21</value></Data>
+      <Data name="target"><value>J-22</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.28741882,24.18303908
+        88.29425967,24.18588799
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-22-KAPASDANGA-(B2)-NEW</name>
+    <ExtendedData>
+      <Data name="id"><value>J-22-KAPASDANGA-(B2)-NEW</value></Data>
+      <Data name="source"><value>J-22</value></Data>
+      <Data name="target"><value>KAPASDANGA-(B2)-NEW</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.29425967,24.18588799
+        88.31739092,24.19580711
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-22-SASHIDHARPUR-(B1)-EXISTING</name>
+    <ExtendedData>
+      <Data name="id"><value>J-22-SASHIDHARPUR-(B1)-EXISTING</value></Data>
+      <Data name="source"><value>J-22</value></Data>
+      <Data name="target"><value>SASHIDHARPUR-(B1)-EXISTING</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.29425967,24.18588799
+        88.29469,24.19371
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-11-J-13</name>
+    <ExtendedData>
+      <Data name="id"><value>J-11-J-13</value></Data>
+      <Data name="source"><value>J-11</value></Data>
+      <Data name="target"><value>J-13</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.35711262,24.18171853
+        88.35492237,24.17234939
+      </coordinates>
+    </LineString>
+  </Placemark>
+  <Placemark>
+    <name>J-13-J-17</name>
+    <ExtendedData>
+      <Data name="id"><value>J-13-J-17</value></Data>
+      <Data name="source"><value>J-13</value></Data>
+      <Data name="target"><value>J-17</value></Data>
+    </ExtendedData>
+    <LineString>
+      <coordinates>
+        88.35492237,24.17234939
+        88.35524107,24.17231017
+      </coordinates>
+    </LineString>
+  </Placemark>
+</Document>
+</kml>

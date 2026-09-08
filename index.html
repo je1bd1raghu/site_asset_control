@@ -413,6 +413,48 @@
 <script src="libs/papaparse.min.js"></script>
 <script src="libs/fflate.js"></script>
 <script src="common.js"></script>
+<script>
+// ── KML PARSER (lightweight, for index.html edge/coordinate extraction) ────
+function parseKmlText(text) {
+  const doc = new DOMParser().parseFromString(text, 'text/xml');
+  const nodes = {}, edges = [];
+  const pms = doc.getElementsByTagName('Placemark');
+  for (let i = 0; i < pms.length; i++) {
+    const pm = pms[i];
+    const name = (pm.getElementsByTagName('name')[0]?.textContent || '').trim();
+    const extData = {};
+    pm.querySelectorAll('Data').forEach(d => {
+      const n = d.getAttribute('name') || '';
+      const v = d.querySelector('value')?.textContent?.trim() || '';
+      if (n) extData[n] = v;
+    });
+    const id = extData.id || name;
+    // Point → node
+    const pts = pm.getElementsByTagName('Point');
+    if (pts.length) {
+      const coords = (pts[0].getElementsByTagName('coordinates')[0]?.textContent || '').trim().split(/\s+/);
+      if (coords.length) {
+        const [lng, lat] = coords[0].split(',').map(Number);
+        if (isFinite(lat) && isFinite(lng)) nodes[id] = { id, lat, lng, type: extData.type || '' };
+      }
+      continue;
+    }
+    // LineString → edge
+    const lns = pm.getElementsByTagName('LineString');
+    if (lns.length) {
+      const coords = (lns[0].getElementsByTagName('coordinates')[0]?.textContent || '').trim().split(/\s+/);
+      if (coords.length >= 2) {
+        const src = extData.source || '', tgt = extData.target || '';
+        const srcC = coords[0].split(',').map(Number), tgtC = coords[coords.length-1].split(',').map(Number);
+        edges.push({ id, source: src, target: tgt,
+          sourceLat: srcC[1], sourceLng: srcC[0],
+          targetLat: tgtC[1], targetLng: tgtC[0] });
+      }
+    }
+  }
+  return { nodes, edges };
+}
+</script>
 </head>
 <body>
 
@@ -874,7 +916,7 @@ async function loadAssetsFromGist() {
     assets   = raw;
     assetMap = Object.fromEntries(assets.map(a => [a.id, a]));
 
-    // 2. Overlay lat/lng from zone JSON files
+    // 2. Overlay lat/lng from zone KML files
     const assetsByZone = {};
     for (const person of persons)
       for (const pa of (person.assets || []))
@@ -882,20 +924,22 @@ async function loadAssetsFromGist() {
 
     const fetchZone = async (zoneId, assetIdSet) => {
       try {
-        const res = await fetch(`zones/${zoneId}.json?t=${Date.now()}`);
+        const mEntry = zoneMap[zoneId];
+        const kmlFile = mEntry?.kmlFile || (zoneId + '.kml');
+        const res = await fetch(`zones/${kmlFile}?t=${Date.now()}`);
         if (!res.ok) return;
-        for (const node of (await res.json()).nodes || []) {
-          const d = node.data || {};
-          if (assetIdSet && !assetIdSet.has(d.id)) continue;
-          if (typeof d.lat !== 'number') continue;
-          // Overlay onto the zone-qualified entry (correct coords per zone) AND
-          // the legacy id-keyed entry.
-          const za = assetByZoneId[`${zoneId}|${d.id}`];
-          if (za) { za.lat = d.lat; za.lng = d.lng; }
-          const a = assetMap[d.id];
-          if (a) { a.lat = d.lat; a.lng = d.lng; }
+        const kmlText = await res.text();
+        const { nodes } = parseKmlText(kmlText);
+        for (const nid in nodes) {
+          const nd = nodes[nid];
+          if (assetIdSet && !assetIdSet.has(nd.id)) continue;
+          if (typeof nd.lat !== 'number') continue;
+          const za = assetByZoneId[`${zoneId}|${nd.id}`];
+          if (za) { za.lat = nd.lat; za.lng = nd.lng; }
+          const a = assetMap[nd.id];
+          if (a) { a.lat = nd.lat; a.lng = nd.lng; }
         }
-      } catch { /* skip unreadable zone JSON */ }
+      } catch { /* skip unreadable zone KML */ }
     };
 
     if (Object.keys(assetsByZone).length > 0)
@@ -1548,28 +1592,15 @@ async function loadAllEdges() {
     const edges = [];
     for (const zone of zones) {
       try {
-        const res = await fetch(`zones/${zone.id}.json?t=${Date.now()}`);
+        const kmlFile = zone.kmlFile || (zone.id + '.kml');
+        const res = await fetch(`zones/${kmlFile}?t=${Date.now()}`);
         if (!res.ok) continue;
-        const data = await res.json();
-        // Build node coordinate lookup for this zone
-        const nodeCoords = {};
-        for (const n of (data.nodes || [])) {
-          const nd = n.data || n;
-          if (typeof nd.lat === 'number' && typeof nd.lng === 'number')
-            nodeCoords[nd.id] = { lat: nd.lat, lng: nd.lng };
+        const kmlText = await res.text();
+        const { edges: zoneEdges } = parseKmlText(kmlText);
+        for (const e of zoneEdges) {
+          edges.push({ ...e, zone: zone.id, zoneName: zone.name || zone.id });
         }
-        for (const e of (data.edges || [])) {
-          const d = e.data || e;
-          const src = nodeCoords[d.source];
-          const tgt = nodeCoords[d.target];
-          edges.push({
-            id: d.id, source: d.source || '', target: d.target || '',
-            zone: zone.id, zoneName: zone.name || zone.id,
-            sourceLat: src?.lat, sourceLng: src?.lng,
-            targetLat: tgt?.lat, targetLng: tgt?.lng
-          });
-        }
-      } catch { /* skip unreadable zone */ }
+      } catch { /* skip unreadable zone KML */ }
     }
     allEdges = edges;   // commit only after a successful manifest load
     deriveLeakBurstStateFromRecords();

@@ -2,7 +2,7 @@
  * common.js — shared helpers and constants for the SCADA Asset Control site.
  *
  * Loaded (before any page-specific script) by:
- *   index.html, estimate.html, scada-visualizer.html, graph-analyzer.html
+ *   index.html, estimate.html, scada-visualizer.html
  *
  * Everything here lives in the global scope, so each page can call these
  * directly. Page-specific constants (GIST_BASE, GIST_ID, REFRESH_INTERVAL_MS,

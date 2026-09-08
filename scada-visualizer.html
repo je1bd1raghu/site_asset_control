@@ -8,21 +8,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+Bengali:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="libs/leaflet.min.css" />
     <title>SCADA View</title>
-    <script src="libs/cytoscape.min.js"></script>
-  <script src="libs/fp.min.js"></script>
-  <script src="libs/papaparse.min.js"></script>
+    <script src="libs/fp.min.js"></script>
     <script src="common.js"></script>
     <script src="scada-core.js"></script>
-    <script src="gps-layout.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        /* Full-height flex column so the graph area fills whatever space the
-           header leaves — even when the header wraps to several rows on a phone.
-           100dvh tracks the mobile browser's dynamic viewport (URL bar). */
         html, body { height: 100%; }
         body {
             font-family: 'Nunito', 'Noto Sans Bengali', sans-serif;
-            background: #f0f4f8;
+            background: #1a1a1a;
             display: flex;
             flex-direction: column;
             height: 100vh;
@@ -62,20 +56,7 @@
         .back-link:hover { background: rgba(255,255,255,0.22); }
         .back-link:active { transform: scale(0.96); }
 
-        /* Compass rose */
-        #compass {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            width: 64px;
-            height: 64px;
-            z-index: 10;
-            pointer-events: none;
-            opacity: 0.82;
-            display: none;
-        }
-
-        /* Zone selector — a button that opens a modal */
+        /* Zone selector button */
         #zone-btn {
             display: inline-flex;
             align-items: center;
@@ -146,7 +127,7 @@
         .zone-item.active { background: rgba(245,130,31,0.2); border-color: #F5821F; }
         .zone-item .zi-check { color: #F5821F; font-weight: 800; flex-shrink: 0; }
 
-        /* Sync indicator — a quiet status dot, not a loud pill */
+        /* Sync indicator */
         #sync-status {
             margin-left: auto;
             display: inline-flex; align-items: center; gap: 6px;
@@ -167,33 +148,18 @@
         #sync-status.error #sync-text { color: #f1948a; }
         #sync-text:empty { display: none; }
 
-        #cy-container {
+        /* Map container fills remaining space */
+        #map-container {
             position: relative;
             width: 100%;
             flex: 1 1 auto;
-            min-height: 0;   /* allow the flex child to shrink below content size */
+            min-height: 0;
         }
-        /* Leaflet satellite map sits behind the Cytoscape canvas */
-        #map-container {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 1;
-            background: #1a1a1a;
-        }
-        /* Cytoscape overlays the map; transparent background lets imagery show through */
-        #cy {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            display: block;
-            z-index: 2;
-            background: transparent;
-        }
+
         /* Map toggle button */
         #map-toggle-btn {
             position: absolute;
-            top: 16px; right: 90px;
+            top: 16px; right: 16px;
             width: 36px; height: 36px;
             border-radius: 8px;
             border: 2px solid rgba(127,219,202,0.5);
@@ -208,10 +174,11 @@
         #map-toggle-btn:hover { background: rgba(245,130,31,0.18); border-color: #F5821F; }
         #map-toggle-btn:active { transform: scale(0.92); }
         #map-toggle-btn.map-off { opacity: 0.5; }
-        /* Show-my-location button — sits to the left of the map toggle */
+
+        /* Locate button */
         #locate-btn {
             position: absolute;
-            top: 16px; right: 134px;
+            top: 16px; right: 60px;
             width: 36px; height: 36px;
             border-radius: 8px;
             border: 2px solid rgba(127,219,202,0.5);
@@ -227,6 +194,7 @@
         #locate-btn:active { transform: scale(0.92); }
         #locate-btn.locating { opacity: 0.6; cursor: progress; }
         #locate-btn.active { background: rgba(245,130,31,0.25); border-color: #F5821F; }
+
         /* Search bar */
         #search-wrap { position:absolute; top:16px; left:16px; z-index:12; width:220px; }
         #search-input { width:100%; padding:8px 34px 8px 12px; border:2px solid rgba(127,219,202,0.5); border-radius:8px; background:rgba(33,37,41,0.82); color:#fff; font-size:13px; font-family:'Nunito','Noto Sans Bengali',sans-serif; font-weight:600; outline:none; box-shadow:0 2px 6px rgba(0,0,0,0.35); transition:border-color .15s; }
@@ -240,85 +208,25 @@
         .sr-item:last-child { border-bottom:none; }
         .sr-item:hover { background:rgba(245,130,31,0.25); color:#fff; }
         .sr-item .sr-sub { font-size:10px; color:rgba(255,255,255,0.45); font-weight:400; margin-top:1px; }
-        /* Leaflet attribution: keep it out of the way */
+
+        /* Leaflet attribution */
         .leaflet-control-attribution { font-size: 9px !important; }
-
-        /* Node size control — collapsible slider */
-        .node-size-controls {
-            position: absolute;
-            bottom: 20px;
-            right: 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 8px;
-            z-index: 15;
-        }
-        /* Toggle button (always visible) — matches the other glassy corner buttons */
-        .nsc-toggle {
-            width: 36px; height: 36px; border-radius: 8px;
-            border: 2px solid rgba(245,130,31,0.5);
-            background: rgba(33,37,41,0.82); color: #F5821F;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
-            transition: background 0.15s, border-color 0.15s, transform 0.1s;
-            padding: 0;
-        }
-        .nsc-toggle:hover { background: rgba(245,130,31,0.18); border-color: #F5821F; }
-        .nsc-toggle:active { transform: scale(0.92); }
-        .nsc-toggle:focus-visible { outline: 3px solid #F5821F; outline-offset: 2px; }
-        .node-size-controls.expanded .nsc-toggle { background: rgba(245,130,31,0.22); border-color: #F5821F; }
-
-        /* Slider panel — hidden until expanded, pops up above the toggle */
-        .nsc-panel {
-            display: none;
-            align-items: center;
-            gap: 8px;
-            padding: 9px 12px;
-            border-radius: 10px;
-            border: 2px solid rgba(245,130,31,0.5);
-            background: rgba(33,37,41,0.9);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.45);
-        }
-        .node-size-controls.expanded .nsc-panel { display: flex; animation: nscPanelIn 0.16s ease-out; }
-        @keyframes nscPanelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-        .nsc-end { color: rgba(245,130,31,0.85); user-select: none; line-height: 1; flex-shrink: 0; }
-        .nsc-end-sm { font-size: 9px; }
-        .nsc-end-lg { font-size: 16px; }
-        .nsc-slider {
-            -webkit-appearance: none; appearance: none;
-            width: 130px; height: 4px; border-radius: 3px;
-            background: rgba(255,255,255,0.25);
-            outline: none; cursor: pointer; margin: 0;
-            accent-color: #F5821F;
-        }
-        .nsc-slider::-webkit-slider-thumb {
-            -webkit-appearance: none; appearance: none;
-            width: 16px; height: 16px; border-radius: 50%;
-            background: #F5821F; border: 2px solid #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.4); cursor: pointer;
-        }
-        .nsc-slider::-moz-range-thumb {
-            width: 16px; height: 16px; border-radius: 50%;
-            background: #F5821F; border: 2px solid #fff; cursor: pointer;
-        }
-        .nsc-slider:focus-visible { outline: 3px solid #F5821F; outline-offset: 4px; }
 
         /* Loading overlay */
         #loading {
             position: absolute;
             inset: 0;
-            background: rgba(240,244,248,0.85);
+            background: rgba(26,26,26,0.85);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1rem;
-            color: #343A40;
+            color: #ecf0f1;
             z-index: 20;
         }
         #loading.hidden { display: none; }
 
-        /* Legend - collapsible on mobile */
+        /* Legend */
         .legend {
             position: absolute;
             bottom: 20px;
@@ -347,95 +255,13 @@
         .legend-body { display: block; }
         .legend.collapsed .legend-body { display: none; }
         .legend-item { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+        .lg-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+        .lg-line { width: 26px; height: 4px; flex-shrink: 0; border-radius: 2px; }
+        .lg-line-active { animation: lgFlowDash 1s linear infinite; background-size: 10px 4px; background-image: repeating-linear-gradient(90deg, #2ecc71 0, #2ecc71 10px, transparent 10px, transparent 20px); }
+        @keyframes lgFlowDash { from { background-position: 0 0; } to { background-position: 20px 0; } }
 
-        /* Mobile breakpoint (<=480px) */
-        @media (max-width: 480px) {
-            /* Header: keep it to a single compact row. The long "Graphical
-               Network Analyzer" link collapses to just its ⬡ glyph, and the
-               zone select sits inline (flex) instead of forcing its own row. */
-            .header { padding: 8px 10px; gap: 8px; }
-            .header h1 { font-size: 0.78rem; }
-            a[href="graph-analyzer.html"] .bl-label { display: none; }
-            .back-link { padding: 4px 8px; }
-            #zone-btn { flex: 1 1 130px; min-width: 0; max-width: none; width: auto; font-size: 0.8rem; }
-            #sync-status { font-size: 0.66rem; }
-            #sync-status #sync-text { display: none; }   /* dot only on phones */
-
-            /* Node size slider: keep bottom-right, out of the way of the
-               top-corner map buttons and the bottom-left legend. */
-            .node-size-controls { top: auto; bottom: 16px; right: 10px; gap: 8px; }
-            .nsc-toggle { width: 38px; height: 38px; }
-            .nsc-slider { width: 120px; }
-
-            /* Locate + map-toggle: vertical stack in the top-right corner. */
-            #locate-btn     { top: 10px; right: 10px; }
-            #map-toggle-btn { top: 54px; right: 10px; }
-            #locate-btn, #map-toggle-btn { width: 38px; height: 38px; }
-
-            /* Legend: bottom-left, collapsible */
-            .legend {
-                bottom: 16px; left: 8px;
-                padding: 8px 10px;
-                max-width: calc(100vw - 90px);   /* clear the node-size buttons */
-                font-size: 0.72rem;
-            }
-            .legend-toggle { display: inline; }
-
-            /* Compass: top-left, tucked under Leaflet's zoom control. */
-            #compass { width: 40px; height: 40px; top: 80px; left: 10px; right: auto; }
-
-            /* Node panel: scrollable, full-width fields, bigger tap targets. */
-            #node-info-panel { max-height: 50vh; overflow-y: auto; padding: 10px 14px; }
-            .nip-fields { gap: 5px 12px; }
-            .nip-comment-block { min-width: 0; width: 100%; }
-            .nip-close { padding: 6px 12px; font-size: 0.82rem; }
-            /* Leak/Burst action buttons go full-width and stack so they're easy
-               to tap with a thumb. */
-            .nip-leakburst-btns { flex-direction: column; align-items: stretch; }
-            .btn-leakburst-report, .btn-leakburst-clear { width: 100%; padding: 9px 12px; }
-        }
-
-        /* Tablet breakpoint (481-767px) */
-        @media (min-width: 481px) and (max-width: 767px) {
-            .header { padding: 8px 14px; gap: 10px; }
-            #zone-btn { min-width: 160px; font-size: 0.82rem; }
-            .node-size-controls { bottom: 16px; right: 12px; }
-            .legend { bottom: 16px; left: 10px; font-size: 0.75rem; padding: 9px 12px; }
-            .legend-toggle { display: inline; }
-        }
-
-        /* Shape swatches — mirror Cytoscape native shapes exactly */
-        .lg-diamond {
-            width: 14px; height: 14px; flex-shrink: 0;
-            transform: rotate(45deg);
-            border-radius: 2px;
-        }
-        .lg-circle {
-            width: 14px; height: 14px; flex-shrink: 0;
-            border-radius: 50%;
-        }
-        .lg-roundrect {
-            width: 18px; height: 13px; flex-shrink: 0;
-            border-radius: 3px;
-        }
-        .lg-pipe {
-            width: 26px; height: 4px; flex-shrink: 0;
-            border-radius: 2px;
-        }
-        .lg-leakburst {
-            width: 26px; height: 4px; flex-shrink: 0;
-            border-radius: 2px;
-        }
-
-        /* Leak/Burst blink legend pulse */
-        @keyframes legendLeakBurstBlink {
-            0%, 100% { background: #e74c3c; }
-            50%       { background: #ff8c00; }
-        }
-        .lg-leakburst { animation: legendLeakBurstBlink 1s infinite; }
-
-        /* ── Node info panel ─────────────────────────────────────────────── */
-        #node-info-panel {
+        /* Feature info panel */
+        #feature-info-panel {
             position: fixed;
             bottom: 0; left: 0; right: 0;
             background: rgba(33,37,41,0.97);
@@ -450,14 +276,14 @@
             font-size: 0.82rem;
             box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
         }
-        #node-info-panel.visible { display: flex; }
-        .nip-header {
+        #feature-info-panel.visible { display: flex; }
+        .fip-header {
             display: flex;
             align-items: center;
             gap: 10px;
             margin-bottom: 6px;
         }
-        .nip-title {
+        .fip-title {
             font-size: 0.88rem;
             font-weight: 800;
             letter-spacing: 0.5px;
@@ -467,7 +293,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .nip-close {
+        .fip-close {
             background: transparent;
             border: 1px solid rgba(255,255,255,0.2);
             color: rgba(255,255,255,0.6);
@@ -477,18 +303,18 @@
             font-size: 0.75rem;
             flex-shrink: 0;
         }
-        .nip-close:hover { background: rgba(255,255,255,0.1); color: white; }
-        .nip-fields {
+        .fip-close:hover { background: rgba(255,255,255,0.1); color: white; }
+        .fip-fields {
             display: flex;
             flex-wrap: wrap;
             gap: 6px 20px;
         }
-        .nip-field {
+        .fip-field {
             display: flex;
             flex-direction: column;
             min-width: 80px;
         }
-        .nip-key {
+        .fip-key {
             font-size: 0.68rem;
             font-weight: 800;
             text-transform: uppercase;
@@ -496,19 +322,19 @@
             color: rgba(255,255,255,0.4);
             margin-bottom: 1px;
         }
-        .nip-val {
+        .fip-val {
             font-size: 0.82rem;
             color: #ecf0f1;
             word-break: break-word;
         }
-        .nip-val.empty { color: rgba(255,255,255,0.25); font-style: italic; }
-        .nip-val.state-on  { color: #2ecc71; font-weight: 700; }
-        .nip-val.state-off { color: #e74c3c; font-weight: 700; }
-        .nip-comment-block {
+        .fip-val.empty { color: rgba(255,255,255,0.25); font-style: italic; }
+        .fip-val.state-on  { color: #2ecc71; font-weight: 700; }
+        .fip-val.state-off { color: #e74c3c; font-weight: 700; }
+        .fip-desc-block {
             flex: 1;
             min-width: 200px;
         }
-        .nip-comment-block .nip-val {
+        .fip-desc-block .fip-val {
             background: rgba(241,196,15,0.1);
             border-left: 3px solid #f1c40f;
             padding: 4px 8px;
@@ -516,24 +342,44 @@
             color: #f9e79f;
             line-height: 1.4;
         }
-        .nip-inner {
-            flex: 1;
+        .fip-inner { flex: 1; }
+
+        /* Mobile breakpoint */
+        @media (max-width: 480px) {
+            .header { padding: 8px 10px; gap: 8px; }
+            .header h1 { font-size: 0.78rem; }
+            .back-link { padding: 4px 8px; }
+            #zone-btn { flex: 1 1 130px; min-width: 0; max-width: none; width: auto; font-size: 0.8rem; }
+            #sync-status { font-size: 0.66rem; }
+            #sync-status #sync-text { display: none; }
+            #locate-btn     { top: 10px; right: 10px; }
+            #map-toggle-btn { top: 54px; right: 10px; }
+            #locate-btn, #map-toggle-btn { width: 38px; height: 38px; }
+            .legend { bottom: 16px; left: 8px; padding: 8px 10px; max-width: calc(100vw - 90px); font-size: 0.72rem; }
+            .legend-toggle { display: inline; }
+            #feature-info-panel { max-height: 50vh; overflow-y: auto; padding: 10px 14px; }
+            .fip-fields { gap: 5px 12px; }
+            .fip-desc-block { min-width: 0; width: 100%; }
+            .fip-close { padding: 6px 12px; font-size: 0.82rem; }
         }
-
-
+        @media (min-width: 481px) and (max-width: 767px) {
+            .header { padding: 8px 14px; gap: 10px; }
+            #zone-btn { min-width: 160px; font-size: 0.82rem; }
+            .legend { bottom: 16px; left: 10px; font-size: 0.75rem; padding: 9px 12px; }
+            .legend-toggle { display: inline; }
+        }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <a href="index.html" class="back-link"><span aria-hidden="true">←</span> <span class="bl-label">Asset Control</span></a>
-    <a href="graph-analyzer.html" class="back-link" title="Open Graphical Network Analyzer"><span aria-hidden="true">⬡</span> <span class="bl-label">Graphical Network Analyzer</span></a>
-    <h1>🌊 SCADA View</h1>
+    <a href="index.html" class="back-link"><span aria-hidden="true">&larr;</span> <span class="bl-label">Asset Control</span></a>
+    <h1>&#x1F30A; SCADA View</h1>
     <button id="zone-btn" type="button" onclick="openZoneModal()" title="Change zone">
-        <span id="zone-btn-label">Loading zones…</span>
-        <span class="zb-caret" aria-hidden="true">▾</span>
+        <span id="zone-btn-label">Loading zones&hellip;</span>
+        <span class="zb-caret" aria-hidden="true">&#x25BE;</span>
     </button>
-    <div id="sync-status" class="busy" title="Initializing…">
+    <div id="sync-status" class="busy" title="Initializing&hellip;">
         <span id="sync-dot"></span>
         <span id="sync-text"></span>
     </div>
@@ -544,166 +390,92 @@
     <div class="zone-modal" role="dialog" aria-modal="true" aria-label="Select a zone">
         <div class="zone-modal-head">
             <span>Select a zone</span>
-            <button class="zone-modal-close" type="button" onclick="closeZoneModal()" aria-label="Close">×</button>
+            <button class="zone-modal-close" type="button" onclick="closeZoneModal()" aria-label="Close">&times;</button>
         </div>
         <div id="zone-list" class="zone-list"></div>
     </div>
 </div>
 
-<div id="cy-container">
-    <div id="map-container"></div>
-    <div id="cy"></div>
-    <div id="loading">Loading zone...</div>
+<div id="map-container">
+    <div id="loading">Loading zone&hellip;</div>
 
-    <button id="locate-btn" title="Show my location" onclick="locateMe()">📍</button>
-    <button id="map-toggle-btn" title="Toggle satellite map" onclick="toggleMap()">🗺️</button>
+    <button id="locate-btn" title="Show my location" onclick="locateMe()">&#x1F4CD;</button>
+    <button id="map-toggle-btn" title="Toggle satellite map" onclick="toggleMap()">&#x1F5FA;&#xFE0F;</button>
 
     <div id="search-wrap">
-      <input type="text" id="search-input" placeholder="Search pipe…" autocomplete="off" oninput="filterEdges()" onblur="setTimeout(()=>{document.getElementById('search-results').style.display='none'},200)" onfocus="filterEdges()">
-      <button id="search-clear" type="button" title="Clear search" aria-label="Clear search" onmousedown="event.preventDefault()" onclick="clearSearch()">×</button>
+      <input type="text" id="search-input" placeholder="Search feature&hellip;" autocomplete="off" oninput="filterFeatures()" onblur="setTimeout(()=>{document.getElementById('search-results').style.display='none'},200)" onfocus="filterFeatures()">
+      <button id="search-clear" type="button" title="Clear search" aria-label="Clear search" onmousedown="event.preventDefault()" onclick="clearSearch()">&times;</button>
       <div id="search-results"></div>
     </div>
 
-    <!-- Compass rose — shown only when GPS layout is active -->
-    <svg id="compass" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="32" cy="32" r="30" fill="rgba(33,37,41,0.72)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-        <!-- N arrow (red) -->
-        <polygon points="32,6 28,32 32,28 36,32" fill="#e74c3c"/>
-        <!-- S arrow (white) -->
-        <polygon points="32,58 36,32 32,36 28,32" fill="rgba(255,255,255,0.7)"/>
-        <!-- E / W ticks -->
-        <line x1="56" y1="32" x2="50" y2="32" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-        <line x1="8"  y1="32" x2="14" y2="32" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-        <!-- Cardinal labels -->
-        <text x="32" y="20" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="'Nunito', 'Noto Sans Bengali', sans-serif">N</text>
-        <text x="32" y="55" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="'Nunito', 'Noto Sans Bengali', sans-serif">S</text>
-        <text x="54" y="36" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="'Nunito', 'Noto Sans Bengali', sans-serif">E</text>
-        <text x="10" y="36" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8" font-family="'Nunito', 'Noto Sans Bengali', sans-serif">W</text>
-    </svg>
-
-    <!-- Node size control — collapsible slider -->
-    <div class="node-size-controls" id="nodeSizeControls" aria-label="Node size control">
-        <div class="nsc-panel" id="nscPanel" role="group" aria-label="Node and label size">
-            <span class="nsc-end nsc-end-sm" aria-hidden="true">●</span>
-            <input type="range" id="nodeSizeSlider" class="nsc-slider"
-                   min="-10" max="-1" step="0.5" value="-1"
-                   aria-label="Node and label size"
-                   oninput="onNodeSizeSlider(this.value)">
-            <span class="nsc-end nsc-end-lg" aria-hidden="true">●</span>
-        </div>
-        <button class="nsc-toggle" id="nscToggle" type="button" aria-expanded="false"
-                title="Adjust node &amp; label size" aria-label="Adjust node size"
-                onclick="toggleNodeSizePanel()">
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                <circle cx="7.5" cy="16.5" r="3" fill="currentColor"/>
-                <circle cx="15.5" cy="9" r="5.2" fill="currentColor"/>
-            </svg>
-        </button>
-    </div>
-
     <div class="legend" id="legend">
-        <h4>Legend <button class="legend-toggle" onclick="toggleLegend()" id="legend-toggle-btn" aria-label="Toggle legend">▾</button></h4>
+        <h4>Legend <button class="legend-toggle" onclick="toggleLegend()" id="legend-toggle-btn" aria-label="Toggle legend">&#x25BE;</button></h4>
         <div class="legend-body">
-
-        <div class="legend-item">
-            <div class="lg-diamond" style="background:#2ecc71; border: 2px solid #27ae60;"></div>
-            Valve OPEN
+        <div class="legend-item"><div class="lg-dot" style="background:#2ecc71; border: 2px solid #27ae60;"></div>Valve OPEN</div>
+        <div class="legend-item"><div class="lg-dot" style="background:#e74c3c; border: 2px solid #c0392b;"></div>Valve CLOSED</div>
+        <div class="legend-item"><div class="lg-dot" style="background:#8e44ad; border: 3px solid #2ecc71;"></div>Pump RUNNING</div>
+        <div class="legend-item"><div class="lg-dot" style="background:#95a5a6; border: 2px solid #7f8c8d;"></div>Pump STOPPED</div>
+        <div class="legend-item"><div class="lg-dot" style="background:#3498db; border: 2px solid #2980b9;"></div>Zone ACTIVE</div>
+        <div class="legend-item"><div class="lg-dot" style="background:#bdc3c7; border: 2px solid #95a5a6;"></div>Zone INACTIVE</div>
+        <div class="legend-item"><div class="lg-line lg-line-active"></div>Active Flow</div>
+        <div class="legend-item"><div class="lg-line" style="background:#e74c3c;"></div>Leak/Burst</div>
         </div>
-        <div class="legend-item">
-            <div class="lg-diamond" style="background:#e74c3c; border: 2px solid #c0392b;"></div>
-            Valve CLOSED
-        </div>
-
-        <div class="legend-item">
-            <div class="lg-circle" style="background:#8e44ad; border: 3px solid #2ecc71;"></div>
-            Pump RUNNING
-        </div>
-        <div class="legend-item">
-            <div class="lg-circle" style="background:#95a5a6; border: 2px solid #7f8c8d;"></div>
-            Pump STOPPED
-        </div>
-
-        <div class="legend-item">
-            <div class="lg-roundrect" style="background:#3498db; border: 2px solid #2980b9;"></div>
-            Zone ACTIVE
-        </div>
-        <div class="legend-item">
-            <div class="lg-roundrect" style="background:#bdc3c7; border: 2px solid #95a5a6;"></div>
-            Zone INACTIVE
-        </div>
-
-        <div class="legend-item">
-            <div class="lg-pipe" style="background:#2ecc71;"></div>
-            Active Flow
-        </div>
-        <div class="legend-item">
-            <div class="lg-leakburst"></div>
-            Leak/Burst
-        </div>
-        </div><!-- /legend-body -->
     </div>
-    <!-- Node info panel — shown on node click -->
-    <div id="node-info-panel" role="complementary" aria-label="Node information">
-        <div class="nip-inner">
-            <div class="nip-header">
-                <span class="nip-title" id="nip-title">Node Info</span>
-                <button class="nip-close" onclick="closeNodePanel()" aria-label="Close info panel">✕ Close</button>
-            </div>
-            <div class="nip-fields" id="nip-fields"></div>
 
+    <!-- Feature info panel -->
+    <div id="feature-info-panel" role="complementary" aria-label="Feature information">
+        <div class="fip-inner">
+            <div class="fip-header">
+                <span class="fip-title" id="fip-title">Feature Info</span>
+                <button class="fip-close" onclick="closeFeaturePanel()" aria-label="Close info panel">&times; Close</button>
+            </div>
+            <div class="fip-fields" id="fip-fields"></div>
         </div>
     </div>
 </div>
 
 <script src="libs/leaflet.min.js"></script>
+<script src="libs/leaflet-kml.js"></script>
 <script>
-    // Legend collapse toggle
+    // ── LEGEND ────────────────────────────────────────────────────────────────
     function toggleLegend() {
         const leg = document.getElementById('legend');
         const btn = document.getElementById('legend-toggle-btn');
         const collapsed = leg.classList.toggle('collapsed');
-        btn.textContent = collapsed ? '▸' : '▾';  // right / down arrow
+        btn.textContent = collapsed ? '\u25B8' : '\u25BE';
         btn.setAttribute('aria-expanded', String(!collapsed));
     }
-    // Auto-collapse legend on small screens
     if (window.innerWidth <= 767) {
         const leg = document.getElementById('legend');
         const btn = document.getElementById('legend-toggle-btn');
-        if (leg && btn) { leg.classList.add('collapsed'); btn.textContent = '▸'; }
+        if (leg && btn) { leg.classList.add('collapsed'); btn.textContent = '\u25B8'; }
     }
 
-    // ─── CONFIG ───────────────────────────────────────────────────────────────
+    // ── CONFIG ────────────────────────────────────────────────────────────────
     const REFRESH_INTERVAL_MS = 20000;
 
-    // ─── WORKER / RECORDS ────────────────────────────────────────────────────
-    // WORKER, RECORDS_FILE, CONFIG_FILE come from common.js
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── STATE ──────────────────────────────────────────────────────────────────
+    let deviceId        = '';
+    let leakBurstState  = {};
+    let refreshTimer    = null;
+    let currentZone     = null;
+    let selectedFeatureId = null;
 
-    let deviceId   = '';   // FingerprintJS visitor ID
-    let leakBurstState  = {};   // edgeId → 'LEAK_BURST' | 'LEAK_BURST_CLEAR' | undefined
+    // Leaflet map
+    let map             = null;
+    let mapVisible      = true;
 
+    // KML layer for the current zone
+    let kmlLayer        = null;
+    let kmlFeatures     = [];   // flat array of all features for search
 
-    let cy            = null;
-    let refreshTimer  = null;
-    let currentZone   = null;
-    let selectedSearchEdgeId = null;   // edge highlighted via search; persists across syncs
-    let stopAnims     = null;   // teardown handle returned by startAnimations()
-
-    // ─── LEAFLET MAP STATE ────────────────────────────────────────────────────
-    let map           = null;   // Leaflet map instance
-    let mapVisible    = true;    // satellite map shown?
-    let mapSyncBound  = false;   // are map move/zoom handlers attached to current cy?
-    let _mapMoveRaf   = null;    // requestAnimationFrame handle for position sync
-
-    // ─── LEAFLET MAP FUNCTIONS ────────────────────────────────────────────────
+    // ── LEAFLET MAP ────────────────────────────────────────────────────────────
     function initializeMap() {
         if (map) return;
         map = L.map('map-container', {
-            // No built-in zoom control: the app's node-size +/- is the only on-screen
-            // +/- pair, so they're not confused. Map still zooms via pinch / scroll.
             zoomControl: false,
             attributionControl: true,
-            zoomSnap: 0   // allow fractional zoom so forwarded pinch gestures are smooth
+            zoomSnap: 0
         }).setView([24.19, 88.30], 11);
 
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -712,925 +484,43 @@
         }).addTo(map);
     }
 
-    // Convert GPS lat/lng to a Cytoscape *model* position.
-    // We project to layer point (stable across zoom) then convert to cy model
-    // coords by inverting cy's current pan & zoom, so nodes stick to the map.
-    function gpsToModelPos(lat, lng) {
-        const pt = map.latLngToContainerPoint([lat, lng]);  // screen px in container
-        const pan = cy.pan();
-        const zoom = cy.zoom();
-        // screen = model * zoom + pan  →  model = (screen - pan) / zoom
-        return { x: (pt.x - pan.x) / zoom, y: (pt.y - pan.y) / zoom };
-    }
-
-    // True if at least one node in the current zone has GPS coords.
-    function zoneHasGps() {
-        if (!cy) return false;
-        return cy.nodes().some(n => n.data('lat') != null && n.data('lng') != null);
-    }
-
-    // Reposition all GPS-tagged nodes to match the map. Throttled via rAF.
-    function syncNodesToMap() {
-        if (!cy || !map || !mapVisible) return;
-        if (_mapMoveRaf) cancelAnimationFrame(_mapMoveRaf);
-        _mapMoveRaf = requestAnimationFrame(() => {
-            cy.batch(() => {
-                cy.nodes().forEach(n => {
-                    const lat = n.data('lat'), lng = n.data('lng');
-                    if (lat != null && lng != null) {
-                        n.position(gpsToModelPos(lat, lng));
-                    }
-                });
-            });
-            _mapMoveRaf = null;
-        });
-    }
-
-    // Attach map move/zoom handlers. Idempotent: always removes existing
-    // handlers first, then adds exactly one of each, so repeated calls (across
-    // zone loads or within an instance) never stack or drop listeners.
-    function bindMapSync() {
-        if (!map) return;
-        map.off('move zoom moveend zoomend', syncNodesToMap);
-        map.on('move zoom moveend zoomend', syncNodesToMap);
-        mapSyncBound = true;
-    }
-
-    // NOTE: map zoom only re-syncs node POSITIONS (syncNodesToMap), never node
-    // sizes. The density-based size is set once when the map opens (enterMapMode)
-    // and then stays a constant on-screen size while the map is zoomed — the
-    // slider is the way to fine-tune it from there.
-
-    // Fit the Leaflet map to all GPS nodes, then sync node positions.
-    function fitMapToGpsNodes() {
-        if (!cy || !map) return;
-        const pts = [];
-        cy.nodes().forEach(n => {
-            const lat = n.data('lat'), lng = n.data('lng');
-            if (lat != null && lng != null) pts.push([lat, lng]);
-        });
-        if (pts.length === 0) return;
-        if (pts.length === 1) {
-            map.setView(pts[0], 15);
-        } else {
-            map.fitBounds(L.latLngBounds(pts), { padding: [60, 60] });
-        }
-        // setView/fitBounds fire 'moveend' which triggers syncNodesToMap,
-        // but call once directly in case the view doesn't actually change.
-        syncNodesToMap();
-    }
-
-    // Toggle the satellite map on/off. When off, restore the original
-    // canvas-based layout (preset / GPS-polar) and free panning.
     function toggleMap() {
         mapVisible = !mapVisible;
         const container = document.getElementById('map-container');
         const btn = document.getElementById('map-toggle-btn');
-        container.style.display = mapVisible ? 'block' : 'none';
+        // Map tile layer is always present; just zoom to fit KML bounds when toggling on
         btn.classList.toggle('map-off', !mapVisible);
-
-        if (!cy) return;
-
-        if (mapVisible && zoneHasGps()) {
-            enterMapMode();
-        } else {
-            exitMapMode();
+        if (mapVisible && kmlLayer) {
+            fitMapToKml();
         }
     }
 
-    // Map mode: Leaflet drives pan/zoom, cy nodes pinned to lat/lng.
-    // cy still handles node/edge taps; wheel + drag are forwarded to the map.
-    function enterMapMode() {
-        cy.userZoomingEnabled(false);
-        cy.userPanningEnabled(false);
-        cy.boxSelectionEnabled(false);
-        cy.zoom(1);
-        cy.pan({ x: 0, y: 0 });
-        map.invalidateSize();
-        bindMapSync();
-        bindEventBridge();        // forward scroll/drag from cy → map
-        fitMapToGpsNodes();
-        recomputeAutoStep(cy.nodes().length);   // size from map-projected density
-        _applyNodeSizeStyle();
-    }
-
-    // Diagram mode: hand control back to Cytoscape.
-    function exitMapMode() {
-        unbindEventBridge();
-        cy.userZoomingEnabled(true);
-        cy.userPanningEnabled(true);
-        cy.boxSelectionEnabled(false);
-        cy.fit(undefined, 40);
-        recomputeAutoStep(cy.nodes().length);   // size from canvas density
-        _applyNodeSizeStyle();
-    }
-
-    // ─── EVENT BRIDGE: forward wheel + drag from cy canvas to Leaflet ──────────
-    // The #cy canvas sits above the map and would otherwise swallow all mouse
-    // input. We listen on the cy container and replay scroll/drag onto the map,
-    // so the user can zoom and pan the satellite layer while nodes stay clickable.
-    let _bridgeEl = null;
-    let _dragging = false;
-    let _dragMoved = false;
-    let _lastXY = null;
-    // Two-finger pinch state (touch devices).
-    let _pinching  = false;
-    let _pinchDist = 0;
-    let _pinchMid  = null;
-
-    function _onWheel(e) {
-        e.preventDefault();
-        // Zoom the map toward the cursor position.
-        const rect = _bridgeEl.getBoundingClientRect();
-        const pt = L.point(e.clientX - rect.left, e.clientY - rect.top);
-        const latlng = map.containerPointToLatLng(pt);
-        const delta = e.deltaY < 0 ? 1 : -1;
-        const targetZoom = map.getZoom() + delta;
-        map.setZoomAround(latlng, targetZoom);
-    }
-
-    function _onPointerDown(e) {
-        if (_pinching) return;               // ignore while a 2-finger gesture runs
-        if (e.button !== 0) return;          // left button / primary touch only
-        _dragging = true;
-        _dragMoved = false;
-        _lastXY = { x: e.clientX, y: e.clientY };
-    }
-
-    function _onPointerMove(e) {
-        if (_pinching || !_dragging) return;
-        const dx = e.clientX - _lastXY.x;
-        const dy = e.clientY - _lastXY.y;
-        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) _dragMoved = true;
-        _lastXY = { x: e.clientX, y: e.clientY };
-        map.panBy([-dx, -dy], { animate: false });
-    }
-
-    function _onPointerUp() {
-        _dragging = false;
-        _lastXY = null;
-        // Reset shortly after so a genuine click (no move) still reaches cy taps.
-        setTimeout(() => { _dragMoved = false; }, 0);
-    }
-
-    // ── Two-finger pinch-zoom + pan ───────────────────────────────────────────
-    // The #cy canvas sits above the map and captures touch, so Leaflet's own
-    // pinch handler never fires. We detect two-finger gestures here and forward
-    // both the zoom (change in finger spacing) and the pan (midpoint drag) to
-    // the map, anchored at the gesture's midpoint.
-    function _touchDist(t) {
-        return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-    }
-    function _touchMid(t) {
-        return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 };
-    }
-    function _onTouchStart(e) {
-        if (e.touches.length === 2) {
-            _pinching  = true;
-            _dragging  = false;              // cancel any single-finger pan
-            _pinchDist = _touchDist(e.touches);
-            _pinchMid  = _touchMid(e.touches);
-        }
-    }
-    function _onTouchMove(e) {
-        if (!_pinching || e.touches.length !== 2) return;
-        e.preventDefault();                  // block native scroll/zoom of the page
-        const rect = _bridgeEl.getBoundingClientRect();
-        const mid  = _touchMid(e.touches);
-        // Midpoint movement → pan.
-        const pdx = mid.x - _pinchMid.x;
-        const pdy = mid.y - _pinchMid.y;
-        if (pdx || pdy) map.panBy([-pdx, -pdy], { animate: false });
-        // Change in finger spacing → zoom about the midpoint (zoomSnap:0 keeps
-        // the fractional steps smooth).
-        const dist = _touchDist(e.touches);
-        if (_pinchDist > 0 && dist > 0) {
-            const latlng = map.containerPointToLatLng(L.point(mid.x - rect.left, mid.y - rect.top));
-            map.setZoomAround(latlng, map.getZoom() + Math.log2(dist / _pinchDist));
-        }
-        _pinchDist = dist;
-        _pinchMid  = mid;
-    }
-    function _onTouchEnd(e) {
-        if (e.touches.length < 2) {
-            _pinching  = false;
-            _pinchDist = 0;
-            _pinchMid  = null;
+    function fitMapToKml() {
+        if (!map || !kmlLayer) return;
+        const bounds = kmlLayer.getBounds();
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [60, 60] });
         }
     }
 
-    function bindEventBridge() {
-        if (_bridgeEl) return;
-        _bridgeEl = document.getElementById('cy');
-        _bridgeEl.addEventListener('wheel', _onWheel, { passive: false });
-        _bridgeEl.addEventListener('pointerdown', _onPointerDown);
-        window.addEventListener('pointermove', _onPointerMove);
-        window.addEventListener('pointerup', _onPointerUp);
-        _bridgeEl.addEventListener('touchstart', _onTouchStart, { passive: true });
-        _bridgeEl.addEventListener('touchmove', _onTouchMove, { passive: false });
-        _bridgeEl.addEventListener('touchend', _onTouchEnd);
-        _bridgeEl.addEventListener('touchcancel', _onTouchEnd);
-    }
-
-    function unbindEventBridge() {
-        if (!_bridgeEl) return;
-        _bridgeEl.removeEventListener('wheel', _onWheel, { passive: false });
-        _bridgeEl.removeEventListener('pointerdown', _onPointerDown);
-        window.removeEventListener('pointermove', _onPointerMove);
-        window.removeEventListener('pointerup', _onPointerUp);
-        _bridgeEl.removeEventListener('touchstart', _onTouchStart, { passive: true });
-        _bridgeEl.removeEventListener('touchmove', _onTouchMove, { passive: false });
-        _bridgeEl.removeEventListener('touchend', _onTouchEnd);
-        _bridgeEl.removeEventListener('touchcancel', _onTouchEnd);
-        _bridgeEl = null;
-        _dragging = false;
-        _lastXY = null;
-        _pinching = false;
-        _pinchDist = 0;
-        _pinchMid = null;
-    }
-
-
-    // ─── NODE SIZE CONTROLS ───────────────────────────────────────────────────
-    // Sizes follow a linear model: size_px = baseline + s · NSC_STEP_PX, where the
-    // effective step s is clamped to [SIZE_MIN, SIZE_MAX]. The usable range is the
-    // SMALL end of the old scale — tuned so nodes don't overwhelm the satellite map.
-    const SIZE_MIN = -10;       // smallest size step (slider far-left)
-    const SIZE_MAX = -1;        // largest size step  (slider far-right)
-    // Typed-node baselines at step 0 (kept small so icons sit close in scale to
-    // the labels + arrowheads rather than dominating them).
-    const NSC_DOT_BASE  = 4;    // untyped junction dot size at step 0
-    const NSC_DOT_STEP  = 0.5;  // dot px change per step (smaller than typed nodes)
-    const NSC_VALVE_SZ  = 30;   // valve baseline px
-    const NSC_PUMP_SZ   = 32;   // pump baseline px
-    const NSC_ZONE_W    = 38;   // zone width baseline px
-    const NSC_ZONE_H    = 30;   // zone height baseline px
-    const NSC_BASE_FONT = 12;   // typed label font px at step 0
-    const NSC_STEP_PX   = 2;    // px change per step for typed nodes
-    const NSC_STEP_FONT = 1;    // font px change per step
-
-    // ── Adaptive (scale-aware) sizing ────────────────────────────────────────
-    // Icon size adapts to how crowded the view actually is. Two regimes:
-    //
-    //  • MAP MODE (GPS nodes on the satellite map): size is driven by on-screen
-    //    DENSITY, not raw count. We measure the median nearest-neighbour pixel
-    //    distance between nodes and size icons as a fraction of that spacing.
-    //    Because the projection depends on zoom, this means the SAME nodes grow
-    //    when you zoom in (more map area per node) and shrink when you zoom out.
-    //
-    //  • DIAGRAM MODE (no map / no GPS): no geographic area exists, so we fall
-    //    back to a log-of-count curve: step = CNT_A − CNT_B·log10(N).
-    //
-    // Both regimes emit a "step" on the linear scale (valve baseline 30px,
-    // ±2px per step), clamped to [SIZE_MIN, SIZE_MAX].
-    const CNT_A = -0.6;         // count-mode curve intercept (shifted into the new range)
-    const CNT_B = 2.6;          // count-mode curve slope
-    const TARGET_FRAC = 0.42;   // map-mode: icon diameter ÷ nearest-neighbour spacing
-    // Above this node count, per-frame animations are skipped to avoid memory /
-    // main-thread freeze (each anim loop iterates pump/valve nodes every frame).
-    const ANIM_NODE_LIMIT = 1000;
-
-    let _autoStep     = SIZE_MAX;   // baseline derived from density (map) or count (diagram)
-    let _manualOffset = 0;          // user's slider nudges, applied on top of the baseline
-    let _sizeZoomRaf  = null;       // rAF handle: throttles constant-screen resize on zoom
-
-    // Convert a desired icon diameter (px) into the nearest valid size step.
-    function _pxToStep(targetPx) {
-        const raw = (targetPx - NSC_VALVE_SZ) / NSC_STEP_PX;
-        return Math.max(SIZE_MIN, Math.min(SIZE_MAX, Math.round(raw * 2) / 2));
-    }
-
-    // Count-based fallback — used only when density can't be measured
-    // (fewer than 2 nodes, or positions not yet known).
-    function computeAutoStepByCount(n) {
-        if (!n || n <= 0) return SIZE_MAX;
-        const raw = CNT_A - CNT_B * Math.log10(n);
-        return Math.max(SIZE_MIN, Math.min(SIZE_MAX, Math.round(raw * 2) / 2));
-    }
-
-    // ── Core density math ────────────────────────────────────────────────────
-    // Given an array of [x,y] RENDERED-pixel positions, return a size step from
-    // the median nearest-neighbour spacing. This is mode-agnostic: the caller
-    // supplies pixel coords from the map projection (map mode) or from the
-    // Cytoscape canvas (diagram mode). Returns null if unmeasurable (<2 points).
-    function _stepFromPoints(pts) {
-        const N = pts.length;
-        if (N < 2) return null;
-
-        // Nearest-neighbour distance per point. O(N²); sampled above SAMPLE so a
-        // one-off recompute stays snappy on dense graphs.
-        const SAMPLE = 400;
-        const idxs = N <= SAMPLE
-            ? pts.map((_, i) => i)
-            : Array.from({ length: SAMPLE }, () => (Math.random() * N) | 0);
-
-        const nn = [];
-        for (const i of idxs) {
-            let best = Infinity;
-            const [xi, yi] = pts[i];
-            for (let j = 0; j < N; j++) {
-                if (j === i) continue;
-                const dx = pts[j][0] - xi, dy = pts[j][1] - yi;
-                const d2 = dx * dx + dy * dy;
-                if (d2 < best) best = d2;
-            }
-            if (best < Infinity) nn.push(Math.sqrt(best));
-        }
-        if (nn.length === 0) return null;
-
-        // Median is robust against a few isolated far-off nodes.
-        nn.sort((a, b) => a - b);
-        const spacing = nn[(nn.length / 2) | 0];
-        if (!(spacing > 0)) return null;          // all coincident → unmeasurable
-        return _pxToStep(spacing * TARGET_FRAC);
-    }
-
-    // MAP MODE coords: project each GPS node to container (screen) pixels.
-    function _mapPoints() {
-        if (!cy || !map) return [];
-        const pts = [];
-        cy.nodes().forEach(n => {
-            const lat = n.data('lat'), lng = n.data('lng');
-            if (lat != null && lng != null) {
-                const p = map.latLngToContainerPoint([lat, lng]);
-                pts.push([p.x, p.y]);
-            }
-        });
-        return pts;
-    }
-
-    // DIAGRAM MODE coords: use RENDERED (on-screen px) positions. The default
-    // size is derived from how crowded the graph looks on screen at open, then
-    // held constant on-screen while zooming (see _applyNodeSizeStyle). This is
-    // only sampled once per open (not per zoom), so it can't run away.
-    function _canvasPoints() {
-        if (!cy) return [];
-        const pts = [];
-        cy.nodes().forEach(n => {
-            const p = n.renderedPosition();
-            pts.push([p.x, p.y]);
-        });
-        return pts;
-    }
-
-    // Unified: same density logic for both modes, differing only in coord source.
-    // Falls back to the count curve only if density is genuinely unmeasurable.
-    function recomputeAutoStep(nodeCount) {
-        const useMap = mapVisible && map && zoneHasGps();
-        const pts    = useMap ? _mapPoints() : _canvasPoints();
-        let step     = _stepFromPoints(pts);
-        if (step === null) {
-            const n = (nodeCount != null) ? nodeCount : (cy ? cy.nodes().length : 0);
-            step = computeAutoStepByCount(n);
-        }
-        _autoStep = step;
-    }
-
-    // Slider sets the *effective* step directly; manual offset is derived from it.
-    function onNodeSizeSlider(val) {
-        const eff = Math.max(SIZE_MIN, Math.min(SIZE_MAX, parseFloat(val)));
-        _manualOffset = eff - _autoStep;
-        _applyNodeSizeStyle();
-    }
-
-    // Collapse/expand the slider panel.
-    function toggleNodeSizePanel() {
-        const c = document.getElementById('nodeSizeControls');
-        if (!c) return;
-        const expanded = c.classList.toggle('expanded');
-        const t = document.getElementById('nscToggle');
-        if (t) t.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    }
-    function collapseNodeSizePanel() {
-        const c = document.getElementById('nodeSizeControls');
-        if (c) c.classList.remove('expanded');
-        const t = document.getElementById('nscToggle');
-        if (t) t.setAttribute('aria-expanded', 'false');
-    }
-    function _applyNodeSizeStyle() {
-        if (!cy) return;
-        const s        = Math.max(SIZE_MIN, Math.min(SIZE_MAX, _autoStep + _manualOffset));
-        const dSz      = s * NSC_STEP_PX;   // signed delta for typed nodes
-        const rawFont  = NSC_BASE_FONT + s * NSC_STEP_FONT;
-        // Counter-scale every model dimension by the current render zoom so icons
-        // and labels keep a CONSTANT ON-SCREEN size: Cytoscape draws model units ×
-        // zoom, so model = target_px / zoom. Map mode pins cy.zoom() to 1 (the
-        // Leaflet map does the zooming), so this is a no-op there.
-        const z          = cy.zoom() || 1;
-        // Labels stay visible (min 6px) across the whole range and only hide at
-        // the very smallest size step.
-        const fontPx     = (s <= SIZE_MIN) ? 0 : Math.max(6, rawFont);
-        const font       = (fontPx ? fontPx / z : 0) + 'px';
-        // Each typed node type scales from its own baseline (target px ÷ zoom)
-        const valveSz  = Math.max(8,  NSC_VALVE_SZ + dSz) / z;
-        const pumpSz   = Math.max(10, NSC_PUMP_SZ  + dSz) / z;
-        const zoneW    = Math.max(12, NSC_ZONE_W   + dSz) / z;
-        const zoneH    = Math.max(8,  NSC_ZONE_H   + dSz) / z;
-        // Edge width is also model-space (÷ zoom); arrow-scale is unitless and
-        // already tracks the edge width, so it needs no counter-scaling. Arrow
-        // scale is kept low — and its floor pulled down — so that on dense maps
-        // (very negative s) arrowheads keep shrinking with the tiny icons instead
-        // of bottoming out at a chunky minimum.
-        const edgeW      = Math.min(8, Math.max(0.6, 4 + s * 0.35)) / z;
-        const arrowScale = Math.min(0.8, Math.max(0.12, 0.4 + s * 0.04));
-        // Untyped dot scales with steps; min 2 so it stays visible
-        const dotSz      = Math.max(2, NSC_DOT_BASE + s * NSC_DOT_STEP) / z;
-        // On the satellite map, dark labels are illegible — switch to white with a
-        // dark outline. In diagram mode, restore the default dark label, no outline.
-        const onMap      = mapVisible && map && zoneHasGps();
-        const labelColor = onMap ? '#ffffff' : '#2c3e50';
-        const labelOutlineW = onMap ? 2 : 0;
-        cy.style()
-          // Untyped dot scales and can reach 0 (hidden)
-          .selector('node')
-          .style({ 'width': dotSz, 'height': dotSz, 'font-size': '0px', 'min-zoomed-font-size': 0 })
-          // Typed nodes each scale from their own baselines
-          .selector('node[type]')
-          .style({
-              'font-size': font,
-              'min-zoomed-font-size': 6,
-              'color': labelColor,
-              'text-outline-color': '#1a1a1a',
-              'text-outline-width': labelOutlineW,
-              'text-outline-opacity': onMap ? 0.85 : 0
-          })
-          // Counter-scale border widths too — otherwise they grow
-          // disproportionately when zooming in.
-          .selector('node[type]')
-          .style({ 'border-width': Math.max(0.3, 2 / z) })
-          .selector('node[type][state="ON"]')
-          .style({ 'border-width': Math.max(0.3, 3 / z) })
-          .selector('node[comment]')
-          .style({ 'border-width': Math.max(0.3, 3 / z) })
-          .selector('node[type="valve"]')
-          .style({ 'width': valveSz, 'height': valveSz })
-          .selector('node[type="pump"]')
-          .style({ 'width': pumpSz, 'height': pumpSz })
-          .selector('node[type="zone"]')
-          .style({ 'width': zoneW, 'height': zoneH })
-          .selector('edge')
-          .style({ 'width': edgeW, 'arrow-scale': arrowScale })
-          .update();
-
-        // Keep the slider in sync with the effective step (e.g. after an auto
-        // recompute on zone change), without disturbing an in-progress drag.
-        const slider = document.getElementById('nodeSizeSlider');
-        if (slider) slider.value = s;
-    }
-    // ─────────────────────────────────────────────────────────────────────────
-
-    // ─── EDGE SEARCH ─────────────────────────────────────────────────────────
-    function filterEdges() {
-      const el  = document.getElementById('search-input');
-      const res = document.getElementById('search-results');
-      const clr = document.getElementById('search-clear');
-      const q   = (el.value || '').trim().toLowerCase();
-      if (clr) clr.classList.toggle('show', !!(el.value || '').length);
-      if (!q || !cy) {
-        res.style.display = 'none';
-        // Emptying the box deselects the pipe.
-        if (!q) clearSearchSelection();
-        return;
-      }
-
-      // Match against the combined "<from> to <target>" label (mirrors the
-      // leak/burst search in index.html), with edge id as a secondary match.
-      const edges = cy.edges().filter(e => {
-        const src   = (e.data('source') || '').toLowerCase();
-        const tgt   = (e.data('target') || '').toLowerCase();
-        const id    = (e.data('id') || '').toLowerCase();
-        const label = src + ' to ' + tgt;
-        return label.includes(q) || id.includes(q);
-      });
-
-      if (!edges.length) {
-        res.style.display = 'block';
-        res.innerHTML = '<div class="sr-item" style="color:rgba(255,255,255,0.4)">No matching pipes</div>';
-        return;
-      }
-
-      res.style.display = 'block';
-      res.innerHTML = edges.slice(0, 20).map(e => {
-        const src = esc(e.data('source') || '');
-        const tgt = esc(e.data('target') || '');
-        const id  = esc(e.data('id') || '');
-        return '<div class="sr-item" onclick="zoomToEdge(\'' + id + '\')">'
-          + src + ' → ' + tgt
-          + '<div class="sr-sub">' + id + '</div></div>';
-      }).join('');
-    }
-
-    function clearSearchSelection() {
-      selectedSearchEdgeId = null;
-      if (cy) cy.edges('.highlight').removeClass('highlight');
-    }
-
-    // Clear button (×): empty the box, hide results, drop the highlight.
-    function clearSearch() {
-      const el  = document.getElementById('search-input');
-      const res = document.getElementById('search-results');
-      const clr = document.getElementById('search-clear');
-      if (el)  el.value = '';
-      if (res) res.style.display = 'none';
-      if (clr) clr.classList.remove('show');
-      clearSearchSelection();
-      if (el) el.focus();
-    }
-
-    function zoomToEdge(edgeId) {
-      if (!cy) return;
-      const el = cy.getElementById(edgeId);
-      if (!el || !el.length) return;
-
-      // Zoom the Leaflet satellite map to the pipe's two endpoints so the
-      // imagery follows (nodes are projected onto the map). Fall back to a
-      // Cytoscape fit when the map is hidden or the edge lacks coordinates.
-      const srcN = cy.getElementById(el.data('source'));
-      const tgtN = cy.getElementById(el.data('target'));
-      const valid = n => n && n.length &&
-        typeof n.data('lat') === 'number' && typeof n.data('lng') === 'number';
-
-      if (map && mapVisible && valid(srcN) && valid(tgtN)) {
-        const pts = [
-          [srcN.data('lat'), srcN.data('lng')],
-          [tgtN.data('lat'), tgtN.data('lng')]
-        ];
-        map.fitBounds(L.latLngBounds(pts), { padding: [80, 80], maxZoom: 19 });
-        syncNodesToMap();
-      } else {
-        cy.fit(el, 60);
-      }
-
-      // Persist the highlight (no auto-clear) so the selected pipe stays marked.
-      cy.edges('.highlight').removeClass('highlight');
-      el.addClass('highlight');
-      selectedSearchEdgeId = edgeId;
-
-      document.getElementById('search-results').style.display = 'none';
-      document.getElementById('search-input').blur();
-    }
-    // ─────────────────────────────────────────────────────────────────────────
-
-    // ─── ZONE SELECTOR (MODAL) ───────────────────────────────────────────────
-    let zonesList = [];   // manifest zones, kept for the modal
-
-    function openZoneModal()  { document.getElementById('zone-modal').classList.add('show'); }
-    function closeZoneModal() { document.getElementById('zone-modal').classList.remove('show'); }
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { closeZoneModal(); collapseNodeSizePanel(); }
-    });
-    // Collapse the node-size slider when tapping anywhere outside it.
-    document.addEventListener('pointerdown', e => {
-        const c = document.getElementById('nodeSizeControls');
-        if (c && c.classList.contains('expanded') && !c.contains(e.target)) {
-            collapseNodeSizePanel();
-        }
-    });
-
-    function renderZoneList(activeId) {
-        const list = document.getElementById('zone-list');
-        list.innerHTML = zonesList.map(z =>
-            `<button type="button" class="zone-item${z.id === activeId ? ' active' : ''}" onclick="selectZone('${esc(z.id)}')">
-               <span class="zi-name">${esc(z.name)}</span>
-               ${z.id === activeId ? '<span class="zi-check" aria-hidden="true">✓</span>' : ''}
-             </button>`).join('');
-    }
-
-    function selectZone(id) {
-        const zone = zonesList.find(z => z.id === id);
-        if (!zone) return;
-        closeZoneModal();
-        document.getElementById('zone-btn-label').textContent = zone.name;
-        renderZoneList(id);
-        currentZone = null;   // clear guard so the same zone can reload
-        loadZone(zone);
-    }
-
-    async function loadManifest() {
-        try {
-            const res = await fetch('manifest.json?t=' + Date.now());
-            if (!res.ok) throw new Error('manifest.json not found');
-            zonesList = await res.json();
-
-            if (zonesList.length > 0) {
-                // Restore the last-viewed zone (or fall back to the first).
-                const savedId    = localStorage.getItem('scada_last_zone');
-                const zoneToLoad = (savedId && zonesList.find(z => z.id === savedId)) || zonesList[0];
-                document.getElementById('zone-btn-label').textContent = zoneToLoad.name;
-                renderZoneList(zoneToLoad.id);
-                loadZone(zoneToLoad);
-            } else {
-                document.getElementById('zone-btn-label').textContent = 'No zones';
-            }
-        } catch (err) {
-            document.getElementById('zone-btn-label').textContent = 'Error loading zones';
-            console.error(err);
-        }
-    }
-
-    // ─── LOAD ZONE DIAGRAM ────────────────────────────────────────────────────
-    async function loadZone(zone) {
-        if (currentZone && currentZone.id === zone.id) return;
-        currentZone = zone;
-        localStorage.setItem('scada_last_zone', zone.id);
-
-        // Stop existing refresh + animation loops
-        if (refreshTimer) clearInterval(refreshTimer);
-        if (stopAnims)    stopAnims();
-
-        // Reset pipe search — the previous zone's selected edge no longer exists.
-        selectedSearchEdgeId = null;
-        const _si = document.getElementById('search-input');
-        if (_si) _si.value = '';
-        const _sr = document.getElementById('search-results');
-        if (_sr) _sr.style.display = 'none';
-        const _sc = document.getElementById('search-clear');
-        if (_sc) _sc.classList.remove('show');
-
-        showLoading(true);
-        setStatus('Loading ' + zone.name + '…', 'busy');
-
-        try {
-            const res = await fetch(`zones/${zone.id}.json?t=` + Date.now());
-            if (!res.ok) throw new Error(`zones/${zone.id}.json not found`);
-            const diagram = await res.json();
-
-            // Attempt GPS polar projection before handing to Cytoscape
-            const container  = document.getElementById('cy');
-            const gpsApplied = applyGpsLayout(
-                diagram.nodes,
-                container.offsetWidth  || window.innerWidth,
-                container.offsetHeight || window.innerHeight - 50
-            );
-
-            // Show/hide GPS indicators
-            document.getElementById('compass').style.display      = gpsApplied ? 'block' : 'none';
-
-            // ── Adaptive sizing (initial): start from a count-based baseline.
-            // If this zone uses the map, we refine to density-based sizing right
-            // after the map view is fitted (positions known only then).
-            const nodeCount = (diagram.nodes && diagram.nodes.length) || 0;
-            _manualOffset = 0;                       // reset manual nudges per zone
-            _autoStep = computeAutoStepByCount(nodeCount);
-
-            initCytoscape(diagram);
-            _applyNodeSizeStyle();   // apply provisional baseline to fresh instance
-
-            // ── Engage satellite-map mode if this zone has GPS-tagged nodes ──
-            mapSyncBound = false;       // new cy instance → handlers must rebind
-            unbindEventBridge();        // drop bridge from previous cy instance
-            const useMap = mapVisible && zoneHasGps();
-            document.getElementById('map-container').style.display = useMap ? 'block' : 'none';
-            if (useMap) {
-                enterMapMode();                 // fits map, positions nodes, sizes icons
-            } else {
-                cy.userZoomingEnabled(true);
-                cy.userPanningEnabled(true);
-                cy.fit(undefined, 40);          // sets the zoom for this view
-                recomputeAutoStep(nodeCount);   // same density logic, canvas coords
-                _applyNodeSizeStyle();
-            }
-
-            // ── Start visual animations — skipped for very large graphs ──────
-            // Each animation loop iterates pump/valve nodes every frame, which
-            // can freeze the main thread on dense graphs. Above the limit we
-            // leave nodes static (state colours still update via refreshStatus).
-            if (nodeCount <= ANIM_NODE_LIMIT) {
-                stopAnims = startAnimations(cy);
-            } else {
-                stopAnims = null;
-                console.info(`[scada] ${nodeCount} nodes > ${ANIM_NODE_LIMIT} limit — animations disabled for performance.`);
-            }
-
-            showLoading(false);
-
-            // Start live refresh for this zone
-            await refreshStatus(zone);
-            refreshTimer = setInterval(() => refreshStatus(zone), REFRESH_INTERVAL_MS);
-
-            // Load leak/burst state from records.csv and overlay on graph
-            await loadLeakBurstState();
-            applyLeakBurstOverlay();
-
-        } catch (err) {
-            showLoading(false);
-            setStatus('⚠ ' + err.message, 'error');
-            console.error(err);
-        }
-    }
-
-    // ─── INIT / REINIT CYTOSCAPE ──────────────────────────────────────────────
-    function initCytoscape(diagram) {
-        if (cy) cy.destroy();   // tear down previous instance
-
-        cy = cytoscape({
-            container: document.getElementById('cy'),
-            style: CY_STYLE,
-            elements: {
-                nodes: diagram.nodes,
-                edges: diagram.edges
-            },
-            layout: { name: 'preset' },
-            userZoomingEnabled: true,
-            userPanningEnabled: true,
-            minZoom: 0.15,
-            maxZoom: 8,
-
-        });
-
-        cy.center();   // centre graph at true size without fitting to canvas
-
-        cy.on('tap', 'node', function(evt) {
-            const n = evt.target;
-            showNodePanel(n);
-        });
-
-        cy.on('tap', 'edge', function(evt) {
-            showEdgeLeakBurstPanel(evt.target);
-        });
-
-        // Tap on background dismisses the panel
-        cy.on('tap', function(evt) {
-            if (evt.target === cy) closeNodePanel();
-        });
-
-        // Constant on-screen sizing: re-derive model sizes whenever the render
-        // zoom changes so icons + labels stay the same pixel size at any zoom.
-        // The density-based default (auto step) is set once on open and is NOT
-        // recomputed here — only the zoom counter-scale is reapplied. Throttled to
-        // one update per frame. (Map mode pins cy.zoom to 1, so this stays inert.)
-        cy.on('zoom', () => {
-            if (_sizeZoomRaf) return;
-            _sizeZoomRaf = requestAnimationFrame(() => {
-                _sizeZoomRaf = null;
-                _applyNodeSizeStyle();
-            });
-        });
-    }
-
-    // ─── NODE INFO PANEL ─────────────────────────────────────────────────────
-    function showNodePanel(n) {
-        const panel  = document.getElementById('node-info-panel');
-        const title  = document.getElementById('nip-title');
-        const fields = document.getElementById('nip-fields');
-
-        const id      = n.id()               || '';
-        const type    = n.data('type')        || '';
-        const label   = n.data('label')       || '';
-        const state   = n.data('state')       || '';
-        const lat     = n.data('lat')         != null ? n.data('lat') : '';
-        const lng     = n.data('lng')         != null ? n.data('lng') : '';
-        const comment = n.data('comment')     || '';
-
-        title.textContent = label || id || 'Node Info';
-
-        const stateClass = state === 'ON' ? 'state-on' : state === 'OFF' ? 'state-off' : '';
-        const fmtCoord   = v => v !== '' ? parseFloat(v).toFixed(6) : '';
-
-        function field(key, val, extraClass) {
-            const isEmpty = val === '' || val == null;
-            return `<div class="nip-field">
-                <span class="nip-key">${key}</span>
-                <span class="nip-val${isEmpty ? ' empty' : ''}${extraClass ? ' ' + extraClass : ''}">${isEmpty ? '—' : val}</span>
-            </div>`;
-        }
-
-        let html = field('ID', id)
-                 + field('Type', type ? type.charAt(0).toUpperCase() + type.slice(1) : '')
-                 + field('Label', label)
-                 + field('State', state, stateClass)
-                 + field('Lat', fmtCoord(lat))
-                 + field('Long', fmtCoord(lng));
-
-        if (comment) {
-            html += `<div class="nip-field nip-comment-block">
-                <span class="nip-key">Comment</span>
-                <span class="nip-val">${comment}</span>
-            </div>`;
-        }
-
-        fields.innerHTML = html;
-        panel.classList.add('visible');
-    }
-
-    function closeNodePanel() {
-        document.getElementById('node-info-panel').classList.remove('visible');
-    }
-    // ─────────────────────────────────────────────────────────────────────────
-
-    // ─── FETCH LIVE STATUS FROM GIST ─────────────────────────────────────────
-    async function refreshStatus(zone) {
-        if (!cy || !zone) return;
-        setStatus('Syncing…', 'busy');
-        try {
-            // Read zone status via the worker (D1-backed) instead of raw Gist URL.
-            // workerGet returns { files: { "zone_a_status.json": "[...]", ... } }
-            const files = await workerGet('status');
-            const raw   = files[zone.gistFile] || '[]';
-            const data  = JSON.parse(raw);
-
-            const updated = applyStatus(cy, data);
-
-            // Re-apply leak/burst overlay after every sync — applyStatus + propagateFlow
-            // can overwrite edge flow values set by leak/burst reports
-            applyLeakBurstOverlay();
-
-            // Re-assert the search highlight so the selected pipe survives the sync.
-            if (selectedSearchEdgeId) {
-                const sel = cy.getElementById(selectedSearchEdgeId);
-                if (sel && sel.length) sel.addClass('highlight');
-            }
-
-            setStatus(`Synced ${new Date().toLocaleTimeString()} (${updated} elements)`, 'ok');
-        } catch (err) {
-            setStatus('⚠ ' + err.message, 'error');
-            console.error('Refresh error:', err);
-        }
-    }
-
-    // ─── UI HELPERS ───────────────────────────────────────────────────────────
-    // Quiet sync indicator: a coloured dot + tooltip. Text only shows on error,
-    // so routine background syncs no longer flash a pill in the header.
-    // state: 'busy' | 'ok' | 'error'
-    function setStatus(msg, state) {
-        const el = document.getElementById('sync-status');
-        if (!el) return;
-        el.classList.remove('busy', 'ok', 'error');
-        el.classList.add(state);
-        el.title = msg;
-        const txt = document.getElementById('sync-text');
-        if (txt) txt.textContent = (state === 'error') ? msg : '';
-    }
-
-    function showLoading(visible) {
-        document.getElementById('loading').classList.toggle('hidden', !visible);
-    }
-
-
-    // ─── WORKER HELPERS ───────────────────────────────────────────────────────
-    // workerGet, workerPatch, getDeviceId come from common.js
-
-    // ─── LEAK/BURST STATE FROM RECORDS ─────────────────────────────────────────────
-    // Reads leakbursts.csv and derives the latest leak/burst state per edge.
-    async function loadLeakBurstState() {
-        try {
-            const files = await workerGet('output');
-            const rows  = csvParseLeakBurst(files[LEAKBURST_FILE] || '');
-            leakBurstState  = {};
-            rows.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
-                .forEach(r => {
-                    if ((r.action === 'LEAK_BURST' || r.action === 'LEAK_BURST_CLEAR') && r.assetId)
-                        leakBurstState[r.assetId] = r.action;
-                });
-        } catch(e) {
-            console.warn('Leak/Burst state load failed:', e.message);
-        }
-    }
-
-    // Apply leakBurstState onto the current cy instance
-    function applyLeakBurstOverlay() {
-        if (!cy) return;
-        Object.entries(leakBurstState).forEach(([edgeId, action]) => {
-            const el = cy.getElementById(edgeId);
-            if (!el.length) return;
-            if (action === 'LEAK_BURST')
-                el.data('flow', 'leakburst');
-            else if (action === 'LEAK_BURST_CLEAR' && el.data('flow') === 'leakburst')
-                el.data('flow', '');
-        });
-    }
-
-    function csvParseLeakBurst(text) {
-        if (!text?.trim()) return [];
-        return Papa.parse(text.trim(), { header: true, skipEmptyLines: true }).data;
-    }
-
-
-
-    // ─── SHOW MY LOCATION ──────────────────────────────────────────────────────
-    // Center the satellite map on the user's current GPS fix and drop a marker
-    // (a dot + an accuracy circle). The map must be visible for this to be useful.
-    let _userLocMarker = null;   // Leaflet circleMarker for the user dot
-    let _userLocCircle = null;   // Leaflet circle showing accuracy radius
+    // ── LOCATE ME ──────────────────────────────────────────────────────────────
+    let _userLocMarker = null;
+    let _userLocCircle = null;
     function locateMe() {
         const btn = document.getElementById('locate-btn');
         if (!navigator.geolocation) {
             alert('Location is not supported on this device/browser.');
             return;
         }
-        // Make sure the map exists and is shown.
         if (!map) initializeMap();
-        if (!mapVisible) toggleMap();
 
         btn.classList.add('locating');
         navigator.geolocation.getCurrentPosition(
             pos => {
                 btn.classList.remove('locating');
                 btn.classList.add('active');
-                const lat = pos.coords.latitude;
-                const lng = pos.coords.longitude;
+                const latlng = [pos.coords.latitude, pos.coords.longitude];
                 const acc = pos.coords.accuracy || 0;
-                const latlng = [lat, lng];
 
                 if (_userLocMarker) {
                     _userLocMarker.setLatLng(latlng);
@@ -1649,7 +539,6 @@
                     _userLocMarker.bindTooltip('You are here', { direction: 'top' });
                 }
                 map.setView(latlng, Math.max(map.getZoom(), 16));
-                syncNodesToMap();
             },
             err => {
                 btn.classList.remove('locating');
@@ -1662,39 +551,313 @@
         );
     }
 
-    function showEdgeLeakBurstPanel(edge) {
-        const panel  = document.getElementById('node-info-panel');
-        const title  = document.getElementById('nip-title');
-        const fields = document.getElementById('nip-fields');
+    // ── ZONE SELECTOR ──────────────────────────────────────────────────────────
+    let zonesList = [];
 
-        const src   = edge.data('source') || '';
-        const tgt   = edge.data('target') || '';
-        const flow  = edge.data('flow')   || '';
+    function openZoneModal()  { document.getElementById('zone-modal').classList.add('show'); }
+    function closeZoneModal() { document.getElementById('zone-modal').classList.remove('show'); }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeZoneModal(); });
 
-        title.textContent = `Pipe: ${src} → ${tgt}`;
+    function renderZoneList(activeId) {
+        const list = document.getElementById('zone-list');
+        list.innerHTML = zonesList.map(z =>
+            '<button type="button" class="zone-item' + (z.id === activeId ? ' active' : '') + '" onclick="selectZone(\'' + esc(z.id) + '\')">' +
+               '<span class="zi-name">' + esc(z.name) + '</span>' +
+               (z.id === activeId ? '<span class="zi-check" aria-hidden="true">\u2713</span>' : '') +
+             '</button>').join('');
+    }
 
-        function field(key, val, cls) {
-            const isEmpty = val === '' || val == null;
-            return `<div class="nip-field">
-                <span class="nip-key">${key}</span>
-                <span class="nip-val${isEmpty?' empty':''}${cls?' '+cls:''}">${isEmpty?'—':val}</span>
-            </div>`;
+    function selectZone(id) {
+        const zone = zonesList.find(z => z.id === id);
+        if (!zone) return;
+        closeZoneModal();
+        document.getElementById('zone-btn-label').textContent = zone.name;
+        renderZoneList(id);
+        currentZone = null;
+        loadZone(zone);
+    }
+
+    async function loadManifest() {
+        try {
+            const res = await fetch('manifest.json?t=' + Date.now());
+            if (!res.ok) throw new Error('manifest.json not found');
+            zonesList = await res.json();
+
+            if (zonesList.length > 0) {
+                const savedId    = localStorage.getItem('scada_last_zone');
+                const zoneToLoad = (savedId && zonesList.find(z => z.id === savedId)) || zonesList[0];
+                document.getElementById('zone-btn-label').textContent = zoneToLoad.name;
+                renderZoneList(zoneToLoad.id);
+                loadZone(zoneToLoad);
+            } else {
+                document.getElementById('zone-btn-label').textContent = 'No zones';
+            }
+        } catch (err) {
+            document.getElementById('zone-btn-label').textContent = 'Error loading zones';
+            console.error(err);
+        }
+    }
+
+    // ── LOAD ZONE KML ──────────────────────────────────────────────────────────
+    async function loadZone(zone) {
+        if (currentZone && currentZone.id === zone.id) return;
+        currentZone = zone;
+        localStorage.setItem('scada_last_zone', zone.id);
+
+        if (refreshTimer) clearInterval(refreshTimer);
+
+        // Reset search
+        selectedFeatureId = null;
+        const _si = document.getElementById('search-input');
+        if (_si) _si.value = '';
+        const _sr = document.getElementById('search-results');
+        if (_sr) _sr.style.display = 'none';
+        const _sc = document.getElementById('search-clear');
+        if (_sc) _sc.classList.remove('show');
+
+        showLoading(true);
+        setStatus('Loading ' + zone.name + '\u2026', 'busy');
+
+        try {
+            if (!map) initializeMap();
+
+            // Remove previous KML layer
+            if (kmlLayer) {
+                map.removeLayer(kmlLayer);
+                kmlLayer = null;
+                kmlFeatures = [];
+            }
+
+            const kmlFile = zone.kmlFile || (zone.id + '.kml');
+            const kmlUrl  = 'zones/' + kmlFile + '?t=' + Date.now();
+
+            // Fetch and parse KML
+            kmlLayer = await L.kmlFetch(kmlUrl);
+
+            // Collect all features for search
+            kmlFeatures = [];
+            kmlLayer.eachLayer(function(layer) {
+                if (layer.feature) kmlFeatures.push(layer.feature);
+            });
+
+            // Listen for feature clicks
+            kmlLayer.on('featureclick', function(e) {
+                showFeaturePanel(e.feature);
+            });
+
+            // Add to map and fit bounds
+            kmlLayer.addTo(map);
+            fitMapToKml();
+
+            showLoading(false);
+
+            // Start live refresh
+            await refreshStatus(zone);
+            refreshTimer = setInterval(() => refreshStatus(zone), REFRESH_INTERVAL_MS);
+
+        } catch (err) {
+            showLoading(false);
+            setStatus('\u26A0 ' + err.message, 'error');
+            console.error(err);
+        }
+    }
+
+    // ── FETCH LIVE STATUS ──────────────────────────────────────────────────────
+    async function refreshStatus(zone) {
+        if (!kmlLayer || !zone) return;
+        setStatus('Syncing\u2026', 'busy');
+        try {
+            const files = await workerGet('status');
+            const raw   = files[zone.gistFile] || '[]';
+            const data  = JSON.parse(raw);
+
+            const updated = applyStatus(kmlLayer, data);
+
+            // Propagate flow from pump/valve states
+            propagateFlow(kmlLayer);
+
+            setStatus('Synced ' + new Date().toLocaleTimeString() + ' (' + updated + ' elements)', 'ok');
+        } catch (err) {
+            setStatus('\u26A0 ' + err.message, 'error');
+            console.error('Refresh error:', err);
+        }
+    }
+
+    // ── FEATURE SEARCH ─────────────────────────────────────────────────────────
+    function filterFeatures() {
+        const el  = document.getElementById('search-input');
+        const res = document.getElementById('search-results');
+        const clr = document.getElementById('search-clear');
+        const q   = (el.value || '').trim().toLowerCase();
+        if (clr) clr.classList.toggle('show', !!(el.value || '').length);
+        if (!q || !kmlLayer) {
+            res.style.display = 'none';
+            if (!q) clearSearchSelection();
+            return;
         }
 
-        const flowLabel = flow === 'leakburst' ? '⚠ LEAK/BURST' : flow === 'active' ? '▶ Active' : flow === '' ? 'Idle' : flow;
-        const flowCls   = flow === 'leakburst' ? 'state-off' : flow === 'active' ? 'state-on' : '';
-        fields.innerHTML = field('Pipe ID', edge.id())
-                         + field('From', src)
-                         + field('To', tgt)
-                         + field('Flow', flowLabel, flowCls);
+        const matches = kmlFeatures.filter(f => {
+            const name = (f.name || '').toLowerCase();
+            const id   = (f.id || '').toLowerCase();
+            return name.includes(q) || id.includes(q);
+        });
 
+        if (!matches.length) {
+            res.style.display = 'block';
+            res.innerHTML = '<div class="sr-item" style="color:rgba(255,255,255,0.4)">No matching features</div>';
+            return;
+        }
+
+        res.style.display = 'block';
+        res.innerHTML = matches.slice(0, 20).map(f => {
+            const name = esc(f.name || f.id || '');
+            const id   = esc(f.id || '');
+            const type = f.type === 'line' ? 'Pipe' : 'Point';
+            return '<div class="sr-item" onclick="zoomToFeature(\'' + esc(f.id) + '\')">'
+              + name
+              + '<div class="sr-sub">' + id + ' (' + type + ')</div></div>';
+        }).join('');
+    }
+
+    function clearSearchSelection() {
+        selectedFeatureId = null;
+        if (kmlLayer) {
+            kmlLayer.eachLayer(function(layer) {
+                if (layer.feature && layer.feature._highlighted) {
+                    layer.setStyle({ weight: layer.feature._origWeight || 4 });
+                    layer.feature._highlighted = false;
+                }
+            });
+        }
+    }
+
+    function clearSearch() {
+        const el  = document.getElementById('search-input');
+        const res = document.getElementById('search-results');
+        const clr = document.getElementById('search-clear');
+        if (el)  el.value = '';
+        if (res) res.style.display = 'none';
+        if (clr) clr.classList.remove('show');
+        clearSearchSelection();
+        if (el) el.focus();
+    }
+
+    function zoomToFeature(featureId) {
+        if (!map || !kmlLayer) return;
+        let target = null;
+        kmlLayer.eachLayer(function(layer) {
+            if (layer.feature && layer.feature.id === featureId) target = layer;
+        });
+        if (!target) return;
+
+        // Fit map to the feature
+        if (target instanceof L.Polyline) {
+            map.fitBounds(target.getBounds(), { padding: [80, 80], maxZoom: 19 });
+        } else {
+            map.setView(target.getLatLng ? target.getLatLng() : target.getCenter(), Math.max(map.getZoom(), 16));
+        }
+
+        // Highlight
+        clearSearchSelection();
+        if (target.setStyle && target.feature) {
+            target.feature._origWeight = target.feature._origWeight || (target.options && target.options.weight) || 4;
+            target.setStyle({ weight: 8, opacity: 1 });
+            target.feature._highlighted = true;
+        }
+        selectedFeatureId = featureId;
+
+        document.getElementById('search-results').style.display = 'none';
+        document.getElementById('search-input').blur();
+    }
+
+    // ── FEATURE INFO PANEL ─────────────────────────────────────────────────────
+    function showFeaturePanel(feat) {
+        if (!feat) return;
+        const panel = document.getElementById('feature-info-panel');
+        const title = document.getElementById('fip-title');
+        const fields = document.getElementById('fip-fields');
+
+        title.textContent = feat.name || feat.id || 'Feature Info';
+
+        const st   = feat.status || {};
+        const props = feat.properties || {};
+        const nodeType = st.type || props.type || '';
+        const state    = st.state || '';
+        const flow     = st.flow || props.flow || '';
+        const comment  = st.comment || '';
+        const desc     = feat.description || '';
+
+        function field(key, val, extraClass) {
+            const isEmpty = val === '' || val == null;
+            return '<div class="fip-field">' +
+                '<span class="fip-key">' + key + '</span>' +
+                '<span class="fip-val' + (isEmpty ? ' empty' : '') + (extraClass ? ' ' + extraClass : '') + '">' + (isEmpty ? '\u2014' : val) + '</span>' +
+            '</div>';
+        }
+
+        let html = field('ID', feat.id)
+                 + field('Type', nodeType ? nodeType.charAt(0).toUpperCase() + nodeType.slice(1) : (feat.type === 'line' ? 'Pipe' : ''))
+                 + field('Label', feat.name)
+                 + field('State', state, state === 'ON' ? 'state-on' : state === 'OFF' ? 'state-off' : '');
+
+        if (flow) {
+            const flowLabel = flow === 'active' ? '\u25B6 Active' : flow === 'leakburst' ? '\u26A0 LEAK/BURST' : flow;
+            const flowCls   = flow === 'active' ? 'state-on' : flow === 'leakburst' ? 'state-off' : '';
+            html += field('Flow', flowLabel, flowCls);
+        }
+
+        if (props.source && props.target) {
+            html += field('From', props.source);
+            html += field('To', props.target);
+        }
+
+        if (comment) {
+            html += '<div class="fip-field fip-desc-block">' +
+                '<span class="fip-key">Comment</span>' +
+                '<span class="fip-val">' + esc(comment) + '</span>' +
+            '</div>';
+        }
+
+        if (desc) {
+            html += '<div class="fip-field fip-desc-block">' +
+                '<span class="fip-key">Description</span>' +
+                '<span class="fip-val">' + esc(desc) + '</span>' +
+            '</div>';
+        }
+
+        fields.innerHTML = html;
         panel.classList.add('visible');
     }
 
+    function closeFeaturePanel() {
+        document.getElementById('feature-info-panel').classList.remove('visible');
+    }
 
-    // ─── BOOT ─────────────────────────────────────────────────────────────────
+    // Tap on background closes the panel
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#feature-info-panel') && !e.target.closest('.sr-item')) {
+            closeFeaturePanel();
+        }
+    });
+
+    // ── UI HELPERS ─────────────────────────────────────────────────────────────
+    function setStatus(msg, state) {
+        const el = document.getElementById('sync-status');
+        if (!el) return;
+        el.classList.remove('busy', 'ok', 'error');
+        el.classList.add(state);
+        el.title = msg;
+        const txt = document.getElementById('sync-text');
+        if (txt) txt.textContent = (state === 'error') ? msg : '';
+    }
+
+    function showLoading(visible) {
+        document.getElementById('loading').classList.toggle('hidden', !visible);
+    }
+
+    // ── BOOT ───────────────────────────────────────────────────────────────────
     (async () => {
-        initializeMap();                 // create Leaflet map first
+        initializeMap();
         deviceId = await getDeviceId();
         loadManifest();
     })();

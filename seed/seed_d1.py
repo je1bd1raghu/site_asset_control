@@ -11,6 +11,7 @@ Usage:
   python3 seed/seed_d1.py push zone_a_status.json records.csv   # by individual file
   python3 seed/seed_d1.py verify               # show D1 row / blob sizes
   python3 seed/seed_d1.py deploy               # wrangler deploy (upserts scada-worker-d1.js)
+  python3 seed/seed_d1.py build                # run the interactive zone builder (xlsx → KML + status)
 
 The interactive menu's Push option lists every file so you can pick specific ones.
 
@@ -331,6 +332,17 @@ def deploy():
     else:
         print(f"  ❌  deploy failed:\n{r.stderr.strip()}")
 
+# ── BUILD ZONE FILES (delegate to build_zone_files.py) ────────────────────────
+def build_zone():
+    """Run the interactive zone builder (WaterGEMS xlsx → KML + status)."""
+    repo_root = os.path.dirname(SCRIPT_DIR)
+    builder   = os.path.join(repo_root, "build_zone_files.py")
+    if not os.path.exists(builder):
+        print(f"  ❌  {rel(builder)} not found.")
+        return
+    print(f"  ▶  starting {rel(builder)}")
+    subprocess.run([sys.executable, builder], cwd=repo_root)
+
 # ── Console UX ────────────────────────────────────────────────────────────────
 def confirm(msg):
     return input(f"  {msg} [y/N] ").strip().lower() in ("y", "yes")
@@ -375,12 +387,13 @@ def menu():
     print("    2)  Push    upload seed/ files → D1  (pick individual files)")
     print("    3)  Verify  show D1 row / blob sizes")
     print("    4)  Deploy  wrangler deploy (upsert worker)")
+    print("    5)  Build   WaterGEMS xlsx → zones (KML + status)")
     print("    0)  Exit")
     return input("  Choose: ").strip().lower()
 
 def main():
     # Non-interactive:
-    #   seed_d1.py pull|verify|deploy
+    #   seed_d1.py pull|verify|deploy|build
     #   seed_d1.py push [config|status|output]   (no target → all)
     if len(sys.argv) > 1:
         action = sys.argv[1].lower()
@@ -391,10 +404,12 @@ def main():
                       " | files: " + ", ".join(PUSHABLE))
                 sys.exit(1)
             push(names)
+        elif action == "build":
+            build_zone()
         elif action in ACTIONS:
             ACTIONS[action]()
         else:
-            print(f"Unknown action '{action}'. Use: push, {', '.join(ACTIONS)}")
+            print(f"Unknown action '{action}'. Use: push, build, {', '.join(ACTIONS)}")
             sys.exit(1)
         return
 
@@ -417,14 +432,19 @@ def main():
         elif choice in ("4", "deploy"):
             if confirm("Deploy the worker to Cloudflare?"):
                 deploy()
+        elif choice in ("5", "build"):
+            build_zone()
         elif choice in ("0", "q", "quit", "exit", ""):
             print("  Bye 👋")
             break
         else:
-            print("  Invalid choice — pick 1, 2, 3, 4 or 0.")
+            print("  Invalid choice — pick 1, 2, 3, 4, 5 or 0.")
 
 if __name__ == "__main__":
     try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stderr.reconfigure(encoding="utf-8")
         main()
     except KeyboardInterrupt:
         print("\n  Cancelled.")

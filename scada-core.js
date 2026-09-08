@@ -1,14 +1,10 @@
 // ─── COLOUR PALETTE ───────────────────────────────────────────────────────────
-// All node rendering uses Cytoscape native shapes — no SVG background images.
-// Native shapes are drawn by the canvas renderer so they stay crisp at any zoom.
-//
-//  Valve  → diamond         (rotated square — standard P&ID valve symbol)
-//  Pump   → ellipse         (circle — standard pump symbol)
-//  Zone   → round-rectangle
+// Node rendering uses Leaflet markers/circleMarkers with status-based colors.
 //
 //  Valve ON  → green fill,   Valve OFF → red fill
 //  Pump  ON  → purple fill,  Pump  OFF → grey fill
 //  Zone  ON  → blue fill,    Zone  OFF → grey fill
+//  Pipe active → green,      Pipe idle → grey,        Pipe leakburst → red
 
 const COLOR = {
     on:             '#2ecc71',
@@ -22,424 +18,206 @@ const COLOR = {
     zone:           '#3498db',
     zoneBorder:     '#2980b9',
     zoneOff:        '#bdc3c7',
-    zoneOffBorder:  '#95a5a6'
+    zoneOffBorder:  '#95a5a6',
+    lineActive:     '#2ecc71',
+    lineIdle:       '#a9b0b8',
+    lineLeakburst:  '#e74c3c'
 };
 
-// ─── CYTOSCAPE STYLE ──────────────────────────────────────────────────────────
-const CY_STYLE = [
-
-// ── Default (fallback) — untyped nodes are passive junction dots ────────────
-// No label mapping here — avoids Cytoscape's "no mapping for property label"
-// warning on every animation frame for nodes without the field set.
-{
-    selector: 'node',
-    style: {
-        'label': '',
-        'shape': 'ellipse',
-        'width': 4,
-        'height': 4,
-        'background-color': '#b0bec5',
-        'border-width': 0,
-        'font-size': '0px',
-        'font-weight': 'bold',
-        'color': '#555e68',
-        'text-valign': 'bottom',
-        'text-margin-y': 4,
-        'min-zoomed-font-size': 0,
-        'overlay-padding': 6,
-        'events': 'yes'
-    }
-},
-
-// ── Untyped node with a label — show it when explicitly set ───────────────
-{
-    selector: 'node[type][label]',
-    style: {
-        'label': 'data(label)'
-    }
-},
-
-// ── Typed nodes share label + text style ──────────────────────────────────
-// Scoped to nodes that actually have a label field to avoid mapping warnings.
-{
-    selector: 'node[type]',
-    style: {
-        'font-size': '11px',
-        'font-weight': 'bold',
-        'text-wrap': 'wrap',
-        'text-max-width': '120px',
-        'text-valign': 'bottom',
-        'text-margin-y': 8,
-        'color': '#2c3e50',
-        'min-zoomed-font-size': 6,
-        'events': 'yes'
-    }
-},
-
-// ── Valves — diamond shape ─────────────────────────────────────────────────
-{
-    selector: 'node[type="valve"]',
-    style: {
-        'shape': 'diamond',
-        'width': 44,
-        'height': 44
-    }
-},
-{
-    selector: 'node[type="valve"][state="ON"]',
-    style: {
-        'background-color': COLOR.on,
-        'border-color':     COLOR.onBorder,
-        'border-width': 3
-    }
-},
-{
-    selector: 'node[type="valve"][state="OFF"]',
-    style: {
-        'background-color': COLOR.valveOff,
-        'border-color':     COLOR.valveOffBorder,
-        'border-width': 2
-    }
-},
-
-// ── Pumps — circle (ellipse) ───────────────────────────────────────────────
-{
-    selector: 'node[type="pump"]',
-    style: {
-        'shape': 'ellipse',
-        'width': 48,
-        'height': 48
-    }
-},
-{
-    selector: 'node[type="pump"][state="ON"]',
-    style: {
-        'background-color': COLOR.pump,
-        'border-color':     COLOR.on,
-        'border-width': 3
-    }
-},
-{
-    selector: 'node[type="pump"][state="OFF"]',
-    style: {
-        'background-color': COLOR.pumpOff,
-        'border-color':     COLOR.pumpOffBorder,
-        'border-width': 2
-    }
-},
-
-// ── Zones — rounded rectangle ─────────────────────────────────────────────
-{
-    selector: 'node[type="zone"]',
-    style: {
-        'shape': 'round-rectangle',
-        'width': 56,
-        'height': 44,
-        'background-color': COLOR.zoneOff,
-        'border-color': COLOR.zoneOffBorder,
-        'border-width': 2
-    }
-},
-{
-    selector: 'node[type="zone"][state="ON"]',
-    style: {
-        'background-color': COLOR.zone,
-        'border-color':     COLOR.zoneBorder,
-        'border-width': 3
-    }
-},
-{
-    selector: 'node[type="zone"][state="OFF"]',
-    style: {
-        'background-color': COLOR.zoneOff,
-        'border-color':     COLOR.zoneOffBorder,
-        'border-width': 2
-    }
-},
-
-// ── Pipes / Edges ──────────────────────────────────────────────────────────
-{
-    selector: 'edge',
-    style: {
-        'width': 4,
-        'line-color': '#3498db',
-
-        'target-arrow-shape': 'triangle',
-        'target-arrow-color': '#3498db',
-
-        'curve-style': 'bezier',
-
-        'label': '',
-        'font-size': '9px',
-        'edge-text-rotation': 'autorotate',
-
-        'text-background-opacity': 1,
-        'text-background-color': '#f0f4f8',
-        'text-background-padding': '3px',
-
-        'text-border-opacity': 1,
-        'text-border-color': '#d0d7de',
-        'text-border-width': 1
-    }
-},
-
-// Only map label data field on edges that actually have a label set —
-// avoids Cytoscape's "no mapping for property label" warning on every
-// animation frame for edges where the field is absent.
-{
-    selector: 'edge[label]',
-    style: { 'label': 'data(label)' }
-},
-
-// Inactive pipe
-{
-    selector: 'edge[flow=""]',
-    style: {
-        'line-color': '#a9b0b8',
-        'target-arrow-color': '#a9b0b8',
-        'line-style': 'solid',
-        'width': 3
-    }
-},
-
-// Active flow: dashed green line (offset animated in JS)
-{
-    selector: 'edge[flow="active"]',
-    style: {
-        'line-color': '#2ecc71',
-        'target-arrow-color': '#2ecc71',
-        'width': 5,
-        'line-style': 'dashed',
-        'line-dash-pattern': [10, 10],
-        'line-dash-offset': 0
-    }
-},
-
-// Leak/Burst: base style — blink class toggles highlight
-{
-    selector: 'edge[flow="leakburst"]',
-    style: {
-        'line-color': '#e74c3c',
-        'target-arrow-color': '#e74c3c',
-        'width': 4,
-        'line-style': 'dashed'
-    }
-},
-
-// Leak/Burst blink-ON state (toggled by JS every 500 ms)
-{
-    selector: 'edge[flow="leakburst"].leakburstBlink',
-    style: {
-        'line-color': '#ff8c00',
-        'target-arrow-color': '#ff8c00',
-        'width': 6,
-        'line-style': 'solid'
-    }
-},
-
-// ── Nodes with a comment — yellow highlight ring ───────────────────────────
-{
-    selector: 'node[comment]',
-    style: {
-        'border-width': 3,
-        'border-color': '#f1c40f',
-        'border-style': 'solid'
-    }
-},
-
-// ── Search-highlighted edge ─────────────────────────────────────────────────
-// Keep the edge's own colour; add a yellow halo/border via underlay instead.
-{
-    selector: 'edge.highlight',
-    style: {
-        'underlay-color':   '#ffeb3b',
-        'underlay-padding':  5,
-        'underlay-opacity':  0.9,
-        'z-index': 999
-    }
-}
-];
+// ─── STATUS MAP: type → { on: color, off: color } ────────────────────────────
+const STATUS_COLORS = {
+    pump:  { on: COLOR.pump,  off: COLOR.pumpOff,  onBorder: COLOR.on, offBorder: COLOR.pumpOffBorder },
+    valve: { on: COLOR.on,    off: COLOR.valveOff,  onBorder: COLOR.onBorder, offBorder: COLOR.valveOffBorder },
+    zone:  { on: COLOR.zone,  off: COLOR.zoneOff,  onBorder: COLOR.zoneBorder, offBorder: COLOR.zoneOffBorder }
+};
 
 // ─── APPLY STATUS UPDATE FROM DATA ───────────────────────────────────────────
-function applyStatus(cy, data) {
-
+// Maps zone_status.json entries onto KML Leaflet layers by id.
+// Returns count of updated elements.
+function applyStatus(kmlLayer, data) {
     let updated = 0;
 
+    // Build a lookup of status entries by id
+    const statusMap = {};
     data.forEach(item => {
-
-        const el = cy.getElementById(item.id);
-        if (el.length === 0) return;
-
-        if (item.state !== undefined)
-            el.data('state', item.state.toString().toUpperCase());
-
-        if (item.label !== undefined)
-            el.data('label', item.label.toString());
-
-        // Only set type when explicitly present in the status JSON.
-        // Nodes without a type entry remain untyped junction dots — they
-        // render as small grey circles and are skipped in tap/click handlers.
-        if (item.type !== undefined)
-            el.data('type', item.type.toString().toLowerCase());
-
-        if (item.flow !== undefined)
-            el.data('flow', item.flow.toString().toLowerCase());
-
-        // comment — free-text annotation shown in the info panel on click.
-        // An empty string clears any previously set comment so the yellow
-        // highlight ring also clears when the status update removes it.
-        if (item.comment !== undefined) {
-            const c = item.comment.toString().trim();
-            if (c) {
-                el.data('comment', c);
-            } else {
-                el.removeData('comment');
-            }
-        }
-
-        updated++;
+        if (item.id) statusMap[item.id] = item;
     });
 
-    // Auto-derive which pipes carry flow based on valve/pump states.
-    // Runs after every status sync — the backend only needs to set valve/pump
-    // states; edge flow states are computed automatically from the graph.
-    propagateFlow(cy);
+    // Iterate KML layers and apply status
+    kmlLayer.eachLayer(function(layer) {
+        const feat = layer.feature;
+        if (!feat || !feat.id) return;
+        const st = statusMap[feat.id];
+        if (!st) return;
 
-    cy.style().update();
+        // Store status on the feature for later reference
+        feat.status = st;
+
+        if (feat.type === 'point') {
+            _stylePointFeature(layer, feat, st);
+            updated++;
+        } else if (feat.type === 'line') {
+            _styleLineFeature(layer, feat, st);
+            updated++;
+        }
+    });
 
     return updated;
 }
 
+// ─── STYLE A POINT FEATURE (marker / circleMarker) ──────────────────────────
+function _stylePointFeature(layer, feat, st) {
+    const nodeType = (st.type || feat.properties.type || '').toLowerCase();
+    const state    = (st.state || '').toUpperCase();
+    const colors   = STATUS_COLORS[nodeType];
+
+    if (layer instanceof L.CircleMarker) {
+        if (colors) {
+            layer.setStyle({
+                fillColor: state === 'ON' ? colors.on : colors.off,
+                color:     state === 'ON' ? colors.onBorder : colors.offBorder,
+                weight:    state === 'ON' ? 3 : 2
+            });
+        }
+    }
+}
+
+// ─── STYLE A LINE FEATURE (polyline) ────────────────────────────────────────
+function _styleLineFeature(layer, feat, st) {
+    const flow = (st.flow || feat.properties.flow || '').toLowerCase();
+
+    if (flow === 'active') {
+        layer.setStyle({ color: COLOR.lineActive, weight: 5, dashArray: '10, 10' });
+    } else if (flow === 'leakburst') {
+        layer.setStyle({ color: COLOR.lineLeakburst, weight: 5, dashArray: '6, 6' });
+    } else {
+        layer.setStyle({ color: COLOR.lineIdle, weight: 3, dashArray: null });
+    }
+}
+
 // ─── FLOW PROPAGATION ────────────────────────────────────────────────────────
-// Computes edge flow states by walking the directed graph from every running
+// Computes line flow states by walking the directed graph from every running
 // pump (type=pump, state=ON).
 //
-// IMPORTANT — single responsibility:
-//   This function sets edge `flow` values ONLY.
-//   Node `state` (valve ON/OFF, zone ON/OFF) is authoritative data owned by
-//   the gist status file and written by applyStatus(). propagateFlow() never
-//   reads or writes node state — doing so would cause the gist and the
-//   propagation logic to overwrite each other on every sync.
+// Graph structure comes from KML ExtendedData:
+//   - Line features have properties.source and properties.target
+//   - Point features are nodes
 //
 // Edge flow rules:
-//   reachable  + flow="leakburst"  → keep "leakburst"   (explicit leaks/bursts always win)
-//   reachable  + anything else → set  "active"
-//   unreachable                → set  ""         (idle pipe colour)
+//   reachable  + flow="leakburst"  → keep "leakburst"
+//   reachable  + anything else    → set "active"
+//   unreachable                   → set "" (idle)
 //
 // Traversal rules:
-//   - BFS starts from all pump nodes with state=ON.
-//   - A closed valve (state=OFF) stops traversal: water reaches it but does
-//     not pass through. Its incoming edges are still marked active.
-//   - Zone nodes (type=zone) and open valves are transparent — traversal
-//     continues through them regardless of their state.
+//   - BFS starts from all point features with type=pump, state=ON
+//   - A closed valve (state=OFF) stops traversal
+//   - Zone nodes and open valves are transparent
 //
-// If the diagram has no pump nodes the function is a no-op so layouts without
-// pumps (e.g. gravity-fed or source-zone diagrams) still render correctly.
+// If no pump features exist, the function is a no-op.
 
-function propagateFlow(cy) {
+function propagateFlow(kmlLayer) {
+    // Build node lookup and adjacency list from KML features
+    const nodes = {};   // id → { type, state, feature }
+    const edges = [];   // { id, source, target, feature }
 
-    const hasPumps = cy.nodes('[type="pump"]').length > 0;
+    kmlLayer.eachLayer(function(layer) {
+        const feat = layer.feature;
+        if (!feat || !feat.id) return;
+
+        if (feat.type === 'point') {
+            const nodeType = (feat.properties.type || '').toLowerCase();
+            const state    = feat.status ? (feat.status.state || '').toUpperCase() : '';
+            nodes[feat.id] = { type: nodeType, state: state, feature: feat };
+        } else if (feat.type === 'line') {
+            const src = feat.properties.source || '';
+            const tgt = feat.properties.target || '';
+            if (src && tgt) {
+                edges.push({ id: feat.id, source: src, target: tgt, feature: feat });
+            }
+        }
+    });
+
+    // Check if any pumps exist
+    const hasPumps = Object.values(nodes).some(n => n.type === 'pump');
     if (!hasPumps) return;
 
-    // BFS — collect every edge reachable from a running pump
+    // BFS from running pumps
     const reachableEdges = new Set();
     const visitedNodes   = new Set();
-    const queue          = cy.nodes('[type="pump"][state="ON"]').toArray();
+    const queue          = [];
+
+    Object.entries(nodes).forEach(([id, node]) => {
+        if (node.type === 'pump' && node.state === 'ON') queue.push(id);
+    });
 
     while (queue.length > 0) {
-
-        const node = queue.shift();
-        const nid  = node.id();
+        const nid = queue.shift();
         if (visitedNodes.has(nid)) continue;
         visitedNodes.add(nid);
 
-        // Closed valve: mark incoming edges active, do not traverse outgoing.
-        if (node.data('type') === 'valve' && node.data('state') === 'OFF') continue;
+        const node = nodes[nid];
+        // Closed valve: stop traversal
+        if (node && node.type === 'valve' && node.state === 'OFF') continue;
 
-        node.outgoers('edge').forEach(edge => {
-            reachableEdges.add(edge.id());
-            const target = edge.target();
-            // Untyped junction dots are transparent — water flows through them
-            // but they are not hydraulic assets, so always traverse.
-            // Typed nodes are handled by the closed-valve guard above.
-            queue.push(target);
+        edges.forEach(edge => {
+            if (edge.source === nid) {
+                reachableEdges.add(edge.id);
+                queue.push(edge.target);
+            }
         });
     }
 
-    // Update edge flow — node states are never touched here
-    cy.batch(() => {
-        cy.edges().forEach(edge => {
-            if (edge.data('flow') === 'leakburst') return;   // leaks/bursts always win
-            edge.data('flow', reachableEdges.has(edge.id()) ? 'active' : '');
-        });
+    // Update edge flow on the KML layers
+    kmlLayer.eachLayer(function(layer) {
+        const feat = layer.feature;
+        if (!feat || feat.type !== 'line') return;
+
+        // Leaks/bursts always win
+        if (feat.status && feat.status.flow === 'leakburst') return;
+
+        const flow = reachableEdges.has(feat.id) ? 'active' : '';
+        if (feat.status) feat.status.flow = flow;
+        feat.properties.flow = flow;
+
+        _styleLineFeature(layer, feat, { flow: flow });
     });
 }
 
-// ─── ANIMATIONS ──────────────────────────────────────────────────────────────
-// Call startAnimations(cy) once after Cytoscape is initialised.
-// Returns a stop() function you can call when tearing down the instance.
+// ─── LEAFLET POPUP HELPER ────────────────────────────────────────────────────
+// Build an HTML popup content string from feature data.
+function featurePopupHtml(feat, status) {
+    if (!feat) return '';
+    const name = feat.name || feat.id || 'Unknown';
+    const desc = feat.description || '';
+    const id   = feat.id || '';
+    const props = feat.properties || {};
+    const st   = status || feat.status || {};
+    const nodeType = st.type || props.type || '';
+    const state    = st.state || '';
+    const flow     = st.flow || props.flow || '';
+    const comment  = st.comment || '';
 
-function startAnimations(cy) {
+    let html = '<div style="font-family:Nunito,sans-serif;min-width:160px;max-width:280px">';
+    html += '<div style="font-weight:800;font-size:14px;margin-bottom:6px;color:#212529">' + esc(name) + '</div>';
 
-    let running = true;
-
-    // ── 1. Flow: animated dashed-line offset on active pipes ─────────────────
-    let flowOffset = 0;
-    function animateFlow() {
-        if (!running) return;
-        flowOffset = (flowOffset + 1.2) % 20;
-        cy.style()
-            .selector('edge[flow="active"]')
-            .style('line-dash-offset', -flowOffset)   // negative = forward motion
-            .update();
-        requestAnimationFrame(animateFlow);
+    if (id) html += '<div style="font-size:12px;color:#6C757D;margin-bottom:4px">ID: ' + esc(id) + '</div>';
+    if (nodeType) html += '<div style="font-size:12px;color:#6C757D;margin-bottom:4px">Type: ' + esc(nodeType) + '</div>';
+    if (state) {
+        const stateColor = state === 'ON' ? '#16A34A' : '#DC2626';
+        html += '<div style="font-size:12px;font-weight:700;color:' + stateColor + ';margin-bottom:4px">State: ' + esc(state) + '</div>';
     }
-    animateFlow();
-
-    // ── 2. Pump ON: border-width pulse (replaces old SVG rotation) ────────────
-    // Pumps are native circles so there's nothing to spin.
-    // A green border pulse communicates "running" clearly.
-    // Border is counter-scaled by zoom so it stays constant on-screen.
-    let pumpPhase = 0;
-    function animatePumps() {
-        if (!running) return;
-        pumpPhase = (pumpPhase + 0.07) % (Math.PI * 2);
-        const z  = cy.zoom() || 1;
-        const bw = (3 + Math.sin(pumpPhase) * 2.5) / z;    // oscillates ~0.5 → 5.5 px, then ÷zoom
-        cy.batch(() => {
-            cy.nodes('[type="pump"][state="ON"]').forEach(n => {
-                n.style('border-width', bw);
-            });
-        });
-        requestAnimationFrame(animatePumps);
+    if (flow) {
+        const flowColor = flow === 'active' ? '#16A34A' : flow === 'leakburst' ? '#DC2626' : '#6C757D';
+        const flowLabel = flow === 'active' ? '▶ Active' : flow === 'leakburst' ? '⚠ LEAK/BURST' : 'Idle';
+        html += '<div style="font-size:12px;font-weight:700;color:' + flowColor + ';margin-bottom:4px">Flow: ' + flowLabel + '</div>';
     }
-    animatePumps();
-
-    // ── 3. Valve ON: border-width pulse ───────────────────────────────────────
-    let valvePhase = 0;
-    function animateValves() {
-        if (!running) return;
-        valvePhase = (valvePhase + 0.05) % (Math.PI * 2);
-        const z  = cy.zoom() || 1;
-        const bw = (2.5 + Math.sin(valvePhase) * 1.5) / z;  // oscillates 1 → 4 px, then ÷zoom
-        cy.batch(() => {
-            cy.nodes('[type="valve"][state="ON"]').forEach(n => {
-                n.style('border-width', bw);
-            });
-        });
-        requestAnimationFrame(animateValves);
+    if (comment) {
+        html += '<div style="font-size:12px;background:#FFF0E0;border-left:3px solid #F5821F;padding:4px 8px;border-radius:0 4px 4px 0;margin-top:4px;color:#92400E">' + esc(comment) + '</div>';
     }
-    animateValves();
+    if (desc) {
+        html += '<div style="font-size:11px;color:#6C757D;margin-top:6px;border-top:1px solid #DEE2E6;padding-top:6px">' + esc(desc) + '</div>';
+    }
 
-    // ── 4. Leak/Burst blink (class toggle every 500 ms) ────────────────────────────
-    const leakBurstTimer = setInterval(() => {
-        if (!running) return;
-        cy.edges('[flow="leakburst"]').toggleClass('leakburstBlink');
-    }, 500);
-
-    // ── Expose a clean teardown for zone switches ─────────────────────────────
-    return function stop() {
-        running = false;
-        clearInterval(leakBurstTimer);
-    };
+    html += '</div>';
+    return html;
 }
