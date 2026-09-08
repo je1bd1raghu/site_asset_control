@@ -17,15 +17,34 @@ Status modes:
 Run interactively (no flags needed, everything is prompted):
     python build_zone_files.py
 
+Install dependencies (openpyxl required, pyproj recommended):
+    python build_zone_files.py --setup
+
 Or non-interactively (every flag optional, all have defaults):
     python build_zone_files.py excel/ayeshbag.xlsx
       --zone-id zone_ayeshbag --zone-name "Ayeshbag Distribution"
       --status-mode basic
+
+Optional pipe geometry:
+  WaterGEMS only knows the straight start→end line per pipe. If you have a
+  DXF layout showing the real pipe routes with bends, pass it with --geometry
+  (either .geojson or .dxf):
+    python build_zone_files.py excel/ayeshbag.xlsx --geometry layout.dxf
+  A .dxf is first converted to GeoJSON with GDAL's ogr2ogr (which must be on
+  your PATH), then each line is matched to a pipe by endpoint proximity against
+  the xlsx pipe start/stop node Easting/Northing (same projected CRS). Matched
+  pipes are written with their full vertex path. If you don't have GDAL, export
+  the DXF to a .geojson yourself and pass that instead.
 """
 
 import argparse
+import importlib.util
 import json
+import os
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import openpyxl
@@ -47,6 +66,46 @@ STATUS_MODES       = ("blank", "basic")
 
 
 # ── Small interactive helpers ───────────────────────────────────────────────
+def _module_available(name):
+    return importlib.util.find_spec(name) is not None
+
+
+def setup_dependencies(with_gdal=False):
+    """Install the Python dependencies this script needs (merged from setup.py).
+
+    Always installs: openpyxl (required to read the WaterGEMS export).
+    Installs if missing: pyproj (accurate UTM→WGS84 reprojection).
+    Optional: with_gdal=True also pip-installs the GDAL Python bindings, but
+    note ogr2ogr itself is an external binary (OSGeo4W etc.) that pip cannot
+    provide.
+
+    Returns 0 on success, non-zero on failure.
+    """
+    targets = []
+    if not _module_available("openpyxl"):
+        targets.append("openpyxl")
+    if not _module_available("pyproj"):
+        targets.append("pyproj>=3.0")
+    if with_gdal and not shutil.which("ogr2ogr"):
+        targets.append("gdal>=3.4")
+
+    if not targets:
+        print("All Python dependencies already satisfied.")
+    else:
+        print("Installing: " + ", ".join(targets))
+        result = subprocess.call([sys.executable, "-m", "pip", "install", *targets])
+        if result != 0:
+            return result
+
+    if not shutil.which("ogr2ogr"):
+        print("NOTE: ogr2ogr (GDAL) not found on PATH. DXF pipe layouts "
+              "(--geometry *.dxf) need it; install the OSGeo4W/GISInternals "
+              "GDAL or export the DXF to .geojson instead.")
+    elif with_gdal:
+        print("ogr2ogr found on PATH.")
+    return 0
+
+
 def ask(label, default=""):
     """Prompt for a value, returning the default when the user presses Enter."""
     try:
@@ -78,6 +137,150 @@ def ask_choice(label, options, default):
         print("    Invalid choice.")
 
 
+# ── Pipe geometry helpers (GeoJSON) ──────────────────────────────────────────
+def _dxf_to_geojson(dxf_path: str):
+    """Convert a DXF file to a temporary GeoJSON using GDAL's ogr2ogr.
+
+    Returns the path to the generated .geojson (caller must clean it up), or
+    raises RuntimeError if ogr2ogr is missing or the conversion fails.
+    DXF files carry no CRS, so the coordinates are passed through unchanged.
+    """
+    ogr2ogr = shutil.which("ogr2ogr")
+    if not ogr2ogr:
+        raise RuntimeError(
+            "ogr2ogr (GDAL) not found on PATH — install GDAL or convert the "
+            "DXF to GeoJSON yourself and pass the .geojson to --geometry")
+
+    tmp_fd, tmp_geojson = tempfile.mkstemp(suffix=".geojson", prefix="zone_geom_")
+    os.close(tmp_fd)
+    try:
+        result = subprocess.run(
+            [ogr2ogr, "-f", "GeoJSON", tmp_geojson, dxf_path],
+            capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"ogr2ogr failed for {dxf_path}:\n{result.stderr.strip()}")
+    except Exception as e:
+        os.unlink(tmp_geojson)
+        raise RuntimeError(f"DXF conversion failed: {e}") from e
+    return tmp_geojson
+
+
+def _load_geojson_polylines(geometry_path: str):
+    """Load every line geometry from a GeoJSON file.
+
+    Returns a list of polylines, each a list of (x, y) vertex tuples in the
+    same projected CRS as the xlsx Easting/Northing. For MultiLineString /
+    GeometryCollection parts only the longest LineString is kept. Raises
+    FileNotFoundError for a bad path; returns [] on parse errors (caller warns).
+    """
+    if not geometry_path:
+        return []
+
+    path = Path(geometry_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Geometry file not found: {geometry_path}")
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        print(f"WARNING: could not parse geometry file {geometry_path}: {e}", file=sys.stderr)
+        return []
+
+    polylines = []
+
+    def add_linestring(coords):
+        pts = [(float(c[0]), float(c[1])) for c in coords]
+        if len(pts) >= 2:
+            polylines.append(pts)
+
+    features = data.get("features") if isinstance(data, dict) else None
+    if features is not None:
+        for feat in features:
+            geom = feat.get("geometry") if isinstance(feat, dict) else None
+            if not geom:
+                continue
+            gtype = geom.get("type")
+            coords = geom.get("coordinates")
+            if gtype == "LineString" and coords:
+                add_linestring(coords)
+            elif gtype == "MultiLineString" and coords:
+                best = max(coords, key=len, default=None)
+                if best:
+                    add_linestring(best)
+            elif gtype == "GeometryCollection":
+                for sub in geom.get("geometries", []):
+                    if sub.get("type") == "LineString":
+                        add_linestring(sub.get("coordinates", []))
+                    elif sub.get("type") == "MultiLineString":
+                        best = max(sub.get("coordinates", []), key=len, default=None)
+                        if best:
+                            add_linestring(best)
+    else:
+        # Bare geometry object (no FeatureCollection wrapper)
+        gtype = data.get("type")
+        coords = data.get("coordinates")
+        if gtype == "LineString" and coords:
+            add_linestring(coords)
+        elif gtype == "MultiLineString" and coords:
+            best = max(coords, key=len, default=None)
+            if best:
+                add_linestring(best)
+
+    return polylines
+
+
+def _euclid(ax, ay, bx, by):
+    return ((ax - bx) ** 2 + (ay - by) ** 2) ** 0.5
+
+
+def _match_pipes_by_endpoints(edges, node_utms, polylines):
+    """Greedy-match GeoJSON polylines to pipes by endpoint distance.
+
+    edges:      list of {id, source, target}
+    node_utms:  {node_id: (x, y)}
+    polylines:  list of [(x, y), ...]
+
+    Returns {edge_id: [(x, y), ...]}. A pipe that gets no match is simply
+    absent. Distance is measured between the polyline's first/last vertex and
+    the pipe's source/target node coordinates (tried both orientations).
+    """
+    if not polylines:
+        return {}
+
+    src_utm = {}
+    tgt_utm = {}
+    for e in edges:
+        s = node_utms.get(e["source"])
+        t = node_utms.get(e["target"])
+        if s and t:
+            src_utm[e["id"]] = s
+            tgt_utm[e["id"]] = t
+
+    candidates = []   # (cost, edge_id, poly_index, poly)
+    for idx, pl in enumerate(polylines):
+        first = pl[0]
+        last  = pl[-1]
+        for eid in src_utm:
+            s_pos = src_utm[eid]
+            t_pos = tgt_utm[eid]
+            cost_fwd = _euclid(*first, *s_pos) + _euclid(*last, *t_pos)
+            cost_rev = _euclid(*first, *t_pos) + _euclid(*last, *s_pos)
+            candidates.append((min(cost_fwd, cost_rev), eid, idx, pl))
+
+    candidates.sort(key=lambda c: c[0])
+
+    matched = {}
+    used_polys = set()
+    for cost, eid, idx, pl in candidates:
+        if eid in matched or idx in used_polys:
+            continue
+        matched[eid] = pl
+        used_polys.add(idx)
+
+    return matched
+
+
 def build_zone_files(
     xlsx_path: str,
     zone_id: str = DEFAULT_ZONE_ID,
@@ -85,6 +288,7 @@ def build_zone_files(
     source_crs: str = DEFAULT_SOURCE_CRS,
     output_dir: str = DEFAULT_OUTPUT_DIR,
     status_mode: str = "blank",
+    geometry_path: str = None,
 ):
     """Main conversion function. Returns (status_path, kml_path)."""
     if status_mode not in STATUS_MODES:
@@ -198,6 +402,44 @@ def build_zone_files(
         if len(orphan_edges) > 20:
             print(f"  ... and {len(orphan_edges) - 20} more", file=sys.stderr)
 
+    # ── Optional pipe geometry (bends) from GeoJSON or DXF ──────────────
+    matched_paths = {}   # edge_id -> [(x, y), ...] in source CRS
+    if geometry_path:
+        geom_source = geometry_path
+        tmp_geojson = None
+        load_failed = False
+        is_dxf = Path(geometry_path).suffix.lower() == ".dxf"
+        try:
+            if is_dxf:
+                tmp_geojson = _dxf_to_geojson(geometry_path)
+                geom_source = tmp_geojson
+            polylines = _load_geojson_polylines(geom_source)
+        except (FileNotFoundError, RuntimeError) as e:
+            print(f"WARNING: {e} — pipes will use straight lines.", file=sys.stderr)
+            polylines = []
+            load_failed = True
+        finally:
+            if tmp_geojson:
+                os.unlink(tmp_geojson)
+
+        if polylines:
+            node_utms = {nid: (n["x"], n["y"])
+                         for nid, n in all_nodes_raw.items()}
+            matched_paths = _match_pipes_by_endpoints(edges, node_utms, polylines)
+            print(f"Pipe geometry: {len(polylines)} lines loaded, "
+                  f"{len(matched_paths)} pipes matched to a bent path")
+            if len(matched_paths) < len(edges):
+                print(f"WARNING: {len(edges) - len(matched_paths)} pipes have no "
+                      "matching geometry — straight lines will be used.",
+                      file=sys.stderr)
+            if len(matched_paths) < len(polylines):
+                print(f"WARNING: {len(polylines) - len(matched_paths)} geometry "
+                      "lines did not match any pipe and were ignored.",
+                      file=sys.stderr)
+        elif geometry_path and not load_failed:
+            print("WARNING: geometry file yielded no line features — pipes will "
+                  "use straight lines.", file=sys.stderr)
+
     # ── Output: KML + status JSON ─────────────────────────────────────
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -223,12 +465,20 @@ def build_zone_files(
         kml_lines.append(f'      <coordinates>{ll["lng"]},{ll["lat"]}{elev_str}</coordinates>')
         kml_lines.append('    </Point>')
         kml_lines.append('  </Placemark>')
-    # Edges → LineStrings
+    # Edges → LineStrings (bent path if geometry matched, else straight)
     for e in edges:
         src_ll = nodes_latlng.get(e["source"], {})
         tgt_ll = nodes_latlng.get(e["target"], {})
         if not src_ll or not tgt_ll:
             continue
+
+        path = matched_paths.get(e["id"])
+        if path:
+            waypoints = [to_latlng(x, y) for x, y in path]
+        else:
+            waypoints = [(src_ll["lat"], src_ll["lng"]),
+                         (tgt_ll["lat"], tgt_ll["lng"])]
+
         kml_lines.append('  <Placemark>')
         kml_lines.append(f'    <name>{e["id"]}</name>')
         kml_lines.append('    <ExtendedData>')
@@ -238,8 +488,8 @@ def build_zone_files(
         kml_lines.append('    </ExtendedData>')
         kml_lines.append('    <LineString>')
         kml_lines.append('      <coordinates>')
-        kml_lines.append(f'        {src_ll["lng"]},{src_ll["lat"]}')
-        kml_lines.append(f'        {tgt_ll["lng"]},{tgt_ll["lat"]}')
+        for lat, lng in waypoints:
+            kml_lines.append(f'        {lng},{lat}')
         kml_lines.append('      </coordinates>')
         kml_lines.append('    </LineString>')
         kml_lines.append('  </Placemark>')
@@ -309,6 +559,8 @@ def interactive_wizard(args):
     source_crs = ask("Source CRS", args.source_crs or DEFAULT_SOURCE_CRS) or DEFAULT_SOURCE_CRS
     output_dir = ask("Output directory", args.output_dir or DEFAULT_OUTPUT_DIR)
     status_mode = ask_choice("Status mode", list(STATUS_MODES), args.status_mode or "blank")
+    geometry_default = getattr(args, "geometry", None) or ""
+    geometry_path = ask("Pipe layout path  (.geojson or .dxf, optional)", geometry_default) or None
 
     print("\n  ── Summary ────────────────────────────────────────")
     print(f"    xlsx       : {xlsx_path}")
@@ -317,6 +569,7 @@ def interactive_wizard(args):
     print(f"    source CRS : {source_crs}")
     print(f"    output dir : {output_dir}")
     print(f"    status mode: {status_mode}")
+    print(f"    geometry   : {geometry_path or '(none — straight pipes)'}")
     if input("  Continue? [Y/n]: ").strip().lower() in ("n", "no"):
         print("  Aborted.")
         return
@@ -328,6 +581,7 @@ def interactive_wizard(args):
         source_crs=source_crs,
         output_dir=output_dir,
         status_mode=status_mode,
+        geometry_path=geometry_path,
     )
 
 
@@ -345,7 +599,22 @@ def main():
                         help="Output directory (default: %(default)s)")
     parser.add_argument("--status-mode", choices=STATUS_MODES, default="blank",
                         help="Status output mode: blank or basic (default: %(default)s)")
+    parser.add_argument("--geometry", default=None,
+                        help="Optional pipe layout with real routes: a .geojson, "
+                             "or a .dxf converted via GDAL ogr2ogr. Lines are "
+                             "matched to pipes by endpoints; matched pipes draw "
+                             "their full bent path instead of a straight line")
+    parser.add_argument("--setup", action="store_true",
+                        help="Install the Python dependencies (openpyxl, pyproj) "
+                             "and exit. Add --with-gdal to also try pip-installing "
+                             "the GDAL Python bindings.")
+    parser.add_argument("--with-gdal", action="store_true",
+                        help="With --setup, also pip-install GDAL (ogr2ogr still "
+                             "needs the external OSGeo4W/GISInternals binaries)")
     args = parser.parse_args()
+
+    if args.setup:
+        raise SystemExit(setup_dependencies(with_gdal=args.with_gdal))
 
     if args.xlsx:
         build_zone_files(
@@ -355,6 +624,7 @@ def main():
             source_crs=args.source_crs,
             output_dir=args.output_dir,
             status_mode=args.status_mode,
+            geometry_path=args.geometry,
         )
     else:
         interactive_wizard(args)
