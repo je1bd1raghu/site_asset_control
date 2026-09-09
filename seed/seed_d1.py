@@ -49,6 +49,7 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Optional
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 
@@ -91,15 +92,15 @@ _KNOWN_STATUS = [
 ]
 
 
-def status_path(name):
+def status_path(name: str) -> str:
     return os.path.join(STATUS_DIR, name)
 
 
-def output_path(name):
+def output_path(name: str) -> str:
     return os.path.join(RECORDS_DIR, name)
 
 
-def status_source_path(name):
+def status_source_path(name: str) -> str:
     """Prefer seed/status/ (where pulls land); fall back to zones/ (builder output)."""
     seed = status_path(name)
     zone_ = os.path.join(ZONES_DIR, name)
@@ -108,7 +109,7 @@ def status_source_path(name):
     return seed
 
 
-def scan_status_files():
+def scan_status_files() -> set:
     """Discover every zone_*_status.json in seed/status/ and zones/ so newly
     built zones show up automatically (same pattern the worker whitelists)."""
     names = set()
@@ -120,54 +121,59 @@ def scan_status_files():
     return names
 
 
-def status_files():
+def status_files() -> list:
     """Pushable zone status files: the known baseline plus anything discovered."""
     return sorted(set(_KNOWN_STATUS) | scan_status_files())
 
 
-def pushable_files():
+def pushable_files() -> list:
     return ["config.json", *status_files(), *OUTPUT_FILES]
 
 
-def push_groups():
+def push_groups() -> dict:
     return {"all": pushable_files(), "config": ["config.json"],
             "status": status_files(), "output": OUTPUT_FILES}
 
 
-def local_path(name):
+def local_path(name: str) -> str:
     if name == "config.json": return CONFIG_PATH
     if name in status_files(): return status_source_path(name)
     return output_path(name)
 
 # ── HTTP helpers ──────────────────────────────────────────────────────────────
-def get(endpoint):
-    """GET an endpoint and return the parsed JSON ({files:{...}} on success)."""
-    req = Request(WORKER_URL + endpoint, headers={"User-Agent": "scada-seed/1.0"})
+_USER_AGENT = "scada-seed/1.0"
+_HTTP_TIMEOUT = 30
+
+
+def _http_request(method: str, endpoint: str, body: Optional[dict] = None) -> dict:
+    """Shared HTTP helper. Returns parsed JSON or {"error": ..., "ok": False}."""
+    url = WORKER_URL + endpoint
+    headers = {"User-Agent": _USER_AGENT}
+    data = None
+    if body is not None:
+        data = json.dumps(body).encode()
+        headers["Content-Type"] = "application/json"
+    req = Request(url, data=data, method=method, headers=headers)
     try:
-        with urlopen(req, timeout=30) as r:
+        with urlopen(req, timeout=_HTTP_TIMEOUT) as r:
             return json.loads(r.read())
     except HTTPError as e:
         return {"error": e.read().decode(), "ok": False}
     except URLError as e:
         return {"error": str(e), "ok": False}
 
-def patch(endpoint, files_dict):
-    url  = WORKER_URL + endpoint
-    body = json.dumps({"files": {k: {"content": v} for k, v in files_dict.items()}}).encode()
-    req  = Request(url, data=body, method="PATCH", headers={
-        "Content-Type": "application/json",
-        "User-Agent":   "scada-seed/1.0",
-    })
-    try:
-        with urlopen(req, timeout=30) as r:
-            return json.loads(r.read())
-    except HTTPError as e:
-        return {"error": e.read().decode(), "ok": False}
-    except URLError as e:
-        return {"error": str(e), "ok": False}
+
+def get(endpoint: str) -> dict:
+    """GET an endpoint and return the parsed JSON ({files:{...}} on success)."""
+    return _http_request("GET", endpoint)
+
+
+def patch(endpoint: str, files_dict: dict) -> dict:
+    body = {"files": {k: {"content": v} for k, v in files_dict.items()}}
+    return _http_request("PATCH", endpoint, body)
 
 # ── File helpers ──────────────────────────────────────────────────────────────
-def load(path):
+def load(path: str) -> Optional[str]:
     try:
         content = open(path, encoding="utf-8-sig").read()
         badge("LOAD", f"loaded {rel(path)} ({len(content):,} bytes)")
@@ -176,18 +182,18 @@ def load(path):
         badge("SKIP", f"{rel(path)} not found — skipping")
         return None
 
-def save(path, content):
+def save(path: str, content: str) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(content)
     badge("SAVE", f"saved {rel(path)} ({len(content):,} bytes)")
 
-def rel(path):
+def rel(path) -> str:
     """Show paths relative to cwd when possible, else as-is — just for tidy output."""
     try:    return os.path.relpath(path)
     except ValueError:  return path
 
-def count_csv_rows(text):
+def count_csv_rows(text: str) -> int:
     if not text or not text.strip():
         return 0
     return max(0, len([l for l in text.strip().splitlines() if l.strip()]) - 1)
@@ -195,11 +201,11 @@ def count_csv_rows(text):
 # ── wrangler helpers ──────────────────────────────────────────────────────────
 # wrangler runs from SCRIPT_DIR (seed/) so it finds wrangler.toml + the worker
 # entry point there. shell=True covers Windows (.cmd shim) and POSIX alike.
-def wrangler(argstr):
+def wrangler(argstr: str) -> subprocess.CompletedProcess:
     return subprocess.run(f"wrangler {argstr}", capture_output=True,
                           encoding="utf-8", errors="replace", shell=True, cwd=SCRIPT_DIR)
 
-def wrangler_sql(sql):
+def wrangler_sql(sql: str) -> subprocess.CompletedProcess:
     """Run SQL via a temp .sql file + --file, so quotes/braces/newlines in JSON
     never touch the shell, and force UTF-8 output (wrangler emits emoji)."""
     tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".sql", encoding="utf-8", delete=False)
@@ -209,14 +215,14 @@ def wrangler_sql(sql):
     finally:
         os.unlink(tmp.name)
 
-def section(title):
+def section(title: str) -> None:
     print()
     print("  " + paint("── ", _fg(CYAN))
           + paint(str(title), _fg(VIOLET), _BOLD) + "  "
           + paint("─" * max(1, 44 - _visible_len(str(title))), _fg(CYAN)))
 
 # ── PULL: D1 → local files ────────────────────────────────────────────────────
-def pull():
+def pull() -> None:
     section("pull — config")
     r = get("/config")
     if "files" in r and r["files"].get("config.json") is not None:
@@ -255,13 +261,16 @@ def pull():
 # push() takes a concrete list of file names and groups them by endpoint. Each
 # pusher returns True on success (or nothing to do) and False on a real failure.
 
-def push_config_file():
+def push_config_file() -> bool:
     # config.json — upserted via wrangler (there is no PATCH /config endpoint).
     section("push · config.json")
     if not os.path.exists(CONFIG_PATH):
         badge("SKIP", f"{rel(CONFIG_PATH)} missing locally — deleting from D1")
         return delete_file_remote("config.json")
     content = load(CONFIG_PATH)
+    if content is None:
+        badge("ERR", f"could not read {rel(CONFIG_PATH)}")
+        return False
     escaped = content.replace("'", "''")   # SQL single-quote escaping
     sql = ("INSERT OR REPLACE INTO files (name, content, updated_at) "
            f"VALUES ('config.json', '{escaped}', datetime('now'));")
@@ -272,7 +281,7 @@ def push_config_file():
     badge("ERR", f"config.json failed:\n{r.stderr.strip()}")
     return False
 
-def push_status_files(names):
+def push_status_files(names: list) -> bool:
     # zone status files — via PATCH /status (whitelisted to zone_*_status.json).
     section("push · status (" + ", ".join(names) + ")")
     payload, missing = {}, []
@@ -300,7 +309,7 @@ def push_status_files(names):
 # replace via PATCH /output, so it needs no row deletion.
 TABLE_FOR_FILE = {"records.csv": "records", "leakbursts.csv": "leakbursts"}
 
-def delete_file_remote(name):
+def delete_file_remote(name: str) -> bool:
     """Delete a selected file's remote counterpart because it is missing locally.
     Blobs (config/status/estimates) live in the `files` table; the CSV outputs
     live in their row tables, so those are dropped in full (mirror semantics).
@@ -317,14 +326,14 @@ def delete_file_remote(name):
     badge("ERR", f"{name} delete failed:\n{r.stderr.strip()}")
     return False
 
-def csv_sns(text):
+def csv_sns(text: Optional[str]) -> set:
     """Set of non-empty `sn` values in a CSV string."""
     if not text or not text.strip():
         return set()
     return {(r.get("sn") or "").strip()
             for r in csv.DictReader(io.StringIO(text)) if (r.get("sn") or "").strip()}
 
-def delete_rows(table, sns):
+def delete_rows(table: str, sns: list) -> bool:
     """DELETE the given sns from a table via wrangler (chunked IN lists)."""
     CHUNK = 200
     stmts = []
@@ -338,7 +347,7 @@ def delete_rows(table, sns):
     badge("ERR", f"{table} delete failed:\n{r.stderr.strip()}")
     return False
 
-def mirror_delete_output(payload):
+def mirror_delete_output(payload: dict) -> bool:
     """Make the remote row tables mirror the local files: delete remote rows whose
     `sn` is absent locally. Only files actually pushed this run are touched; a
     present-but-empty file is skipped to avoid accidentally wiping a whole table."""
@@ -364,7 +373,7 @@ def mirror_delete_output(payload):
             ok = False
     return ok
 
-def push_output_files(names):
+def push_output_files(names: list) -> bool:
     # records + leakbursts + estimates — via PATCH /output (append-only insert),
     # then mirror-delete so the pushed row tables match the local files exactly.
     section("push · output (" + ", ".join(names) + ")")
@@ -403,7 +412,7 @@ def push_output_files(names):
         return mirror_delete_output(payload) and ok
     return ok
 
-def resolve_push_args(tokens):
+def resolve_push_args(tokens: list) -> Optional[list]:
     """Expand CLI tokens (group names and/or file names) into a concrete file list.
     No tokens → all files. Returns None if any token is unrecognized."""
     groups = push_groups()
@@ -419,7 +428,7 @@ def resolve_push_args(tokens):
     seen = set()
     return [n for n in out if not (n in seen or seen.add(n))]
 
-def push(names=None):
+def push(names: Optional[list] = None) -> bool:
     """Push a concrete list of file names (None → all), grouped by endpoint.
     Continues through groups on error and reports an overall result."""
     sel = names if names is not None else pushable_files()
@@ -439,7 +448,7 @@ def push(names=None):
     return ok
 
 # ── VERIFY: row counts / blob sizes from D1 ───────────────────────────────────
-def verify():
+def verify() -> None:
     section("verify — D1 contents")
     queries = [
         ("records",    "SELECT COUNT(*) AS n FROM records;"),
@@ -455,7 +464,7 @@ def verify():
     print()
 
 # ── DEPLOY: upload the worker (scada-worker-d1.js) ────────────────────────────
-def deploy():
+def deploy() -> None:
     section("deploy — wrangler deploy (scada-worker-d1.js)")
     r = wrangler("deploy")
     print(r.stdout.strip())
@@ -486,7 +495,6 @@ VIOLET   = 141   # soft lavender — borders, secondary
 PURPLE   = 177
 MAGENTA  = 213
 CYAN     = 80    # info / bullets
-TEAL     = 45
 GREEN    = 114   # success
 GOLD     = 220   # headings, highlights
 AMBER    = 214   # warnings
@@ -494,7 +502,6 @@ CORAL    = 209   # warm secondary accent
 RED      = 204   # errors
 SILVER   = 252   # body text
 WHITE    = 255
-DARK     = 236
 
 _ESC = "\x1b["
 _BOLD = _ESC + "1m"
@@ -502,11 +509,11 @@ _DIM  = _ESC + "2m"
 _RST  = _ESC + "0m"
 
 
-def _fg(n):
+def _fg(n: int) -> str:
     return f"{_ESC}38;5;{n}m"
 
 
-def _console_init():
+def _console_init() -> None:
     """Enable ANSI support on modern Windows consoles and decide on color."""
     global ENABLE_COLOR
     if os.environ.get("NO_COLOR"):
@@ -526,33 +533,33 @@ def _console_init():
 _console_init()
 
 
-def paint(text, *codes):
+def paint(text, *codes) -> str:
     if not ENABLE_COLOR:
-        return text
+        return str(text)
     return "".join(codes) + str(text) + _RST
 
 
-def fg(text, n):
+def fg(text, n: int) -> str:
     return paint(text, _fg(n))
 
 
-def bold(text):
+def bold(text) -> str:
     return paint(text, _BOLD)
 
 
-def dim(text):
+def dim(text) -> str:
     return paint(text, _DIM)
 
 
-def _visible_len(text):
+def _visible_len(text) -> int:
     return len(re.sub(r"\x1b\[[0-9;]*m", "", str(text)))
 
 
-def clear_screen():
+def clear_screen() -> None:
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def badge(kind, msg):
+def badge(kind: str, msg: str) -> None:
     """Colored [LABEL] status line: OK / ERR / WARN / DEL / SKIP / LOAD / SAVE."""
     color = {"OK": GREEN, "ERR": RED, "WARN": AMBER, "DEL": CYAN,
              "SKIP": AMBER, "LOAD": CYAN, "SAVE": VIOLET}[kind]
@@ -562,7 +569,7 @@ def badge(kind, msg):
 
 
 # ── Builder UX helpers ────────────────────────────────────────────────────────
-def header(title):
+def header(title: str) -> None:
     """Section banner for wizards — gold title between cyan rules."""
     rule()
     print("  " + paint("▸ ", _fg(CYAN), _BOLD)
@@ -570,32 +577,40 @@ def header(title):
     rule()
 
 
-def box(lines, width=None):
+def box(lines, width: Optional[int] = None) -> None:
     """Print a bordered box of one or more lines. When the box is a single line
     it reads as a title (gold bold); multi-line boxes render `key : value` rows
-    with the key in violet. ANSI codes are excluded from padding math."""
+    with the key in violet. ANSI codes are excluded from padding math, so the
+    left/right borders and the ┌──┐/└──┘ corners always line up."""
     text = [str(l) for l in lines]
     w = width or max(_visible_len(l) for l in text)
     edge = paint("┌" + "─" * (w + 2) + "┐", _fg(VIOLET))
     base = paint("└" + "─" * (w + 2) + "┘", _fg(VIOLET))
     print("  " + edge)
-    for i, l in enumerate(text):
-        if _visible_len(l) != len(l):
-            body = l   # already painted by the caller
+    for l in text:
+        visible = _visible_len(l)
+        if visible != len(l):
+            # Already painted by the caller — pad to w on the right by visible
+            # width so the ANSI codes are not counted by ljust.
+            body = l + " " * max(0, w - visible)
         elif len(text) == 1:
-            body = paint(l, _fg(GOLD), _BOLD)
+            body = paint(l.ljust(w), _fg(GOLD), _BOLD)
         elif ":" in l:
             key, _, rest = l.partition(":")
             body = paint(key, _fg(VIOLET), _BOLD) + paint(":", _fg(VIOLET)) \
+                   + paint(" " * max(0, w - len(key) - 1 - len(rest)), _fg(SILVER)) \
                    + paint(rest, _fg(SILVER))
         else:
-            body = paint(l, _fg(SILVER))
-        print("  " + paint("│ ", _fg(CYAN)) + body.ljust(w)
+            body = paint(l.ljust(w), _fg(SILVER))
+        # One space either side of the body keeps the content row the same
+        # width as the dashed top/bottom (w + 2 between the borders).
+        print("  " + paint("│", _fg(CYAN))
+              + paint(" ", _fg(CYAN)) + body + paint(" ", _fg(CYAN))
               + paint("│", _fg(CYAN)))
     print("  " + base)
 
 
-def rule(title=""):
+def rule(title: str = "") -> None:
     if title:
         print("  " + paint("──", _fg(CYAN)) + "  "
               + paint(str(title), _fg(GOLD), _BOLD) + "  "
@@ -604,25 +619,25 @@ def rule(title=""):
         print("  " + paint("─" * 46, _fg(VIOLET), _DIM))
 
 
-def step(num, total, title):
+def step(num: int, total: int, title: str) -> None:
     print("")
     print("  " + paint(f"STEP {num}/{total}", _fg(GOLD), _BOLD)
           + "   " + paint(str(title), _fg(CYAN), _BOLD))
 
 
-def say(msg):
+def say(msg) -> None:
     print("  " + paint("▸ ", _fg(CYAN)) + paint(str(msg), _fg(SILVER)))
 
 
-def ok(msg):
+def ok(msg: str) -> None:
     badge("OK", msg)
 
 
-def warn(msg):
+def warn(msg: str) -> None:
     badge("WARN", msg)
 
 
-def ask(label, default="", required=False, validate=None):
+def ask(label: str, default: str = "", required: bool = False, validate=None) -> str:
     """Prompt for a value; Enter uses the default. validate(value) -> error str.
     Accepts pasted paths wrapped in matching single or double quotes."""
     while True:
@@ -648,7 +663,7 @@ def ask(label, default="", required=False, validate=None):
         return value
 
 
-def ask_yesno(prompt, default="n"):
+def ask_yesno(prompt: str, default: str = "n") -> bool:
     hint = "Y/n" if default.lower().startswith("y") else "y/N"
     while True:
         y, n = hint.split("/")
@@ -670,7 +685,7 @@ def ask_yesno(prompt, default="n"):
         badge("ERR", "Please answer y or n.")
 
 
-def pick_option(prompt, options, default=None):
+def pick_option(prompt: str, options: list, default: Optional[int] = None) -> int:
     """Numbered menu with an input prompt; returns the 1-based index chosen."""
     print("  " + paint(str(prompt), _fg(CYAN), _BOLD))
     for i, opt in enumerate(options, 1):
@@ -691,7 +706,7 @@ def pick_option(prompt, options, default=None):
         badge("ERR", "Invalid choice — pick a number from the list.")
 
 
-def banner():
+def banner() -> None:
     """SCADA block logo with a warm→cool horizontal gradient."""
     art = [
         "██████╗  ██████╗   █████╗  ██████╗   █████╗",
@@ -729,11 +744,11 @@ STATUS_MODES       = ("blank", "basic")
 
 
 # ── Builder dependencies ──────────────────────────────────────────────────────
-def _module_available(name):
+def _module_available(name: str) -> bool:
     return importlib.util.find_spec(name) is not None
 
 
-def dependency_report():
+def dependency_report() -> list:
     """Show a numbered status table of every dependency. Returns the checks."""
     checks = [
         ("openpyxl", "reads the WaterGEMS .xlsx", _module_available("openpyxl"), "required"),
@@ -749,7 +764,7 @@ def dependency_report():
     return checks
 
 
-def setup_dependencies():
+def setup_dependencies() -> int:
     """Install the Python dependencies the builder needs.
 
     Always installs: openpyxl (required to read the WaterGEMS export).
@@ -774,7 +789,7 @@ def setup_dependencies():
 
 
 # ── Builder pipe-geometry helpers (KML base file) ─────────────────────────────
-def _load_kml_paths(geometry_path: str):
+def _load_kml_paths(geometry_path: str) -> tuple:
     """Load every <LineString> from a KML file.
 
     Returns (paths, names): paths is a list of [(lat, lng), ...] vertex tuples
@@ -831,11 +846,11 @@ def _load_kml_paths(geometry_path: str):
     return paths, names
 
 
-def _euclid(ax, ay, bx, by):
+def _euclid(ax, ay, bx, by) -> float:
     return ((ax - bx) ** 2 + (ay - by) ** 2) ** 0.5
 
 
-def _match_pipes_by_endpoints(edges, node_utms, polylines):
+def _match_pipes_by_endpoints(edges, node_utms, polylines) -> dict:
     """Greedy-match line geometries to pipes by endpoint distance.
 
     edges:      list of {id, source, target}
@@ -882,7 +897,7 @@ def _match_pipes_by_endpoints(edges, node_utms, polylines):
     return matched
 
 
-def _match_pipes(edges, node_utms, polylines, names=None):
+def _match_pipes(edges, node_utms, polylines, names=None) -> dict:
     """Match polylines to pipes — by placemark <name> first, then (for the
     lines and edges still unmatched) by endpoint proximity.
 
@@ -921,7 +936,7 @@ def _match_pipes(edges, node_utms, polylines, names=None):
 
 
 # ── Builder sheet reading (header-driven columns) ─────────────────────────────
-def _resolve_cols(ws, spec):
+def _resolve_cols(ws, spec: list) -> dict:
     """Map logical fields to column letters by reading the sheet header row.
 
     spec: list of (field, [header-synonyms incl. "x"/"easting"], fallback letter).
@@ -948,6 +963,146 @@ def _rows_since_header(ws):
         yield {c.column_letter: c.value for c in row if c.value is not None}
 
 
+def _read_sheet_nodes(ws, col_spec: list, label: str) -> dict:
+    """Read node coordinates from a worksheet. Returns {id: {x, y, elevation}}."""
+    nodes = {}
+    cols = _resolve_cols(ws, col_spec)
+    for d in _rows_since_header(ws):
+        elem = d.get(cols["elem"])
+        if not elem:
+            continue
+        x_raw, y_raw = d.get(cols["east"]), d.get(cols["north"])
+        if x_raw is not None and y_raw is not None:
+            nodes[str(elem)] = {"x": float(x_raw), "y": float(y_raw),
+                                "elevation": d.get(cols["elev"])}
+    ok(f"{label} with coordinates: {len(nodes)}")
+    return nodes
+
+
+def _write_kml(kml_path: Path, zone_name: str, nodes_latlng: dict,
+               edges: list, matched_paths: dict, to_latlng) -> None:
+    """Write a KML file with node Points and edge LineStrings."""
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<kml xmlns="http://www.opengis.net/kml/2.2">',
+        '<Document>',
+        f'  <name>{zone_name}</name>',
+    ]
+    for nid, ll in nodes_latlng.items():
+        elev = ll.get("elevation")
+        elev_str = f',{elev}' if elev is not None else ''
+        lines.extend([
+            '  <Placemark>',
+            f'    <name>{nid}</name>',
+            '    <ExtendedData>',
+            f'      <Data name="id"><value>{nid}</value></Data>',
+            '    </ExtendedData>',
+            '    <Point>',
+            f'      <coordinates>{ll["lng"]},{ll["lat"]}{elev_str}</coordinates>',
+            '    </Point>',
+            '  </Placemark>',
+        ])
+    for e in edges:
+        src_ll = nodes_latlng.get(e["source"], {})
+        tgt_ll = nodes_latlng.get(e["target"], {})
+        if not src_ll or not tgt_ll:
+            continue
+        path = matched_paths.get(e["id"])
+        if path:
+            waypoints = [to_latlng(x, y) for x, y in path]
+        else:
+            waypoints = [(src_ll["lat"], src_ll["lng"]),
+                         (tgt_ll["lat"], tgt_ll["lng"])]
+        lines.extend([
+            '  <Placemark>',
+            f'    <name>{e["id"]}</name>',
+            '    <ExtendedData>',
+            f'      <Data name="id"><value>{e["id"]}</value></Data>',
+            f'      <Data name="source"><value>{e["source"]}</value></Data>',
+            f'      <Data name="target"><value>{e["target"]}</value></Data>',
+            '    </ExtendedData>',
+            '    <LineString>',
+            '      <coordinates>',
+            *[f'        {lng},{lat}' for lat, lng in waypoints],
+            '      </coordinates>',
+            '    </LineString>',
+            '  </Placemark>',
+        ])
+    lines.extend(['</Document>', '</kml>'])
+    kml_path.write_text("\n".join(lines), encoding="utf-8")
+    ok(f"Wrote {kml_path}  ({len(nodes_latlng)} points, {len(edges)} linestrings)")
+
+
+def _write_zone_status(status_path: Path, zone_id: str, status_mode: str,
+                       nodes_latlng: dict, node_kind: dict, edges: list) -> None:
+    """Write the zone status JSON file (gist-backed status seed)."""
+    entries = []
+    for nid in nodes_latlng:
+        if status_mode == "basic":
+            is_reservoir = node_kind.get(nid) == "reservoir"
+            entries.append({
+                "id": nid,
+                "label": nid,
+                "type": "zone" if is_reservoir else "",
+                "state": "ON" if is_reservoir else "OFF",
+                "comment": "",
+            })
+        else:
+            entries.append({
+                "id": nid, "label": "", "type": "",
+                "state": "", "comment": "",
+            })
+    for e in edges:
+        entries.append({"id": e["id"], "flow": ""})
+    status_path.write_text(
+        "[\n" + ",\n".join(f"  {json.dumps(s)}" for s in entries) + "\n]",
+        encoding="utf-8",
+    )
+    ok(f"Wrote {status_path}  ({len(entries)} entries, mode={status_mode})")
+
+
+def _load_pipe_geometry(geometry_path: str, edges: list,
+                       all_nodes_raw: dict, source_crs: str) -> tuple:
+    """Load a KML base file, reproject to source CRS, and match to pipes.
+
+    Returns (matched_paths, load_failed) where matched_paths is
+    {edge_id: [(x, y), ...]} in source CRS coordinates.
+    """
+    paths, names, load_failed = [], [], False
+
+    if Path(geometry_path).suffix.lower() != ".kml":
+        warn("Pipe geometry must be a .kml file — ignoring the path.")
+        return {}, True
+
+    try:
+        paths, names = _load_kml_paths(geometry_path)
+        if paths and not HAS_PYPROJ:
+            warn("KML geometry needs pyproj to reproject into the source "
+                 "CRS — pipes will use straight lines.")
+            return {}, True
+        if paths:
+            rev = Transformer.from_crs(DEFAULT_TARGET_CRS, source_crs, always_xy=True)
+            paths = [[rev.transform(lng, lat) for (lat, lng) in path] for path in paths]
+    except FileNotFoundError as e:
+        warn(f"{e} — pipes will use straight lines.")
+        return {}, True
+
+    if not paths:
+        return {}, False
+
+    node_utms = {nid: (n["x"], n["y"]) for nid, n in all_nodes_raw.items()}
+    matched = _match_pipes(edges, node_utms, paths, names)
+    ok(f"Pipe geometry (KML): {len(paths)} lines loaded, "
+       f"{len(matched)} pipes matched to a bent path")
+    if len(matched) < len(edges):
+        warn(f"{len(edges) - len(matched)} pipes have no "
+             "matching geometry — straight lines will be used.")
+    if len(matched) < len(paths):
+        warn(f"{len(paths) - len(matched)} geometry lines "
+             "did not match any pipe and were ignored.")
+    return matched, False
+
+
 # ── Builder core conversion ───────────────────────────────────────────────────
 def build_zone_files(
     xlsx_path: str,
@@ -957,7 +1112,7 @@ def build_zone_files(
     output_dir: str = DEFAULT_OUTPUT_DIR,
     status_mode: str = "blank",
     geometry_path: str = None,
-):
+) -> tuple:
     """Main conversion function. Returns (status_path, kml_path)."""
     if status_mode not in STATUS_MODES:
         raise ZoneBuildError(
@@ -974,44 +1129,20 @@ def build_zone_files(
         warn("pyproj not installed — coordinates will be raw Easting/Northing.")
 
     # ── Read junctions ──────────────────────────────────────────────────
-    junctions = {}   # id -> {x, y, elevation}
-    ws_junc = wb["Junction"]
-    jc = _resolve_cols(ws_junc, [
+    junctions = _read_sheet_nodes(wb["Junction"], [
         ("elem",  ["element", "label"], "A"),
         ("east",  ["x", "easting"],     "AJ"),
         ("north", ["y", "northing"],    "AK"),
         ("elev",  ["elevation"],        "S"),
-    ])
-    for d in _rows_since_header(ws_junc):
-        elem = d.get(jc["elem"])
-        if not elem:
-            continue
-        x_raw, y_raw = d.get(jc["east"]), d.get(jc["north"])
-        if x_raw is not None and y_raw is not None:
-            junctions[str(elem)] = {"x": float(x_raw), "y": float(y_raw),
-                                    "elevation": d.get(jc["elev"])}
-
-    ok(f"Junctions with coordinates: {len(junctions)}")
+    ], "Junctions")
 
     # ── Read reservoirs ─────────────────────────────────────────────────
-    reservoirs = {}   # id -> {x, y, elevation}
-    ws_res = wb["Reservoir"]
-    rc = _resolve_cols(ws_res, [
+    reservoirs = _read_sheet_nodes(wb["Reservoir"], [
         ("elem",  ["element", "label"], "A"),
         ("east",  ["x", "easting"],     "N"),
         ("north", ["y", "northing"],    "O"),
         ("elev",  ["elevation"],        "J"),
-    ])
-    for d in _rows_since_header(ws_res):
-        elem = d.get(rc["elem"])
-        if not elem:
-            continue
-        x_raw, y_raw = d.get(rc["east"]), d.get(rc["north"])
-        if x_raw is not None and y_raw is not None:
-            reservoirs[str(elem)] = {"x": float(x_raw), "y": float(y_raw),
-                                     "elevation": d.get(rc["elev"])}
-
-    ok(f"Reservoirs with coordinates: {len(reservoirs)}")
+    ], "Reservoirs")
 
     # ── Merge all nodes, remembering provenance ─────────────────────────
     node_kind = {}   # nid -> 'junction' | 'reservoir'
@@ -1087,148 +1218,29 @@ def build_zone_files(
     # ── Optional pipe geometry (bends) from a KML base file ──────────────
     matched_paths = {}   # edge_id -> [(x, y), ...] in source CRS
     if geometry_path:
-        paths = []
-        names = []
-        load_failed = False
-        if Path(geometry_path).suffix.lower() != ".kml":
-            warn("Pipe geometry must be a .kml file — ignoring the path.")
-            geometry_path = None
-            load_failed = True
-        else:
-            try:
-                paths, names = _load_kml_paths(geometry_path)
-                if paths and not HAS_PYPROJ:
-                    warn("KML geometry needs pyproj to reproject into the source "
-                         "CRS — pipes will use straight lines.")
-                    paths, names = [], []
-                    load_failed = True
-                elif paths:
-                    rev = Transformer.from_crs(DEFAULT_TARGET_CRS, source_crs,
-                                               always_xy=True)
-                    paths = [
-                        [rev.transform(lng, lat) for (lat, lng) in path]
-                        for path in paths
-                    ]
-            except FileNotFoundError as e:
-                warn(f"{e} — pipes will use straight lines.")
-                paths = []
-                names = []
-                load_failed = True
-
-        if paths:
-            node_utms = {nid: (n["x"], n["y"])
-                         for nid, n in all_nodes_raw.items()}
-            matched_paths = _match_pipes(edges, node_utms, paths, names)
-            ok(f"Pipe geometry (KML): {len(paths)} lines loaded, "
-               f"{len(matched_paths)} pipes matched to a bent path")
-            if len(matched_paths) < len(edges):
-                warn(f"{len(edges) - len(matched_paths)} pipes have no "
-                     "matching geometry — straight lines will be used.")
-            if len(matched_paths) < len(paths):
-                warn(f"{len(paths) - len(matched_paths)} geometry lines "
-                     "did not match any pipe and were ignored.")
-        elif geometry_path and not load_failed:
+        matched_paths, load_failed = _load_pipe_geometry(
+            geometry_path, edges, all_nodes_raw, source_crs)
+        if not matched_paths and not load_failed:
             warn("geometry file yielded no line features — pipes will use "
                  "straight lines.")
+        elif load_failed:
+            geometry_path = None
 
     # ── Output: KML + status JSON ─────────────────────────────────────
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # ── Write KML file ────────────────────────────────────────────────
     kml_path = out_dir / f"{zone_id}.kml"
-    kml_lines = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        '<kml xmlns="http://www.opengis.net/kml/2.2">',
-        '<Document>',
-        f'  <name>{zone_name}</name>',
-    ]
-    # Nodes → Points
-    for nid, ll in nodes_latlng.items():
-        elev = ll.get("elevation")
-        kml_lines.append('  <Placemark>')
-        kml_lines.append(f'    <name>{nid}</name>')
-        kml_lines.append('    <ExtendedData>')
-        kml_lines.append(f'      <Data name="id"><value>{nid}</value></Data>')
-        kml_lines.append('    </ExtendedData>')
-        kml_lines.append('    <Point>')
-        elev_str = f',{elev}' if elev is not None else ''
-        kml_lines.append(f'      <coordinates>{ll["lng"]},{ll["lat"]}{elev_str}</coordinates>')
-        kml_lines.append('    </Point>')
-        kml_lines.append('  </Placemark>')
-    # Edges → LineStrings (bent path if geometry matched, else straight)
-    for e in edges:
-        src_ll = nodes_latlng.get(e["source"], {})
-        tgt_ll = nodes_latlng.get(e["target"], {})
-        if not src_ll or not tgt_ll:
-            continue
-
-        path = matched_paths.get(e["id"])
-        if path:
-            waypoints = [to_latlng(x, y) for x, y in path]
-        else:
-            waypoints = [(src_ll["lat"], src_ll["lng"]),
-                         (tgt_ll["lat"], tgt_ll["lng"])]
-
-        kml_lines.append('  <Placemark>')
-        kml_lines.append(f'    <name>{e["id"]}</name>')
-        kml_lines.append('    <ExtendedData>')
-        kml_lines.append(f'      <Data name="id"><value>{e["id"]}</value></Data>')
-        kml_lines.append(f'      <Data name="source"><value>{e["source"]}</value></Data>')
-        kml_lines.append(f'      <Data name="target"><value>{e["target"]}</value></Data>')
-        kml_lines.append('    </ExtendedData>')
-        kml_lines.append('    <LineString>')
-        kml_lines.append('      <coordinates>')
-        for lat, lng in waypoints:
-            kml_lines.append(f'        {lng},{lat}')
-        kml_lines.append('      </coordinates>')
-        kml_lines.append('    </LineString>')
-        kml_lines.append('  </Placemark>')
-    kml_lines.extend([
-        '</Document>',
-        '</kml>',
-    ])
-    kml_path.write_text("\n".join(kml_lines), encoding="utf-8")
-    ok(f"Wrote {kml_path}  ({len(nodes_latlng)} points, {len(edges)} linestrings)")
-
-    # ── Write zone status JSON (seeds the gist-backed status file) ─────
-    status_entries = []
-    for nid in nodes_latlng:
-        if status_mode == "basic":
-            is_reservoir = node_kind.get(nid) == "reservoir"
-            status_entries.append({
-                "id": nid,
-                "label": nid,
-                "type": "zone" if is_reservoir else "",
-                "state": "ON" if is_reservoir else "OFF",
-                "comment": "",
-            })
-        else:   # blank
-            status_entries.append({
-                "id": nid,
-                "label": "",
-                "type": "",
-                "state": "",
-                "comment": "",
-            })
-    for e in edges:
-        status_entries.append({
-            "id": e["id"],
-            "flow": "",
-        })
+    _write_kml(kml_path, zone_name, nodes_latlng, edges, matched_paths, to_latlng)
 
     status_path = out_dir / f"{zone_id}_status.json"
-    status_path.write_text(
-        "[\n" + ",\n".join(f"  {json.dumps(s)}" for s in status_entries) + "\n]",
-        encoding="utf-8",
-    )
-    ok(f"Wrote {status_path}  ({len(status_entries)} entries, mode={status_mode})")
+    _write_zone_status(status_path, zone_id, status_mode, nodes_latlng, node_kind, edges)
 
     return status_path, kml_path
 
 
 # ── Builder wizards ───────────────────────────────────────────────────────────
-def wizard_setup():
+def wizard_setup() -> None:
     header("Setup / check dependencies")
     checks = dependency_report()
     py_missing = [n for n, _, present, _ in checks if not present]
@@ -1246,7 +1258,7 @@ def wizard_setup():
         ok("All dependencies are already in place.")
 
 
-def _validate_xlsx(path):
+def _validate_xlsx(path: str) -> Optional[str]:
     p = Path(path)
     if not p.exists():
         return f"Not found: {path}"
@@ -1255,7 +1267,7 @@ def _validate_xlsx(path):
     return None
 
 
-def wizard_convert():
+def wizard_convert() -> None:
     header("Convert xlsx \u2192  KML + status files")
     if not HAS_OPENPYXL:
         warn("openpyxl is not installed — it is required to read the xlsx.")
@@ -1335,7 +1347,7 @@ def wizard_convert():
           + "  press Enter to return to the main menu.")
 
 
-def wizard_help():
+def wizard_help() -> None:
     header("Help — how this tool works")
     help_sections = [
         ("1 · Setup dependencies",
@@ -1357,9 +1369,6 @@ def wizard_help():
           "base .kml file with the real routes. Each line is matched to a pipe",
           "— by placemark <name> first, then by endpoint distance — and",
           "matched pipes are drawn with their full bent path."]),
-        ("5 · Clear console",
-         ["Permanently wipes the terminal and redraws the menu — handy after",
-          "long conversion runs."]),
     ]
     for head, body in help_sections:
         print()
@@ -1374,16 +1383,14 @@ def wizard_help():
           + "  press Enter to return to the main menu.")
 
 
-def zone_builder_main():
+def zone_builder_main() -> None:
     while True:
-        clear_screen()
         banner()
         rule()
         choice = pick_option("What would you like to do?", [
             "Setup dependencies",
             "Convert xlsx \u2192 KML + status files",
             "Help",
-            "Clear console",
             "Exit",
         ], default=1)
         if choice == 1:
@@ -1392,20 +1399,14 @@ def zone_builder_main():
             wizard_convert()
         elif choice == 3:
             wizard_help()
-        elif choice == 4:
-            continue   # clear_screen() already ran; just redraw
         else:
             print()
             print("  " + paint("bye — see you, operator.", _fg(VIOLET), _DIM))
             break
 
 
-def build_zone():
-    """Run the built-in interactive zone builder (WaterGEMS xlsx → KML + status)."""
-    zone_builder_main()
-
 # ── Console UX ────────────────────────────────────────────────────────────────
-def confirm(msg):
+def confirm(msg: str) -> bool:
     try:
         raw = input("  " + paint(str(msg), _fg(CYAN), _BOLD) + " ["
                     + paint("y", _fg(GOLD), _BOLD) + "/"
@@ -1415,7 +1416,7 @@ def confirm(msg):
         raise SystemExit()
     return raw in ("y", "yes")
 
-def ask_push_targets():
+def ask_push_targets() -> Optional[list]:
     """Show every pushable file and let the operator pick specific ones.
     Returns the chosen file-name list, or None to cancel."""
     files = pushable_files()
@@ -1458,7 +1459,7 @@ _MENU_ITEMS = [
 ]
 
 
-def menu():
+def menu() -> str:
     print()
     box(["   SCADA D1 SEED TOOL   ",
          "  seed/config.json  ·  status/  ·  records/"])
@@ -1471,12 +1472,13 @@ def menu():
         print("    " + num + "  " + paint(label.ljust(7), _fg(CYAN), _BOLD)
               + paint(desc, _fg(SILVER)))
     print("    0)  " + paint("Exit", _fg(CYAN), _BOLD))
+    print("    c)  " + paint("Clear console", _fg(CYAN), _BOLD))
     try:
         return input("  " + paint("→", _fg(GOLD), _BOLD) + " : ").strip().lower()
     except EOFError:
         raise SystemExit()
 
-def main():
+def main() -> None:
     # Non-interactive:
     #   seed_d1.py pull|verify|deploy|build
     #   seed_d1.py push [config|status|output]   (no target → all)
@@ -1490,7 +1492,7 @@ def main():
                 sys.exit(1)
             push(names)
         elif action == "build":
-            build_zone()
+            zone_builder_main()
         elif action in ACTIONS:
             ACTIONS[action]()
         else:
@@ -1519,12 +1521,16 @@ def main():
             if confirm("Deploy the worker to Cloudflare?"):
                 deploy()
         elif choice in ("5", "build"):
-            build_zone()
-        elif choice in ("0", "q", "quit", "exit", ""):
+            zone_builder_main()
+        elif choice in ("c", "clear"):
+            clear_screen()
+        elif choice in ("0", "q", "quit", "exit"):
             print("  " + paint("bye — see you, operator.", _fg(VIOLET), _DIM))
             break
+        elif choice == "":
+            continue   # empty Enter → redraw the menu instead of quitting
         else:
-            print("  Invalid choice — pick 1, 2, 3, 4, 5 or 0.")
+            print("  Invalid choice — pick 1, 2, 3, 4, 5, c=clear or 0.")
 
 if __name__ == "__main__":
     try:
