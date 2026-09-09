@@ -1,53 +1,58 @@
 #!/usr/bin/env python3
 """
-Convert a WaterGEMS Excel export (.xlsx) to SCADA zone KML + status files.
+SCADA Zone Builder — interactive WaterGEMS (.xlsx) → SCADA zone KML + status.
 
-Reads Junction, Reservoir, and Pipe sheets from the Excel file, converts
-projected coordinates (Easting/Northing in UTM Zone 45N) to WGS84 lat/lng,
-and writes:
-  - zones/{zone_id}.kml           — KML with Point + LineString features
-  - zones/{zone_id}_status.json   — initial status (gist seed)
+Fully interactive and menu-driven — there are NO command-line flags. Run:
 
-Status modes:
-  blank   — empty attributes (label/type/state all blank)          [default]
-  basic   — populated from the xlsx: reservoirs → type "zone", state ON;
-            junctions → type blank, state OFF; pipes → flow blank.
-            Labels come from the WaterGEMS element names.
-
-Run interactively (no flags needed, everything is prompted):
     python build_zone_files.py
 
-Install dependencies (openpyxl required, pyproj recommended):
-    python build_zone_files.py --setup
+and the tool walks you through everything with numbered prompts:
 
-Or non-interactively (every flag optional, all have defaults):
-    python build_zone_files.py excel/ayeshbag.xlsx
-      --zone-id zone_ayeshbag --zone-name "Ayeshbag Distribution"
-      --status-mode basic
+    1)  Setup dependencies   (install / verify openpyxl, pyproj)
+    2)  Convert xlsx → zones (guided step-by-step conversion)
+    3)  Help                 (how it works, status modes, pipe geometry)
+    4)  Exit
 
-Optional pipe geometry:
-  WaterGEMS only knows the straight start→end line per pipe. If you have a
-  DXF layout showing the real pipe routes with bends, pass it with --geometry
-  (either .geojson or .dxf):
-    python build_zone_files.py excel/ayeshbag.xlsx --geometry layout.dxf
-  A .dxf is first converted to GeoJSON with GDAL's ogr2ogr (which must be on
-  your PATH), then each line is matched to a pipe by endpoint proximity against
-  the xlsx pipe start/stop node Easting/Northing (same projected CRS). Matched
-  pipes are written with their full vertex path. If you don't have GDAL, export
-  the DXF to a .geojson yourself and pass that instead.
+Reads the Junction, Reservoir, and Pipe sheets from the Excel file, converts
+projected coordinates (Easting/Northing in UTM Zone 45N) to WGS84 lat/lng, and
+writes:
+    zones/{zone_id}.kml           — KML with Point + LineString features
+    zones/{zone_id}_status.json   — initial status (gist seed)
+
+Requirements
+    openpyxl   required     — reads the WaterGEMS Excel export
+    pyproj     recommended  — accurate UTM (Zone 45N) → WGS84 reprojection
+
+Status modes (chosen during conversion)
+    blank   — empty attributes (label/type/state all blank)          [default]
+    basic   — populated from the xlsx: reservoirs → type "zone", state ON;
+              junctions → type blank, state OFF; pipes → flow blank.
+              Labels come from the WaterGEMS element names.
+
+Optional pipe geometry
+    WaterGEMS only knows the straight start→end line per pipe. If you have a
+    base KML file showing the real pipe routes with bends, pass it (an
+    unpacked .kml — LineStrings only — or a .geojson) during the conversion.
+    KML lines are reprojected from WGS84 into the source CRS, then each line
+    is matched to a pipe — first by the placemark <name> matching the pipe id,
+    then by endpoint proximity against the xlsx pipe start/stop node
+    Easting/Northing. Matched pipes keep their full vertex path; everything
+    else falls back to a straight start→end line.
 """
 
-import argparse
 import importlib.util
 import json
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import openpyxl
+try:
+    import openpyxl
+    HAS_OPENPYXL = True
+except ImportError:
+    HAS_OPENPYXL = False
 
 try:
     from pyproj import Transformer
@@ -56,7 +61,7 @@ except ImportError:
     HAS_PYPROJ = False
 
 
-# ── Defaults ────────────────────────────────────────────────────────────────
+# ── Defaults (used as prompt defaults, not flags) ────────────────────────────
 DEFAULT_SOURCE_CRS = "EPSG:32645"   # UTM Zone 45N (West Bengal, India)
 DEFAULT_TARGET_CRS = "EPSG:4326"    # WGS84
 DEFAULT_ZONE_ID    = "zone_ayeshbag"
@@ -65,19 +70,132 @@ DEFAULT_OUTPUT_DIR = "zones"
 STATUS_MODES       = ("blank", "basic")
 
 
-# ── Small interactive helpers ───────────────────────────────────────────────
+class ZoneBuildError(Exception):
+    """A recoverable problem with the conversion — lets the menu continue."""
+
+
+# ── Terminal UX helpers ───────────────────────────────────────────────────────
+def clear_screen():
+    """Clear the console so each screen starts fresh."""
+    if os.name == "nt":
+        os.system("cls")
+    else:
+        os.system("clear")
+
+
+def box(lines, width=None):
+    """Print a bordered box of one or more centered-left lines."""
+    text = [str(l) for l in lines]
+    w = width or max(len(l) for l in text)
+    print("  ┌" + "─" * (w + 2) + "┐")
+    for l in text:
+        print("  │ " + l.ljust(w) + " │")
+    print("  └" + "─" * (w + 2) + "┘")
+
+
+def rule(title=""):
+    if title:
+        print(f"\n  ── {title} " + "─" * max(1, 40 - len(title)))
+    else:
+        print("  " + "─" * 46)
+
+
+def step(num, total, title):
+    print(f"\n  · Step {num} of {total}: {title}")
+
+
+def say(msg):
+    print(f"  · {msg}")
+
+
+def ok(msg):
+    print(f"  [OK]   {msg}")
+
+
+def warn(msg):
+    print(f"  [WARN] {msg}", file=sys.stderr)
+
+
+def ask(label, default="", required=False, validate=None):
+    """Prompt for a value; Enter uses the default. validate(value) -> error str."""
+    while True:
+        prompt = f"  {label}"
+        if default:
+            prompt += f" [{default}]"
+        try:
+            raw = input(prompt + ": ").strip()
+        except EOFError:
+            raise SystemExit("\n  Aborted.")
+        value = raw or default
+        if required and not value:
+            print("    Required — please enter a value.")
+            continue
+        if validate:
+            err = validate(value)
+            if err:
+                print(f"    {err}")
+                continue
+        return value
+
+
+def ask_yesno(prompt, default="n"):
+    hint = "Y/n" if default.lower().startswith("y") else "y/N"
+    while True:
+        try:
+            raw = input(f"  {prompt} [{hint}] ").strip().lower()
+        except EOFError:
+            raise SystemExit("\n  Aborted.")
+        if not raw:
+            return default.lower().startswith("y")
+        if raw in ("y", "yes"):
+            return True
+        if raw in ("n", "no"):
+            return False
+        print("    Please answer y or n.")
+
+
+def menu(prompt, options, default=None):
+    """Numbered menu with an input prompt; returns the 1-based index chosen."""
+    print(f"  {prompt}")
+    for i, opt in enumerate(options, 1):
+        mark = "  (default)" if default == i else ""
+        print(f"    {i})  {opt}{mark}")
+    hint = str(default) if default else "1-" + str(len(options))
+    while True:
+        try:
+            raw = input(f"  -> [{hint}]: ").strip()
+        except EOFError:
+            raise SystemExit("\n  Aborted.")
+        if not raw and default:
+            return default
+        if raw.isdigit() and 1 <= int(raw) <= len(options):
+            return int(raw)
+        print("    Invalid choice — pick a number from the list.")
+
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
 def _module_available(name):
     return importlib.util.find_spec(name) is not None
 
 
-def setup_dependencies(with_gdal=False):
-    """Install the Python dependencies this script needs (merged from setup.py).
+def dependency_report():
+    """Show a numbered status table of every dependency. Returns the checks."""
+    checks = [
+        ("openpyxl", "reads the WaterGEMS .xlsx", _module_available("openpyxl"), "required"),
+        ("pyproj",   "UTM → WGS84 reprojection",   _module_available("pyproj"),   "recommended"),
+    ]
+    print()
+    for i, (name, purpose, present, tag) in enumerate(checks, 1):
+        mark = "[OK]" if present else "[missing]"
+        print(f"    {i})  {name:<9} {purpose:<28} {mark:<9} ({tag})")
+    return checks
+
+
+def setup_dependencies():
+    """Install the Python dependencies this script needs.
 
     Always installs: openpyxl (required to read the WaterGEMS export).
     Installs if missing: pyproj (accurate UTM→WGS84 reprojection).
-    Optional: with_gdal=True also pip-installs the GDAL Python bindings, but
-    note ogr2ogr itself is an external binary (OSGeo4W etc.) that pip cannot
-    provide.
 
     Returns 0 on success, non-zero on failure.
     """
@@ -86,86 +204,18 @@ def setup_dependencies(with_gdal=False):
         targets.append("openpyxl")
     if not _module_available("pyproj"):
         targets.append("pyproj>=3.0")
-    if with_gdal and not shutil.which("ogr2ogr"):
-        targets.append("gdal>=3.4")
 
     if not targets:
-        print("All Python dependencies already satisfied.")
+        print("    All Python dependencies already satisfied.")
     else:
-        print("Installing: " + ", ".join(targets))
+        print("    Installing: " + ", ".join(targets))
         result = subprocess.call([sys.executable, "-m", "pip", "install", *targets])
         if result != 0:
             return result
-
-    if not shutil.which("ogr2ogr"):
-        print("NOTE: ogr2ogr (GDAL) not found on PATH. DXF pipe layouts "
-              "(--geometry *.dxf) need it; install the OSGeo4W/GISInternals "
-              "GDAL or export the DXF to .geojson instead.")
-    elif with_gdal:
-        print("ogr2ogr found on PATH.")
     return 0
 
 
-def ask(label, default=""):
-    """Prompt for a value, returning the default when the user presses Enter."""
-    try:
-        if default:
-            value = input(f"{label} [{default}]: ").strip()
-            return value or default
-        return input(f"{label}: ").strip()
-    except EOFError:
-        raise SystemExit("\n  Aborted.")
-
-
-def ask_choice(label, options, default):
-    """Prompt for one of options (by number); returns the chosen value."""
-    print(f"  {label} — pick one:")
-    for i, opt in enumerate(options, 1):
-        mark = "[default]" if opt == default else ""
-        print(f"    {i})  {opt} {mark}".rstrip())
-    while True:
-        try:
-            raw = input(f"  -> [{'/'.join(str(options.index(default)+1)) if default else '1'}]: ").strip()
-        except EOFError:
-            raise SystemExit("\n  Aborted.")
-        if not raw:
-            return default
-        if raw.isdigit() and 1 <= int(raw) <= len(options):
-            return options[int(raw) - 1]
-        if raw in options:
-            return raw
-        print("    Invalid choice.")
-
-
-# ── Pipe geometry helpers (GeoJSON) ──────────────────────────────────────────
-def _dxf_to_geojson(dxf_path: str):
-    """Convert a DXF file to a temporary GeoJSON using GDAL's ogr2ogr.
-
-    Returns the path to the generated .geojson (caller must clean it up), or
-    raises RuntimeError if ogr2ogr is missing or the conversion fails.
-    DXF files carry no CRS, so the coordinates are passed through unchanged.
-    """
-    ogr2ogr = shutil.which("ogr2ogr")
-    if not ogr2ogr:
-        raise RuntimeError(
-            "ogr2ogr (GDAL) not found on PATH — install GDAL or convert the "
-            "DXF to GeoJSON yourself and pass the .geojson to --geometry")
-
-    tmp_fd, tmp_geojson = tempfile.mkstemp(suffix=".geojson", prefix="zone_geom_")
-    os.close(tmp_fd)
-    try:
-        result = subprocess.run(
-            [ogr2ogr, "-f", "GeoJSON", tmp_geojson, dxf_path],
-            capture_output=True, text=True, timeout=300)
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"ogr2ogr failed for {dxf_path}:\n{result.stderr.strip()}")
-    except Exception as e:
-        os.unlink(tmp_geojson)
-        raise RuntimeError(f"DXF conversion failed: {e}") from e
-    return tmp_geojson
-
-
+# ── Pipe geometry helpers (KML / GeoJSON) ─────────────────────────────────────
 def _load_geojson_polylines(geometry_path: str):
     """Load every line geometry from a GeoJSON file.
 
@@ -184,7 +234,7 @@ def _load_geojson_polylines(geometry_path: str):
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        print(f"WARNING: could not parse geometry file {geometry_path}: {e}", file=sys.stderr)
+        warn(f"could not parse geometry file {geometry_path}: {e}")
         return []
 
     polylines = []
@@ -228,6 +278,63 @@ def _load_geojson_polylines(geometry_path: str):
                 add_linestring(best)
 
     return polylines
+
+
+def _load_kml_paths(geometry_path: str):
+    """Load every <LineString> from a KML file.
+
+    Returns (paths, names): paths is a list of [(lat, lng), ...] vertex tuples
+    in WGS84 (exactly as stored in the KML); names is a parallel list of the
+    owning placemark <name> ('' when absent). Raises FileNotFoundError for a
+    bad path; returns ([], []) on parse errors (caller warns). Handles both
+    namespaced and bare KML tags.
+    """
+    if not geometry_path:
+        return [], []
+
+    path = Path(geometry_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Geometry file not found: {geometry_path}")
+
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError as e:
+        warn(f"could not parse geometry file {geometry_path}: {e}")
+        return [], []
+
+    def local(end):
+        return end.rsplit("}", 1)[-1]
+
+    paths, names = [], []
+    for pm in root.iter():
+        if local(pm.tag) != "Placemark":
+            continue
+        name = ""
+        for c in pm:
+            if local(c.tag) == "name":
+                name = (c.text or "").strip()
+                break
+        for child in pm.iter():
+            if local(child.tag) != "LineString":
+                continue
+            for coord_el in child:
+                if local(coord_el.tag) != "coordinates" or not coord_el.text:
+                    continue
+                pts = []
+                for tok in coord_el.text.split():
+                    parts = tok.split(",")
+                    if len(parts) < 2:
+                        continue
+                    try:
+                        lng, lat = float(parts[0]), float(parts[1])
+                    except ValueError:
+                        continue
+                    pts.append((lat, lng))
+                if len(pts) >= 2:
+                    paths.append(pts)
+                    names.append(name)
+
+    return paths, names
 
 
 def _euclid(ax, ay, bx, by):
@@ -281,6 +388,45 @@ def _match_pipes_by_endpoints(edges, node_utms, polylines):
     return matched
 
 
+def _match_pipes(edges, node_utms, polylines, names=None):
+    """Match polylines to pipes — by placemark <name> first, then (for the
+    lines and edges still unmatched) by endpoint proximity.
+
+    edges:      list of {id, source, target}
+    node_utms:  {node_id: (x, y)}
+    polylines:  list of [(x, y), ...]  (source projected CRS)
+    names:      placemark names parallel to polylines ('' when absent)
+
+    Returns {edge_id: [(x, y), ...]}. A pipe that gets no match simply keeps
+    a straight line. When a placemark <name> equals a pipe id, that polyline
+    is used directly; otherwise the first/last vertices are matched against
+    the pipe's source/target node coordinates (both orientations).
+    """
+    if not polylines:
+        return {}
+
+    matched = {}
+    used_polys = set()
+
+    if names:
+        by_name = {}
+        for idx, name in enumerate(names):
+            if name and name not in by_name:
+                by_name[name] = idx
+        for e in edges:
+            idx = by_name.get(e["id"])
+            if idx is not None and idx not in used_polys:
+                matched[e["id"]] = polylines[idx]
+                used_polys.add(idx)
+
+    remaining_polys = [pl for i, pl in enumerate(polylines) if i not in used_polys]
+    remaining_edges = [e for e in edges if e["id"] not in matched]
+    matched.update(_match_pipes_by_endpoints(remaining_edges, node_utms, remaining_polys))
+
+    return matched
+
+
+# ── Core conversion ───────────────────────────────────────────────────────────
 def build_zone_files(
     xlsx_path: str,
     zone_id: str = DEFAULT_ZONE_ID,
@@ -292,8 +438,8 @@ def build_zone_files(
 ):
     """Main conversion function. Returns (status_path, kml_path)."""
     if status_mode not in STATUS_MODES:
-        print(f"ERROR: --status-mode must be one of {', '.join(STATUS_MODES)}", file=sys.stderr)
-        sys.exit(1)
+        raise ZoneBuildError(
+            f"status mode must be one of {', '.join(STATUS_MODES)} (got {status_mode!r})")
 
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)
 
@@ -301,9 +447,9 @@ def build_zone_files(
     transformer = None
     if HAS_PYPROJ:
         transformer = Transformer.from_crs(source_crs, DEFAULT_TARGET_CRS, always_xy=True)
-        print(f"Coordinate transform: {source_crs} -> {DEFAULT_TARGET_CRS}")
+        say(f"Coordinate transform: {source_crs} -> {DEFAULT_TARGET_CRS}")
     else:
-        print("WARNING: pyproj not installed. Coordinates will be raw Easting/Northing.", file=sys.stderr)
+        warn("pyproj not installed — coordinates will be raw Easting/Northing.")
 
     # ── Read junctions ──────────────────────────────────────────────────
     junctions = {}   # id -> {x, y, elevation}
@@ -319,7 +465,7 @@ def build_zone_files(
         if x_raw is not None and y_raw is not None:
             junctions[elem] = {"x": float(x_raw), "y": float(y_raw), "elevation": elev}
 
-    print(f"Junctions with coordinates: {len(junctions)}")
+    ok(f"Junctions with coordinates: {len(junctions)}")
 
     # ── Read reservoirs ─────────────────────────────────────────────────
     reservoirs = {}   # id -> {x, y, elevation}
@@ -335,7 +481,7 @@ def build_zone_files(
         if x_raw is not None and y_raw is not None:
             reservoirs[elem] = {"x": float(x_raw), "y": float(y_raw), "elevation": elev}
 
-    print(f"Reservoirs with coordinates: {len(reservoirs)}")
+    ok(f"Reservoirs with coordinates: {len(reservoirs)}")
 
     # ── Merge all nodes, remembering provenance ─────────────────────────
     node_kind = {}   # nid -> 'junction' | 'reservoir'
@@ -348,8 +494,7 @@ def build_zone_files(
         node_kind[nid] = "reservoir"
 
     if not all_nodes_raw:
-        print("ERROR: No nodes with coordinates found.", file=sys.stderr)
-        sys.exit(1)
+        raise ZoneBuildError("No nodes with coordinates found in the workbook.")
 
     # ── Convert coordinates to WGS84 ───────────────────────────────────
     def to_latlng(x, y):
@@ -362,6 +507,7 @@ def build_zone_files(
     for nid, coords in all_nodes_raw.items():
         lat, lng = to_latlng(coords["x"], coords["y"])
         nodes_latlng[nid] = {"lat": lat, "lng": lng, "elevation": coords.get("elevation")}
+    ok(f"Nodes reprojected: {len(nodes_latlng)}")
 
     # ── Read pipes (edges) ─────────────────────────────────────────────
     ws_pipe = wb["Pipe"]
@@ -385,7 +531,7 @@ def build_zone_files(
             "target": stop,
         })
 
-    print(f"Edges (pipes): {len(edges)}")
+    ok(f"Edges (pipes): {len(edges)}")
 
     # ── Validate connectivity ───────────────────────────────────────────
     node_ids = set(nodes_latlng.keys())
@@ -396,49 +542,59 @@ def build_zone_files(
         if e["target"] not in node_ids:
             orphan_edges.append(f"  {e['id']}: target '{e['target']}' not in nodes")
     if orphan_edges:
-        print(f"WARNING: {len(orphan_edges)} edges reference missing nodes:", file=sys.stderr)
+        warn(f"{len(orphan_edges)} edges reference missing nodes:")
         for o in orphan_edges[:20]:
             print(o, file=sys.stderr)
         if len(orphan_edges) > 20:
             print(f"  ... and {len(orphan_edges) - 20} more", file=sys.stderr)
 
-    # ── Optional pipe geometry (bends) from GeoJSON or DXF ──────────────
+    # ── Optional pipe geometry (bends) from KML or GeoJSON ─────────────
     matched_paths = {}   # edge_id -> [(x, y), ...] in source CRS
     if geometry_path:
-        geom_source = geometry_path
-        tmp_geojson = None
         load_failed = False
-        is_dxf = Path(geometry_path).suffix.lower() == ".dxf"
+        suffix = Path(geometry_path).suffix.lower()
+        paths = []
+        names = []
         try:
-            if is_dxf:
-                tmp_geojson = _dxf_to_geojson(geometry_path)
-                geom_source = tmp_geojson
-            polylines = _load_geojson_polylines(geom_source)
-        except (FileNotFoundError, RuntimeError) as e:
-            print(f"WARNING: {e} — pipes will use straight lines.", file=sys.stderr)
-            polylines = []
+            if suffix == ".kml":
+                paths, names = _load_kml_paths(geometry_path)
+                if paths and not HAS_PYPROJ:
+                    warn("KML geometry needs pyproj to reproject into the source "
+                         "CRS — pipes will use straight lines.")
+                    paths, names = [], []
+                    load_failed = True
+                elif paths:
+                    rev = Transformer.from_crs(DEFAULT_TARGET_CRS, source_crs,
+                                               always_xy=True)
+                    paths = [
+                        [rev.transform(lng, lat) for (lat, lng) in path]
+                        for path in paths
+                    ]
+            else:
+                paths = _load_geojson_polylines(geometry_path)
+        except FileNotFoundError as e:
+            warn(f"{e} — pipes will use straight lines.")
+            paths = []
+            names = []
             load_failed = True
-        finally:
-            if tmp_geojson:
-                os.unlink(tmp_geojson)
 
+        polylines = paths
         if polylines:
             node_utms = {nid: (n["x"], n["y"])
                          for nid, n in all_nodes_raw.items()}
-            matched_paths = _match_pipes_by_endpoints(edges, node_utms, polylines)
-            print(f"Pipe geometry: {len(polylines)} lines loaded, "
-                  f"{len(matched_paths)} pipes matched to a bent path")
+            geom_kind = "KML" if suffix == ".kml" else "GeoJSON"
+            matched_paths = _match_pipes(edges, node_utms, polylines, names)
+            ok(f"Pipe geometry ({geom_kind}): {len(polylines)} lines loaded, "
+               f"{len(matched_paths)} pipes matched to a bent path")
             if len(matched_paths) < len(edges):
-                print(f"WARNING: {len(edges) - len(matched_paths)} pipes have no "
-                      "matching geometry — straight lines will be used.",
-                      file=sys.stderr)
+                warn(f"{len(edges) - len(matched_paths)} pipes have no "
+                     "matching geometry — straight lines will be used.")
             if len(matched_paths) < len(polylines):
-                print(f"WARNING: {len(polylines) - len(matched_paths)} geometry "
-                      "lines did not match any pipe and were ignored.",
-                      file=sys.stderr)
+                warn(f"{len(polylines) - len(matched_paths)} geometry lines "
+                     "did not match any pipe and were ignored.")
         elif geometry_path and not load_failed:
-            print("WARNING: geometry file yielded no line features — pipes will "
-                  "use straight lines.", file=sys.stderr)
+            warn("geometry file yielded no line features — pipes will use "
+                 "straight lines.")
 
     # ── Output: KML + status JSON ─────────────────────────────────────
     out_dir = Path(output_dir)
@@ -498,7 +654,7 @@ def build_zone_files(
         '</kml>',
     ])
     kml_path.write_text("\n".join(kml_lines), encoding="utf-8")
-    print(f"Wrote {kml_path}  ({len(nodes_latlng)} points, {len(edges)} linestrings)")
+    ok(f"Wrote {kml_path}  ({len(nodes_latlng)} points, {len(edges)} linestrings)")
 
     # ── Write zone status JSON (seeds the gist-backed status file) ─────
     status_entries = []
@@ -531,103 +687,180 @@ def build_zone_files(
         "[\n" + ",\n".join(f"  {json.dumps(s)}" for s in status_entries) + "\n]",
         encoding="utf-8",
     )
-    print(f"Wrote {status_path}  ({len(status_entries)} entries, mode={status_mode})")
+    ok(f"Wrote {status_path}  ({len(status_entries)} entries, mode={status_mode})")
 
     return status_path, kml_path
 
 
-# ── Wizard / CLI entry ───────────────────────────────────────────────────────
-def interactive_wizard(args):
-    """Prompt for every setting (used when no args are given)."""
-    print("\n  ┌──────────────────────────────────────────────┐")
-    print("  │            SCADA Zone Builder (xlsx)           │")
-    print("  └──────────────────────────────────────────────┘")
-    print("  WaterGEMS export  →  zones/{zone_id}.kml + _status.json\n")
+# ── Wizards (menu actions) ────────────────────────────────────────────────────
+def wizard_setup():
+    clear_screen()
+    box(["Setup / check dependencies"])
+    checks = dependency_report()
+    py_missing = [n for n, _, present, _ in checks if not present]
 
-    xlsx_path = ask("WaterGEMS xlsx path")
-    while not xlsx_path or not Path(xlsx_path).exists():
-        if xlsx_path:
-            print(f"    Not found: {xlsx_path}")
-        xlsx_path = ask("WaterGEMS xlsx path")
-        if not xlsx_path:
-            print("  Aborted.")
-            return
+    if py_missing:
+        if ask_yesno("Install the missing Python packages with pip?"):
+            result = setup_dependencies()
+            if result == 0:
+                ok("Dependency setup finished.")
+            else:
+                warn("pip install failed — check the output above.")
+        else:
+            say("Skipped. You can still continue; installs are optional.")
+    else:
+        ok("All dependencies are already in place.")
 
-    zone_id   = ask("Zone ID", args.zone_id or DEFAULT_ZONE_ID)
-    zone_name = ask("Zone name", args.zone_name or DEFAULT_ZONE_NAME)
-    #
-    source_crs = ask("Source CRS", args.source_crs or DEFAULT_SOURCE_CRS) or DEFAULT_SOURCE_CRS
-    output_dir = ask("Output directory", args.output_dir or DEFAULT_OUTPUT_DIR)
-    status_mode = ask_choice("Status mode", list(STATUS_MODES), args.status_mode or "blank")
-    geometry_default = getattr(args, "geometry", None) or ""
-    geometry_path = ask("Pipe layout path  (.geojson or .dxf, optional)", geometry_default) or None
 
-    print("\n  ── Summary ────────────────────────────────────────")
-    print(f"    xlsx       : {xlsx_path}")
-    print(f"    zone id    : {zone_id}")
-    print(f"    zone name  : {zone_name}")
-    print(f"    source CRS : {source_crs}")
-    print(f"    output dir : {output_dir}")
-    print(f"    status mode: {status_mode}")
-    print(f"    geometry   : {geometry_path or '(none — straight pipes)'}")
-    if input("  Continue? [Y/n]: ").strip().lower() in ("n", "no"):
-        print("  Aborted.")
+def _validate_xlsx(path):
+    p = Path(path)
+    if not p.exists():
+        return f"Not found: {path}"
+    if p.suffix.lower() not in (".xlsx", ".xlsm"):
+        return "That does not look like an Excel file (.xlsx expected)."
+    return None
+
+
+def wizard_convert():
+    clear_screen()
+    box(["Convert xlsx \u2192  KML + status files"])
+    if not HAS_OPENPYXL:
+        warn("openpyxl is not installed — it is required to read the xlsx.")
+        say("Choose 'Setup dependencies' from the main menu first.")
         return
 
-    build_zone_files(
-        xlsx_path=xlsx_path,
-        zone_id=zone_id,
-        zone_name=zone_name,
-        source_crs=source_crs,
-        output_dir=output_dir,
-        status_mode=status_mode,
-        geometry_path=geometry_path,
-    )
+    total = 6
+
+    step(1, total, "WaterGEMS Excel file")
+    xlsx_path = ask("Path to the WaterGEMS xlsx export", required=True,
+                    validate=_validate_xlsx)
+
+    step(2, total, "Zone identity")
+    zone_id = ask("Zone ID", DEFAULT_ZONE_ID)
+    zone_name = ask("Zone display name", DEFAULT_ZONE_NAME)
+
+    step(3, total, "Coordinates")
+    source_crs = ask("Source CRS", DEFAULT_SOURCE_CRS)
+    if HAS_PYPROJ:
+        say(f"Target is fixed at {DEFAULT_TARGET_CRS} (WGS84).")
+    else:
+        warn("pyproj not installed — coordinates will be kept as raw "
+             "Easting/Northing. Install pyproj for proper reprojection.")
+
+    step(4, total, "Output location")
+    output_dir = ask("Output directory", DEFAULT_OUTPUT_DIR)
+
+    step(5, total, "Status mode")
+    mode_idx = menu("How should the zone status file be seeded?", [
+        "blank  — empty attributes; labels/states filled in later",
+        "basic  — seeded from the xlsx (reservoirs \u2192 zone/ON, else OFF)",
+    ], default=1)
+    status_mode = STATUS_MODES[mode_idx - 1]
+
+    step(6, total, "Optional pipe geometry")
+    geometry_path = ask("Path to a base KML with real pipe routes "
+                        "(.kml; .geojson also works — Enter to skip "
+                        "\u2192 straight lines)", "").strip() or None
+    if geometry_path and not Path(geometry_path).exists():
+        warn(f"Geometry file not found: {geometry_path} — ignoring it.")
+        geometry_path = None
+
+    rule("Summary")
+    box([
+        f"xlsx        : {xlsx_path}",
+        f"zone id     : {zone_id}",
+        f"zone name   : {zone_name}",
+        f"source CRS  : {source_crs}",
+        f"output dir  : {output_dir}",
+        f"status mode : {status_mode}",
+        "geometry    : " + (geometry_path or "(none \u2014 straight pipe lines)"),
+    ])
+    if not ask_yesno("Run the conversion now?", default="y"):
+        say("Cancelled — back to the main menu.")
+        return
+
+    try:
+        status_path, kml_path = build_zone_files(
+            xlsx_path=xlsx_path,
+            zone_id=zone_id,
+            zone_name=zone_name,
+            source_crs=source_crs,
+            output_dir=output_dir,
+            status_mode=status_mode,
+            geometry_path=geometry_path,
+        )
+    except ZoneBuildError as e:
+        warn(str(e))
+        return
+    except KeyError as e:
+        warn(f"Workbook is missing an expected sheet/column: {e}")
+        return
+
+    rule("Done")
+    box([f"KML    : {kml_path}", f"Status : {status_path}"])
+    input("  Press Enter to return to the main menu.")
+
+
+def wizard_help():
+    clear_screen()
+    box(["Help — how this tool works"])
+    print(
+        """
+
+  1)  Setup dependencies
+      Installs / verifies what the tool needs:
+        - openpyxl  (required)    reads the WaterGEMS .xlsx
+        - pyproj    (recommended) accurate UTM \u2192 WGS84 reprojection
+
+  2)  Convert xlsx \u2192 zones
+      A guided 6-step conversion that ends in two files per zone:
+        - zones/{zone_id}.kml          points for nodes, lines for pipes
+        - zones/{zone_id}_status.json  initial status (gist seed)
+      Coordinates are UTM Zone 45N (Easting/Northing) by default and are
+      reprojected to WGS84 lat/lng for KML.
+
+  3)  Status modes
+        blank  — every label/type/state starts empty; you fill in later.
+        basic  — seeded from the workbook: reservoirs become type "zone"
+                 with state ON; junctions/pipe lines start blank/OFF.
+
+  4)  Pipe geometry
+      WaterGEMS only knows the straight start\u2192end line per pipe. Give a
+      base KML file (.kml, .geojson also works) with the real routes. Each
+      line is matched to a pipe — by placemark <name> first, then by endpoint
+      distance — and matched pipes are drawn with their full bent path.
+
+  Tip: press Ctrl+C at any prompt to cancel.
+""")
+    input("  Press Enter to return to the main menu.")
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Convert WaterGEMS .xlsx to SCADA zone KML + status files "
-                    "(run with no args for the interactive wizard)"
-    )
-    parser.add_argument("xlsx", nargs="?", help="Path to the WaterGEMS Excel export (prompted if omitted)")
-    parser.add_argument("--zone-id", default=DEFAULT_ZONE_ID, help="Zone ID (default: %(default)s)")
-    parser.add_argument("--zone-name", default=DEFAULT_ZONE_NAME, help="Zone display name (default: %(default)s)")
-    parser.add_argument("--source-crs", default=DEFAULT_SOURCE_CRS,
-                        help="Source CRS (default: %(default)s)")
-    parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR,
-                        help="Output directory (default: %(default)s)")
-    parser.add_argument("--status-mode", choices=STATUS_MODES, default="blank",
-                        help="Status output mode: blank or basic (default: %(default)s)")
-    parser.add_argument("--geometry", default=None,
-                        help="Optional pipe layout with real routes: a .geojson, "
-                             "or a .dxf converted via GDAL ogr2ogr. Lines are "
-                             "matched to pipes by endpoints; matched pipes draw "
-                             "their full bent path instead of a straight line")
-    parser.add_argument("--setup", action="store_true",
-                        help="Install the Python dependencies (openpyxl, pyproj) "
-                             "and exit. Add --with-gdal to also try pip-installing "
-                             "the GDAL Python bindings.")
-    parser.add_argument("--with-gdal", action="store_true",
-                        help="With --setup, also pip-install GDAL (ogr2ogr still "
-                             "needs the external OSGeo4W/GISInternals binaries)")
-    args = parser.parse_args()
-
-    if args.setup:
-        raise SystemExit(setup_dependencies(with_gdal=args.with_gdal))
-
-    if args.xlsx:
-        build_zone_files(
-            xlsx_path=args.xlsx,
-            zone_id=args.zone_id,
-            zone_name=args.zone_name,
-            source_crs=args.source_crs,
-            output_dir=args.output_dir,
-            status_mode=args.status_mode,
-            geometry_path=args.geometry,
-        )
-    else:
-        interactive_wizard(args)
+    first = True
+    while True:
+        if first:
+            clear_screen()
+            first = False
+        print()
+        box([
+            "    SCADA ZONE BUILDER    ",
+            " WaterGEMS xlsx export \u2192 zones/{id}.kml + _status.json",
+        ])
+        choice = menu("What would you like to do?", [
+            "Setup dependencies",
+            "Convert xlsx \u2192 KML + status files",
+            "Help",
+            "Exit",
+        ], default=1)
+        if choice == 1:
+            wizard_setup()
+        elif choice == 2:
+            wizard_convert()
+        elif choice == 3:
+            wizard_help()
+        else:
+            print("\n  Bye.")
+            break
 
 
 if __name__ == "__main__":
