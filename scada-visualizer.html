@@ -260,20 +260,14 @@
         .lg-line-active { animation: lgFlowDash 1s linear infinite; background-size: 10px 4px; background-image: repeating-linear-gradient(90deg, #2ecc71 0, #2ecc71 10px, transparent 10px, transparent 20px); }
         @keyframes lgFlowDash { from { background-position: 0 0; } to { background-position: 20px 0; } }
 
-        /* Pipe flow animations – marching dashes on active / leak SVG paths */
+        /* Pipe flow animation – marching dashes on active SVG paths only */
         @keyframes flowActive {
             from { stroke-dashoffset: 20; }
             to   { stroke-dashoffset: 0; }
         }
-        @keyframes flowLeak {
-            from { stroke-dashoffset: 12; }
-            to   { stroke-dashoffset: 0; }
-        }
         svg .pipe-flow-active { animation: flowActive 2s linear infinite; }
-        svg .pipe-flow-leak   { animation: flowLeak 0.8s linear infinite; }
         @media (prefers-reduced-motion: reduce) {
-            svg .pipe-flow-active,
-            svg .pipe-flow-leak { animation: none; }
+            svg .pipe-flow-active { animation: none; }
         }
 
         /* Feature info panel */
@@ -476,6 +470,7 @@
     let refreshTimer    = null;
     let currentZone     = null;
     let selectedFeatureId = null;
+    let _hiliteGroup    = null;   // golden ring highlight overlay for search
 
     // Leaflet map
     let map             = null;
@@ -623,7 +618,7 @@
         if (refreshTimer) clearInterval(refreshTimer);
 
         // Reset search
-        selectedFeatureId = null;
+        clearSearchSelection();
         const _si = document.getElementById('search-input');
         if (_si) _si.value = '';
         const _sr = document.getElementById('search-results');
@@ -692,6 +687,9 @@
             // Propagate flow from pump/valve states
             propagateFlow(kmlLayer);
 
+            // Place leak location dots (red with orange ring) on leaked pipes
+            updateLeakMarkers(kmlLayer, map);
+
             setStatus('Synced ' + new Date().toLocaleTimeString() + ' (' + updated + ' elements)', 'ok');
         } catch (err) {
             setStatus('\u26A0 ' + err.message, 'error');
@@ -737,10 +735,10 @@
 
     function clearSearchSelection() {
         selectedFeatureId = null;
+        if (_hiliteGroup) _hiliteGroup.clearLayers();
         if (kmlLayer) {
             kmlLayer.eachLayer(function(layer) {
                 if (layer.feature && layer.feature._highlighted) {
-                    layer.setStyle({ weight: layer.feature._origWeight || 4 });
                     layer.feature._highlighted = false;
                 }
             });
@@ -773,17 +771,39 @@
             map.setView(target.getLatLng ? target.getLatLng() : target.getCenter(), Math.max(map.getZoom(), 16));
         }
 
-        // Highlight
         clearSearchSelection();
-        if (target.setStyle && target.feature) {
-            target.feature._origWeight = target.feature._origWeight || (target.options && target.options.weight) || 4;
-            target.setStyle({ weight: 8, opacity: 1 });
-            target.feature._highlighted = true;
-        }
+        highlightFeature(target);
         selectedFeatureId = featureId;
 
         document.getElementById('search-results').style.display = 'none';
         document.getElementById('search-input').blur();
+    }
+
+    // Golden ring highlight for the searched junction (ring) or pipe (gold halo).
+    function highlightFeature(target) {
+        if (!_hiliteGroup) _hiliteGroup = L.layerGroup().addTo(map);
+        _hiliteGroup.clearLayers();
+
+        if (target instanceof L.Polyline) {
+            const latlngs = target.getLatLngs();
+            const opts    = target.options || {};
+            // Gold stroke underneath a retrace of the pipe = a ring around it
+            _hiliteGroup.addLayer(L.polyline(latlngs, {
+                color: '#FFD700', weight: 10, opacity: 0.9
+            }));
+            _hiliteGroup.addLayer(L.polyline(latlngs, {
+                color: opts.color || '#a9b0b8',
+                weight: opts.weight || 5,
+                opacity: (opts.opacity != null ? opts.opacity : 0.85),
+                dashArray: opts.dashArray || null
+            }));
+        } else {
+            const ll = target.getLatLng ? target.getLatLng() : target.getCenter();
+            _hiliteGroup.addLayer(L.circleMarker(ll, {
+                radius: 15, color: '#FFD700', weight: 4, fill: false, opacity: 1
+            }));
+        }
+        if (target.feature) target.feature._highlighted = true;
     }
 
     // ── FEATURE INFO PANEL ─────────────────────────────────────────────────────

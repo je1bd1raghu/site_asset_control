@@ -86,17 +86,82 @@ function _stylePointFeature(layer, feat, st) {
 function _styleLineFeature(layer, feat, st) {
     const flow = (st.flow || feat.properties.flow || '').toLowerCase();
     const el   = layer._path;
-    if (el) el.classList.remove('pipe-flow-active', 'pipe-flow-leak');
+    if (el) el.classList.remove('pipe-flow-active');
 
     if (flow === 'active') {
         layer.setStyle({ color: COLOR.lineActive, weight: 5, dashArray: '10, 10' });
         if (el) el.classList.add('pipe-flow-active');
     } else if (flow === 'leakburst') {
         layer.setStyle({ color: COLOR.lineLeakburst, weight: 5, dashArray: '6, 6' });
-        if (el) el.classList.add('pipe-flow-leak');
     } else {
         layer.setStyle({ color: COLOR.lineIdle, weight: 3, dashArray: null });
     }
+}
+
+// ─── LEAK LOCATION MARKERS ───────────────────────────────────────────────────
+// Draws a red dot with an orange ring at the midpoint of each leaked/burst pipe.
+// Leaks are never animated; the static dot pinpoints the location.
+let _leakGroup = null;
+
+function updateLeakMarkers(kmlLayer, map) {
+    if (!_leakGroup) {
+        _leakGroup = L.layerGroup().addTo(map);
+    } else {
+        _leakGroup.clearLayers();
+    }
+
+    kmlLayer.eachLayer(function(layer) {
+        const feat = layer.feature;
+        if (!feat || feat.type !== 'line') return;
+
+        const flow = (feat.status && feat.status.flow) ||
+                     (feat.properties && feat.properties.flow) || '';
+        if (String(flow).toLowerCase() !== 'leakburst') return;
+
+        const mid = _midpointOfLine(layer.getLatLngs());
+        if (!mid) return;
+
+        _leakGroup.addLayer(L.circleMarker(mid, {
+            radius: 7,
+            fillColor: COLOR.lineLeakburst,
+            fillOpacity: 0.95,
+            color: '#F5821F',
+            weight: 3,
+            interactive: false
+        }));
+    });
+}
+
+// Point at the half-distance along a polyline (approximates the leak position).
+function _midpointOfLine(latlngs) {
+    if (!latlngs || !latlngs.length) return null;
+    let pts = latlngs;
+    if (Array.isArray(pts[0])) pts = pts[0];
+    if (!pts || pts.length < 2) {
+        const p = pts && pts[0];
+        return p ? [p.lat, p.lng] : null;
+    }
+
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) total += pts[i - 1].distanceTo(pts[i]);
+    if (total === 0) {
+        const p = pts[0];
+        return [p.lat, p.lng];
+    }
+
+    let target = total / 2;
+    for (let i = 1; i < pts.length; i++) {
+        const seg = pts[i - 1].distanceTo(pts[i]);
+        if (target <= seg) {
+            const t = seg === 0 ? 0 : target / seg;
+            const a = pts[i - 1];
+            const b = pts[i];
+            return [a.lat + (b.lat - a.lat) * t, a.lng + (b.lng - a.lng) * t];
+        }
+        target -= seg;
+    }
+    const last = pts[pts.length - 1];
+    return [last.lat, last.lng];
 }
 
 // ─── FLOW PROPAGATION ────────────────────────────────────────────────────────
