@@ -314,6 +314,10 @@ def delete_file_remote(name: str) -> bool:
     Blobs (config/status/estimates) live in the `files` table; the CSV outputs
     live in their row tables, so those are dropped in full (mirror semantics).
     Returns True on success."""
+    if not confirm(f"Are you sure you want to delete remote file/table: {name}?"):
+        badge("SKIP", f"Deletion of {name} cancelled by operator.")
+        return False
+
     if name in TABLE_FOR_FILE:
         sql = f"DELETE FROM {TABLE_FOR_FILE[name]};"
     else:
@@ -369,6 +373,18 @@ def mirror_delete_output(payload: dict) -> bool:
                   + paint(f"{table}: remote already matches local (nothing to delete)",
                           _fg(SILVER), _DIM))
             continue
+
+        preview = ", ".join(to_delete[:5])
+        if len(to_delete) > 5:
+            preview += f", ... (+{len(to_delete) - 5} more)"
+        print("      " + paint("→ ", _fg(CYAN))
+              + paint(f"Remote {table} sn(s) to delete: {preview}", _fg(SILVER)))
+
+        if not confirm(f"Are you sure you want to delete {len(to_delete)} row(s) from remote table '{table}'?"):
+            badge("SKIP", f"Mirror-deletion of {len(to_delete)} rows in {table} cancelled.")
+            ok = False
+            continue
+
         if not delete_rows(table, to_delete):
             ok = False
     return ok

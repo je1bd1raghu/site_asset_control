@@ -9,4 +9,5 @@ server.py
 seed/config.json
 seed/status/
 seed/records/
+seed/zones/
 excel/
