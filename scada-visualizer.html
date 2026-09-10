@@ -80,7 +80,7 @@
 
         /* Zone selector modal */
         .zone-modal-overlay {
-            position: fixed; inset: 0; z-index: 1000;
+            position: fixed; inset: 0; z-index: 1300;
             display: none; align-items: center; justify-content: center;
             background: rgba(0,0,0,0.55);
             backdrop-filter: blur(4px);
@@ -166,7 +166,7 @@
             background: rgba(33,37,41,0.82);
             color: #F5821F;
             font-size: 16px; cursor: pointer;
-            z-index: 12;
+            z-index: 1000;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 6px rgba(0,0,0,0.35);
             transition: background 0.15s, border-color 0.15s, opacity 0.15s, transform 0.1s;
@@ -185,7 +185,7 @@
             background: rgba(33,37,41,0.82);
             color: #F5821F;
             font-size: 16px; cursor: pointer;
-            z-index: 12;
+            z-index: 1000;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 6px rgba(0,0,0,0.35);
             transition: background 0.15s, border-color 0.15s, opacity 0.15s, transform 0.1s;
@@ -196,7 +196,7 @@
         #locate-btn.active { background: rgba(245,130,31,0.25); border-color: #F5821F; }
 
         /* Search bar */
-        #search-wrap { position:absolute; top:16px; left:16px; z-index:12; width:220px; }
+        #search-wrap { position:absolute; top:16px; left:16px; z-index:1000; width:220px; }
         #search-input { width:100%; padding:8px 34px 8px 12px; border:2px solid rgba(127,219,202,0.5); border-radius:8px; background:rgba(33,37,41,0.82); color:#fff; font-size:13px; font-family:'Nunito','Noto Sans Bengali',sans-serif; font-weight:600; outline:none; box-shadow:0 2px 6px rgba(0,0,0,0.35); transition:border-color .15s; }
         #search-input::placeholder { color:rgba(255,255,255,0.45); font-weight:400; }
         #search-input:focus { border-color:#F5821F; }
@@ -222,7 +222,7 @@
             justify-content: center;
             font-size: 1rem;
             color: #ecf0f1;
-            z-index: 20;
+            z-index: 1100;
         }
         #loading.hidden { display: none; }
 
@@ -238,7 +238,7 @@
             padding: 10px 14px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.15);
             font-size: 0.78rem;
-            z-index: 15;
+            z-index: 1000;
             max-width: calc(100vw - 100px);
             border: 1px solid rgba(0,0,0,0.06);
         }
@@ -270,7 +270,7 @@
             color: #ecf0f1;
             border-top: 1px solid rgba(255,255,255,0.08);
             padding: 10px 20px;
-            z-index: 30;
+            z-index: 1200;
             display: none;
             font-family: 'Nunito', 'Noto Sans Bengali', sans-serif;
             font-size: 0.82rem;
@@ -833,9 +833,12 @@
         document.getElementById('feature-info-panel').classList.remove('visible');
     }
 
-    // Tap on background closes the panel
+    // Tap on empty map, not a feature, closes the panel
     document.addEventListener('click', function(e) {
-        if (!e.target.closest('#feature-info-panel') && !e.target.closest('.sr-item')) {
+        const inPanel      = e.target.closest('#feature-info-panel');
+        const inSearch     = e.target.closest('.sr-item');
+        const onMapFeature = e.target.closest('.leaflet-interactive, .leaflet-marker-icon');
+        if (!inPanel && !inSearch && !onMapFeature) {
             closeFeaturePanel();
         }
     });
