@@ -85,11 +85,15 @@ function _stylePointFeature(layer, feat, st) {
 // ─── STYLE A LINE FEATURE (polyline) ────────────────────────────────────────
 function _styleLineFeature(layer, feat, st) {
     const flow = (st.flow || feat.properties.flow || '').toLowerCase();
+    const el   = layer._path;
+    if (el) el.classList.remove('pipe-flow-active', 'pipe-flow-leak');
 
     if (flow === 'active') {
         layer.setStyle({ color: COLOR.lineActive, weight: 5, dashArray: '10, 10' });
+        if (el) el.classList.add('pipe-flow-active');
     } else if (flow === 'leakburst') {
         layer.setStyle({ color: COLOR.lineLeakburst, weight: 5, dashArray: '6, 6' });
+        if (el) el.classList.add('pipe-flow-leak');
     } else {
         layer.setStyle({ color: COLOR.lineIdle, weight: 3, dashArray: null });
     }
