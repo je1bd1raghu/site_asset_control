@@ -428,7 +428,7 @@
         <div class="legend-item"><div class="lg-dot" style="background:#3498db; border: 2px solid #2980b9;"></div>Zone ACTIVE</div>
         <div class="legend-item"><div class="lg-dot" style="background:#bdc3c7; border: 2px solid #95a5a6;"></div>Zone INACTIVE</div>
         <div class="legend-item"><div class="lg-line lg-line-active"></div>Active Flow</div>
-        <div class="legend-item"><div class="lg-line" style="background:#e74c3c;"></div>Leak/Burst</div>
+        <div class="legend-item"><div class="lg-dot" style="background:#e74c3c; border: 3px solid #F5821F;"></div>Leak/Burst</div>
         </div>
     </div>
 
@@ -837,8 +837,9 @@
                  + field('State', state, state === 'ON' ? 'state-on' : state === 'OFF' ? 'state-off' : '');
 
         if (flow) {
-            const flowLabel = flow === 'active' ? '\u25B6 Active' : flow === 'leakburst' ? '\u26A0 LEAK/BURST' : flow;
-            const flowCls   = flow === 'active' ? 'state-on' : flow === 'leakburst' ? 'state-off' : '';
+            const isLeak = st._leakburst;
+            const flowLabel = isLeak ? '\u26A0 LEAK/BURST' : flow === 'active' ? '\u25B6 Active' : flow;
+            const flowCls   = isLeak ? 'state-off' : flow === 'active' ? 'state-on' : '';
             html += field('Flow', flowLabel, flowCls);
         }
 

@@ -4,7 +4,8 @@
 //  Valve ON  → green fill,   Valve OFF → red fill
 //  Pump  ON  → purple fill,  Pump  OFF → grey fill
 //  Zone  ON  → blue fill,    Zone  OFF → grey fill
-//  Pipe active → green,      Pipe idle → grey,        Pipe leakburst → red
+//  Pipe active → green,      Pipe idle → grey
+//  Leak/burst → red+orange marker at midpoint (pipe still animates flow)
 
 const COLOR = {
     on:             '#2ecc71',
@@ -88,11 +89,11 @@ function _styleLineFeature(layer, feat, st) {
     const el   = layer._path;
     if (el) el.classList.remove('pipe-flow-active');
 
-    if (flow === 'active') {
+    if (flow === 'active' || flow === 'leakburst') {
+        // Leak/burst does not stop flow — pipe animates normally; the leak
+        // location is pinpointed by the red+orange marker from updateLeakMarkers.
         layer.setStyle({ color: COLOR.lineActive, weight: 5, dashArray: '10, 10' });
         if (el) el.classList.add('pipe-flow-active');
-    } else if (flow === 'leakburst') {
-        layer.setStyle({ color: COLOR.lineLeakburst, weight: 5, dashArray: '6, 6' });
     } else {
         layer.setStyle({ color: COLOR.lineIdle, weight: 3, dashArray: null });
     }
@@ -100,7 +101,7 @@ function _styleLineFeature(layer, feat, st) {
 
 // ─── LEAK LOCATION MARKERS ───────────────────────────────────────────────────
 // Draws a red dot with an orange ring at the midpoint of each leaked/burst pipe.
-// Leaks are never animated; the static dot pinpoints the location.
+// The pipe itself still animates flow; the marker pinpoints the issue location.
 let _leakGroup = null;
 
 function updateLeakMarkers(kmlLayer, map) {
@@ -114,9 +115,10 @@ function updateLeakMarkers(kmlLayer, map) {
         const feat = layer.feature;
         if (!feat || feat.type !== 'line') return;
 
-        const flow = (feat.status && feat.status.flow) ||
-                     (feat.properties && feat.properties.flow) || '';
-        if (String(flow).toLowerCase() !== 'leakburst') return;
+        // Leak markers use the preserved _leakburst flag (flow status is
+        // overwritten by propagateFlow to reflect actual water flow).
+        const isLeak = feat.status && feat.status._leakburst;
+        if (!isLeak) return;
 
         const mid = _midpointOfLine(layer.getLatLngs());
         if (!mid) return;
@@ -166,23 +168,24 @@ function _midpointOfLine(latlngs) {
 
 // ─── FLOW PROPAGATION ────────────────────────────────────────────────────────
 // Computes line flow states by walking the directed graph from every running
-// pump (type=pump, state=ON).
+// pump (type=pump, state=ON) and every active zone (type=zone, state=ON).
 //
 // Graph structure comes from KML ExtendedData:
 //   - Line features have properties.source and properties.target
 //   - Point features are nodes
 //
 // Edge flow rules:
-//   reachable  + flow="leakburst"  → keep "leakburst"
-//   reachable  + anything else    → set "active"
-//   unreachable                   → set "" (idle)
+//   reachable  → set "active"
+//   unreachable → set "" (idle)
+//   Note: leak/burst is an issue marker only (shown via updateLeakMarkers);
+//         it does not affect pipe flow animation.
 //
 // Traversal rules:
-//   - BFS starts from all point features with type=pump, state=ON
+//   - BFS starts from all pumps (ON) and zones (ON)
 //   - A closed valve (state=OFF) stops traversal
-//   - Zone nodes and open valves are transparent
+//   - Open valves and zone nodes are transparent
 //
-// If no pump features exist, the function is a no-op.
+// If no pump or zone features exist, the function is a no-op.
 
 function propagateFlow(kmlLayer) {
     // Build node lookup and adjacency list from KML features
@@ -206,17 +209,20 @@ function propagateFlow(kmlLayer) {
         }
     });
 
-    // Check if any pumps exist
-    const hasPumps = Object.values(nodes).some(n => n.type === 'pump');
-    if (!hasPumps) return;
+    // Check if any flow sources exist (pumps or active zones)
+    const hasSources = Object.values(nodes).some(n =>
+        (n.type === 'pump' && n.state === 'ON') ||
+        (n.type === 'zone' && n.state === 'ON')
+    );
+    if (!hasSources) return;
 
-    // BFS from running pumps
+    // BFS from running pumps and active zones
     const reachableEdges = new Set();
     const visitedNodes   = new Set();
     const queue          = [];
 
     Object.entries(nodes).forEach(([id, node]) => {
-        if (node.type === 'pump' && node.state === 'ON') queue.push(id);
+        if ((node.type === 'pump' || node.type === 'zone') && node.state === 'ON') queue.push(id);
     });
 
     while (queue.length > 0) {
@@ -236,13 +242,16 @@ function propagateFlow(kmlLayer) {
         });
     }
 
-    // Update edge flow on the KML layers
+    // Update edge flow on the KML layers.
+    // Preserve original leakburst status for leak markers (issue markers are
+    // independent of flow propagation — a leak does not stop water flow).
     kmlLayer.eachLayer(function(layer) {
         const feat = layer.feature;
         if (!feat || feat.type !== 'line') return;
 
-        // Leaks/bursts always win
-        if (feat.status && feat.status.flow === 'leakburst') return;
+        if (feat.status && feat.status.flow === 'leakburst') {
+            feat.status._leakburst = true;
+        }
 
         const flow = reachableEdges.has(feat.id) ? 'active' : '';
         if (feat.status) feat.status.flow = flow;
@@ -276,8 +285,9 @@ function featurePopupHtml(feat, status) {
         html += '<div style="font-size:12px;font-weight:700;color:' + stateColor + ';margin-bottom:4px">State: ' + esc(state) + '</div>';
     }
     if (flow) {
-        const flowColor = flow === 'active' ? '#16A34A' : flow === 'leakburst' ? '#DC2626' : '#6C757D';
-        const flowLabel = flow === 'active' ? '▶ Active' : flow === 'leakburst' ? '⚠ LEAK/BURST' : 'Idle';
+        const isLeak = st._leakburst;
+        const flowColor = isLeak ? '#DC2626' : flow === 'active' ? '#16A34A' : '#6C757D';
+        const flowLabel = isLeak ? '\u26A0 LEAK/BURST' : flow === 'active' ? '\u25B6 Active' : 'Idle';
         html += '<div style="font-size:12px;font-weight:700;color:' + flowColor + ';margin-bottom:4px">Flow: ' + flowLabel + '</div>';
     }
     if (comment) {
