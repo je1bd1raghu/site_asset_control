@@ -197,7 +197,14 @@ function propagateFlow(kmlLayer) {
         if (!feat || !feat.id) return;
 
         if (feat.type === 'point') {
-            const nodeType = (feat.properties.type || '').toLowerCase();
+            // Node type lives in the applied status JSON (zone_*_status.json),
+            // NOT in the KML — the KML ExtendedData only carries the id. The
+            // status file is the source of truth (same convention as
+            // _stylePointFeature: `st.type || feat.properties.type`).
+            const srcType = feat.status
+                ? (feat.status.type || feat.properties.type || '')
+                : (feat.properties.type || '');
+            const nodeType = srcType.toLowerCase();
             const state    = feat.status ? (feat.status.state || '').toUpperCase() : '';
             nodes[feat.id] = { type: nodeType, state: state, feature: feat };
         } else if (feat.type === 'line') {

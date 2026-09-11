@@ -2077,6 +2077,30 @@ async function submitEdgeLeakBurst(action) {
     existing.push(rec);
     await workerPatch({ [LEAKBURST_FILE]: csvStringifyLB(existing) });
 
+    // ── Sync leak/burst flow → zone_*_status.json ──────────────────────────
+    // So scada-visualizer draws the red dot + orange ring at the leak midpoint
+    // (and removes it when the report is cleared). Pipes keep animating either
+    // way — the leak is an issue marker, not a flow stopper.
+    if (action === 'LEAK_BURST' || action === 'LEAK_BURST_CLEAR') {
+      const lbEdge = allEdges.find(e => e.id === selectedEdgeId);
+      const zoneEntry = lbEdge?.zone && zoneMap[lbEdge.zone];
+      if (zoneEntry?.gistFile) {
+        try {
+          const statusFiles = await workerGet('status');
+          const statusData  = JSON.parse(statusFiles[zoneEntry.gistFile] || '[]');
+          const edgeEntry   = statusData.find(e => e.id === selectedEdgeId);
+          if (edgeEntry) {
+            edgeEntry.flow = action === 'LEAK_BURST' ? 'leakburst' : '';
+            await workerPatch2('status', { [zoneEntry.gistFile]: '[\n' + statusData.map(e => '  ' + JSON.stringify(e)).join(',\n') + '\n]' });
+          }
+        } catch (e) {
+          // Non-fatal: leakbursts.csv is already written; the visualizer will
+          // pick up the marker on a manual status sync.
+          console.warn('Zone flow sync failed (non-fatal):', e.message);
+        }
+      }
+    }
+
     leakBurstEdgeState[selectedEdgeId] = action;
     todayRecs.push(rec);
     renderRecords();
