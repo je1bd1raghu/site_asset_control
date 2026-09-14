@@ -460,38 +460,38 @@ function parseKmlText(text) {
 
 <div class="loading-screen" id="loadingScreen">
   <div class="l-icon">🏭</div>
-  <div class="l-text" id="loadingText">Starting up…</div>
+  <div class="l-text" id="loadingText">শুরু হচ্ছে…</div>
   <div class="bar-track"><div class="bar-fill" id="loadingBar"></div></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <div class="header">
-  <p id="headerDate">Loading…</p>
+  <p id="headerDate">লোড হচ্ছে…</p>
   <h1>SCADA Asset Control</h1>
   <div class="header-right">
-    <a href="scada-visualizer.html" class="scada-link">🌊 SCADA View</a>
+    <a href="scada-visualizer.html" class="scada-link" title="পাইপ নেটওয়ার্কের ভিজ্যুয়াল দেখুন">🌊 SCADA View</a>
   </div>
 </div>
 
 <div class="card-wrapper">
   <div class="card">
     <div class="datetime-bar">
-      <div class="dt-block"><div class="dt-label">Date</div><div class="dt-val" id="dispDate">—</div></div>
+      <div class="dt-block"><div class="dt-label">তারিখ</div><div class="dt-val" id="dispDate">—</div></div>
       <div class="dt-divider"></div>
-      <div class="dt-block"><div class="dt-label">Time</div><div class="dt-val" id="dispTime">—</div></div>
+      <div class="dt-block"><div class="dt-label">সময়</div><div class="dt-val" id="dispTime">—</div></div>
       <div class="dt-divider"></div>
-      <div class="dt-block"><div class="dt-label">Day</div><div class="dt-val" id="dispDay">—</div></div>
+      <div class="dt-block"><div class="dt-label">বার</div><div class="dt-val" id="dispDay">—</div></div>
     </div>
 
-    <div class="field-label">Select Your Name</div>
+    <div class="field-label">আপনার নাম নির্বাচন করুন</div>
     <div class="combo-wrapper" id="comboWrapper">
       <div class="combo-input-row">
         <span class="combo-search-icon">&#128269;</span>
         <input type="text" id="personSearch" class="combo-input"
-               placeholder="Type to search your name…" autocomplete="off"
+               placeholder="আপনার নাম খুঁজতে টাইপ করুন…" autocomplete="off" title="নাম খুঁজে নির্বাচন করুন"
                oninput="filterPersons()" onfocus="openDropdown()" />
-        <button class="combo-clear" id="comboClear" onclick="clearPerson()" style="display:none">&#x2715;</button>
+        <button class="combo-clear" id="comboClear" onclick="clearPerson()" style="display:none" title="মুছে ফেলুন">&#x2715;</button>
       </div>
       <div class="combo-dropdown" id="comboDropdown" style="display:none"></div>
     </div>
@@ -500,10 +500,10 @@ function parseKmlText(text) {
     <div class="loc-status idle" id="locStatus">
       <div class="loc-icon" id="locIcon">📍</div>
       <div style="flex:1">
-        <div class="loc-title" id="locTitle">Location not checked</div>
-        <div class="loc-sub"   id="locSub">Select your name to begin</div>
+        <div class="loc-title" id="locTitle">অবস্থান পরীক্ষা করা হয়নি</div>
+        <div class="loc-sub"   id="locSub">শুরু করতে আপনার নাম নির্বাচন করুন</div>
       </div>
-      <button class="loc-reacq" id="btnReacq" onclick="reacquireGps()" title="Force a fresh GPS fix">🔄 Re-acquire</button>
+      <button class="loc-reacq" id="btnReacq" onclick="reacquireGps()" title="নতুন GPS অবস্থান সংগ্রহ করুন">🔄 পুনরায় সংগ্রহ</button>
     </div>
   </div>
 
@@ -512,12 +512,12 @@ function parseKmlText(text) {
       <div class="stb-left">
         <span class="stb-icon">🏭</span>
         <div class="stb-texts">
-          <span class="stb-title">Assigned Assets / Sites</span>
-          <span class="stb-sub">Your assigned sites and equipment</span>
+          <span class="stb-title">বরাদ্দকৃত সম্পদ / সাইট</span>
+          <span class="stb-sub">আপনার বরাদ্দকৃত সাইট ও যন্ত্রপাতি</span>
         </div>
       </div>
       <div class="stb-right">
-        <span class="btn-refresh" onclick="event.stopPropagation();refreshAll()" role="button" tabindex="0" title="Refresh">↻</span>
+        <span class="btn-refresh" onclick="event.stopPropagation();refreshAll()" role="button" tabindex="0" title="তালিকা রিফ্রেশ করুন">↻</span>
         <div class="stb-chevron" id="assetsChevron">▾</div>
       </div>
     </button>
@@ -531,8 +531,8 @@ function parseKmlText(text) {
       <div class="stb-left">
         <span class="stb-icon">⚠️</span>
         <div class="stb-texts">
-          <span class="stb-title">Report Leak / Burst / Issues</span>
-          <span class="stb-sub">Select a pipe and report or clear a leak/burst</span>
+          <span class="stb-title">লিক / ফাটল / সমস্যা রিপোর্ট করুন</span>
+          <span class="stb-sub">একটি পাইপ নির্বাচন করে লিক/ফাটল রিপোর্ট করুন বা সমাধান নিশ্চিত করুন</span>
         </div>
       </div>
       <div class="stb-right">
@@ -544,8 +544,8 @@ function parseKmlText(text) {
       <!-- Zone selector — only the zones this operator handles (from config.json) -->
       <div class="lbz-section">
         <div class="lbz-header">
-          <span class="lbz-label">📍 Your Zone</span>
-          <button class="btn-share-lb" onclick="shareLeakBursts()" title="Share items pending estimate in this zone">Share &#10148;</button>
+          <span class="lbz-label">📍 আপনার জোন</span>
+          <button class="btn-share-lb" onclick="shareLeakBursts()" title="এই জোনে বাকি হিসাবের আইটেম শেয়ার করুন">শেয়ার করুন &#10148;</button>
         </div>
         <div id="leakBurstZoneTabs" class="lbz-rail"></div>
       </div>
@@ -554,45 +554,45 @@ function parseKmlText(text) {
       <div class="leakburst-search-wrap">
         <span class="leakburst-search-icon">🔍</span>
         <input type="search" id="leakBurstSearch" class="leakburst-search-input"
-               placeholder="Search pipes by name…"
+               placeholder="নাম দিয়ে পাইপ খুঁজুন…" title="পাইপ খুঁজুন"
                oninput="filterLeakBurstEdges()" autocomplete="off" spellcheck="false">
-        <button class="btn-leakburst-locate" id="btnLeakBurstLocate" onclick="locateNearestEdge()" title="Auto-detect nearest pipe (±15m)">📍</button>
+        <button class="btn-leakburst-locate" id="btnLeakBurstLocate" onclick="locateNearestEdge()" title="সবচেয়ে কাছের পাইপ স্বয়ংক্রিয়ভাবে খুঁজুন (±১৫ মিটার)">📍</button>
       </div>
       <div class="leakburst-locate-status" id="leakBurstLocateStatus"></div>
 
       <!-- Edge list -->
       <div class="leakburst-edge-list" id="leakBurstEdgeList">
-        <div class="leakburst-empty">Loading pipes…</div>
+        <div class="leakburst-empty">পাইপের তালিকা লোড হচ্ছে…</div>
       </div>
 
       <!-- Selected edge + action row -->
       <div class="leakburst-action-row">
-        <div class="leakburst-selected-label" id="leakBurstSelectedLabel">No pipe selected</div>
-        <button class="btn-leakburst-rpt" id="btnLeakBurstReport" onclick="showLocWarn(() => submitEdgeLeakBurst('LEAK_BURST'))"       disabled>⚠ Report</button>
-        <button class="btn-leakburst-clr" id="btnLeakBurstClear"  onclick="submitEdgeLeakBurst('LEAK_BURST_CLEAR')" disabled>✓ Clear</button>
+        <div class="leakburst-selected-label" id="leakBurstSelectedLabel">কোনো পাইপ নির্বাচিত নয়</div>
+        <button class="btn-leakburst-rpt" id="btnLeakBurstReport" onclick="showLocWarn(() => submitEdgeLeakBurst('LEAK_BURST'))" title="নির্বাচিত পাইপে লিক/ফাটল রিপোর্ট করুন" disabled>⚠ রিপোর্ট করুন</button>
+        <button class="btn-leakburst-clr" id="btnLeakBurstClear"  onclick="submitEdgeLeakBurst('LEAK_BURST_CLEAR')" title="মেরামত সম্পন্ন — এই লিক/ফাটল সমাধান হয়েছে বলে চিহ্নিত করুন" disabled>✓ সমাধান হয়েছে</button>
       </div>
       <div class="leakburst-submit-status" id="leakBurstSubmitStatus"></div>
 
       <!-- Other pipe issue — log-only report of any non-leak/burst problem -->
       <div class="pipe-issue-panel">
-        <div class="pipe-issue-title">🛠 Report another pipe issue</div>
-        <select id="pipeIssueType" class="pipe-issue-select">
-          <option value="FHTC Leakage">Leakage of House Connection [FHTC]</option>
-          <option value="No-Node Leakage">Pipe Leakage Near Household / Institution / Landmark</option>
-          <option value="Low pressure">Low pressure at tap (<20L/min)</option>
-          <option value="No water">No water supply at tap</option>
-          <option value="Contamination">Contamination / dirty water in tap</option>
-          <option value="Valve fault">Valve Not Working</option>
-          <option value="Illegal connection">Illegal tap / motor connection</option>
-          <option value="Pipe Exposed">Pipe Exposed above Surface</option>
-          <option value="Pipe Sunk">Pipe Sunk below Trench / Pond</option>
-          <option value="Road Damage">Damage by Road Construction [PWD/ZP/PS/GP]</option>
-          <option value="Drain Damage">Damage by Drain Construction [PWD/ZP/PS/GP]</option>
-          <option value="WBSEDCL Damage">Damage by Electric Post [WBSEDCL]</option>          
-          <option value="Other">Other (Please Mention)</option>
+        <div class="pipe-issue-title">🛠 অন্য পাইপ সমস্যা রিপোর্ট করুন</div>
+        <select id="pipeIssueType" class="pipe-issue-select" title="সমস্যার ধরন নির্বাচন করুন">
+          <option value="FHTC Leakage">বাড়ির সংযোগে লিকেজ [FHTC]</option>
+          <option value="No-Node Leakage">বাড়ি/প্রতিষ্ঠান/ল্যান্ডমার্কের কাছে পাইপ লিকেজ</option>
+          <option value="Low pressure">কলে কম চাপ (২০ লিটার/মিনিটের কম)</option>
+          <option value="No water">কলে জল সরবরাহ নেই</option>
+          <option value="Contamination">কলে দূষিত / নোংরা জল</option>
+          <option value="Valve fault">ভালভ কাজ করছে না</option>
+          <option value="Illegal connection">অবৈধ কল / মোটর সংযোগ</option>
+          <option value="Pipe Exposed">পাইপ মাটির উপরে বেরিয়ে আছে</option>
+          <option value="Pipe Sunk">পাইপ খাদ/পুকুরের নিচে ডুবে গেছে</option>
+          <option value="Road Damage">রাস্তা নির্মাণের কারণে ক্ষতি [PWD/ZP/PS/GP]</option>
+          <option value="Drain Damage">নর্দমা নির্মাণের কারণে ক্ষতি [PWD/ZP/PS/GP]</option>
+          <option value="WBSEDCL Damage">বিদ্যুতের খুঁটির কারণে ক্ষতি [WBSEDCL]</option>          
+          <option value="Other">অন্যান্য (উল্লেখ করুন)</option>
         </select>
-        <textarea id="pipeIssueNote" class="pipe-issue-note" placeholder="Describe the issue (required)…" autocomplete="off"></textarea>
-        <button class="btn-pipe-issue" id="btnPipeIssue" onclick="showLocWarn(() => submitPipeIssue())">📝 Log Issue</button>
+        <textarea id="pipeIssueNote" class="pipe-issue-note" placeholder="সমস্যার বিবরণ দিন (আবশ্যক)…" autocomplete="off" title="সমস্যাটি বিস্তারিত লিখুন"></textarea>
+        <button class="btn-pipe-issue" id="btnPipeIssue" onclick="showLocWarn(() => submitPipeIssue())" title="এই সমস্যাটি রেকর্ড করুন">📝 সমস্যা লগ করুন</button>
         <div class="pipe-issue-status" id="pipeIssueSubmitStatus"></div>
       </div>
 
@@ -609,8 +609,8 @@ function parseKmlText(text) {
       <div class="stb-left">
         <span class="stb-icon">📋</span>
         <div class="stb-texts">
-          <span class="stb-title">Pending Estimates</span>
-          <span class="stb-sub">Leaks/bursts and issues awaiting cost estimate upload</span>
+          <span class="stb-title">বাকি হিসাব</span>
+          <span class="stb-sub">খরচের হিসাব আপলোডের অপেক্ষায় থাকা লিক/ফাটল ও সমস্যা</span>
         </div>
       </div>
       <div class="stb-right">
@@ -621,11 +621,11 @@ function parseKmlText(text) {
 
     <div class="collapsible-body" id="pendingEstBody">
       <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:10px;">
-        <a href="estimate.html" class="btn-refresh" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;">📋 Estimates</a>
-        <button class="btn-refresh" onclick="refreshPendingEstimates()">↻ Refresh</button>
+        <a href="estimate.html" class="btn-refresh" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="সকল হিসাব দেখুন">📋 হিসাব</a>
+        <button class="btn-refresh" onclick="refreshPendingEstimates()" title="বাকি হিসাবের তালিকা রিফ্রেশ করুন">↻ রিফ্রেশ</button>
       </div>
       <div id="pendingEstList">
-        <div class="empty-state"><div class="e-icon">⏳</div>Loading…</div>
+        <div class="empty-state"><div class="e-icon">⏳</div>লোড হচ্ছে…</div>
       </div>
     </div>
   </div>
@@ -636,8 +636,8 @@ function parseKmlText(text) {
       <div class="stb-left">
         <span class="stb-icon">🗒️</span>
         <div class="stb-texts">
-          <span class="stb-title">Today's Toggle Records</span>
-          <span class="stb-sub">All on/off and leak/burst actions logged today</span>
+          <span class="stb-title">আজকের টগল রেকর্ড</span>
+          <span class="stb-sub">আজ রেকর্ড হওয়া সমস্ত অন/অফ ও লিক/ফাটল কার্যক্রম</span>
         </div>
       </div>
       <div class="stb-right">
@@ -647,7 +647,7 @@ function parseKmlText(text) {
 
     <div class="collapsible-body" id="recordsBody">
       <div id="recordsList">
-        <div class="empty-state"><div class="e-icon">🗒️</div>No records yet today</div>
+        <div class="empty-state"><div class="e-icon">🗒️</div>আজ এখনও কোনো রেকর্ড নেই</div>
       </div>
     </div>
 
@@ -658,8 +658,8 @@ function parseKmlText(text) {
       <div class="stb-left">
         <span class="stb-icon">⬇️</span>
         <div class="stb-texts">
-          <span class="stb-title">Download Records by Date</span>
-          <span class="stb-sub">Export records, leak/bursts, issues or estimates as CSV / ZIP</span>
+          <span class="stb-title">তারিখ অনুযায়ী রেকর্ড ডাউনলোড করুন</span>
+          <span class="stb-sub">রেকর্ড, লিক/ফাটল, সমস্যা বা হিসাব CSV / ZIP আকারে এক্সপোর্ট করুন</span>
         </div>
       </div>
       <div class="stb-right">
@@ -669,42 +669,42 @@ function parseKmlText(text) {
 
     <div class="collapsible-body" id="downloadBody">
       <div class="dl-card">
-        <div class="dl-card-header">Select date range</div>
+        <div class="dl-card-header">তারিখের পরিসর নির্বাচন করুন</div>
         <div class="dl-date-row">
           <div class="dl-date-group">
-            <label class="dl-date-label">From</label>
-            <input type="text" id="dlFromDisplay" class="dl-select" placeholder="dd mmm yyyy" readonly>
+            <label class="dl-date-label">থেকে</label>
+            <input type="text" id="dlFromDisplay" class="dl-select" placeholder="dd mmm yyyy" readonly title="শুরুর তারিখ নির্বাচন করুন">
             <input type="date" id="dlFrom" style="display:none">
           </div>
           <span class="dl-date-sep">→</span>
           <div class="dl-date-group">
-            <label class="dl-date-label">To</label>
-            <input type="text" id="dlToDisplay" class="dl-select" placeholder="dd mmm yyyy" readonly>
+            <label class="dl-date-label">পর্যন্ত</label>
+            <input type="text" id="dlToDisplay" class="dl-select" placeholder="dd mmm yyyy" readonly title="শেষের তারিখ নির্বাচন করুন">
             <input type="date" id="dlTo" style="display:none">
           </div>
         </div>
       </div>
       <div class="dl-card">
-        <div class="dl-card-header">Export</div>
+        <div class="dl-card-header">এক্সপোর্ট</div>
         <div class="dl-btn-grid">
           <button class="btn-download" onclick="downloadRecords()">
             <span class="dl-btn-icon">📋</span>
-            <span class="dl-btn-lbl">Records</span>
+            <span class="dl-btn-lbl">রেকর্ড</span>
             <span class="dl-btn-fmt">CSV</span>
           </button>
           <button class="btn-download btn-dl-danger" onclick="downloadLeakBursts()">
             <span class="dl-btn-icon">⚠️</span>
-            <span class="dl-btn-lbl">Leak/Burst</span>
+            <span class="dl-btn-lbl">লিক/ফাটল</span>
             <span class="dl-btn-fmt">CSV</span>
           </button>
           <button class="btn-download btn-dl-issue" onclick="downloadOtherIssues()">
             <span class="dl-btn-icon">🛠</span>
-            <span class="dl-btn-lbl">Other Issues</span>
+            <span class="dl-btn-lbl">অন্যান্য সমস্যা</span>
             <span class="dl-btn-fmt">CSV</span>
           </button>
           <button class="btn-download btn-dl-est" onclick="openDownloadModal()">
             <span class="dl-btn-icon">📊</span>
-            <span class="dl-btn-lbl">Estimates</span>
+            <span class="dl-btn-lbl">হিসাব</span>
             <span class="dl-btn-fmt">CSV / ZIP</span>
           </button>
         </div>
@@ -720,21 +720,21 @@ function parseKmlText(text) {
 <div class="modal-backdrop" id="csvModal" onclick="modalBackdropClick(event)">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">Download Estimates as CSV</div>
-    <div class="modal-sub" id="modalSub">Select estimates to download</div>
+    <div class="modal-title">CSV হিসেবে হিসাব ডাউনলোড করুন</div>
+    <div class="modal-sub" id="modalSub">ডাউনলোড করার জন্য হিসাব নির্বাচন করুন</div>
 
     <div class="modal-select-all" id="modalSelectAll" onclick="toggleSelectAll()">
       <div class="msa-check" id="msaCheck"></div>
-      <span>Select all &amp; download summary CSV</span>
+      <span>সব নির্বাচন করুন ও সারাংশ CSV ডাউনলোড করুন</span>
     </div>
 
     <div class="modal-est-list" id="modalEstList"></div>
 
     <div class="modal-divider"></div>
     <div class="modal-actions">
-      <button class="modal-btn modal-btn-primary" id="btnDownloadSelected" onclick="downloadSelected()" disabled>⬇ Download Selected</button>
-      <button class="modal-btn modal-btn-success" id="btnDownloadZip" onclick="downloadAllZip()" disabled>📦 Download All (ZIP)</button>
-      <button class="modal-btn modal-btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" id="btnDownloadSelected" onclick="downloadSelected()" disabled>⬇ নির্বাচিতগুলি ডাউনলোড করুন</button>
+      <button class="modal-btn modal-btn-success" id="btnDownloadZip" onclick="downloadAllZip()" disabled>📦 সব ডাউনলোড করুন (ZIP)</button>
+      <button class="modal-btn modal-btn-outline" onclick="closeModal()">বাতিল করুন</button>
     </div>
   </div>
 </div>
@@ -743,14 +743,14 @@ function parseKmlText(text) {
 <div class="share-sheet-backdrop" id="shareSheetBackdrop" onclick="closeShareSheet(event)">
   <div class="share-sheet">
     <div class="share-handle"></div>
-    <div class="share-title">&#128228; Share Pending Estimates</div>
-    <div class="share-sub" id="shareSheetSub">Items pending estimate in zone</div>
+    <div class="share-title">&#128228; বাকি হিসাব শেয়ার করুন</div>
+    <div class="share-sub" id="shareSheetSub">জোনে বাকি থাকা হিসাবের আইটেম</div>
     <div class="share-preview" id="sharePreviewText"></div>
     <div class="share-btn-row">
-      <button class="share-btn share-btn-whatsapp" onclick="shareViaWhatsApp()">&#128241; WhatsApp</button>
-      <button class="share-btn share-btn-native" id="btnNativeShare" onclick="shareNative()" style="display:none">&#128228; Share&hellip;</button>
-      <button class="share-btn share-btn-copy" onclick="shareCopyClipboard()">&#128203; Copy</button>
-      <button class="share-btn share-btn-close" onclick="closeShareSheet()">&#x2715; Close</button>
+      <button class="share-btn share-btn-whatsapp" onclick="shareViaWhatsApp()" title="হোয়াটসঅ্যাপে শেয়ার করুন">&#128241; হোয়াটসঅ্যাপ</button>
+      <button class="share-btn share-btn-native" id="btnNativeShare" onclick="shareNative()" style="display:none" title="অন্য অ্যাপে শেয়ার করুন">&#128228; শেয়ার করুন&hellip;</button>
+      <button class="share-btn share-btn-copy" onclick="shareCopyClipboard()" title="ক্লিপবোর্ডে কপি করুন">&#128203; কপি করুন</button>
+      <button class="share-btn share-btn-close" onclick="closeShareSheet()">&#x2715; বন্ধ করুন</button>
     </div>
   </div>
 </div>
@@ -759,11 +759,11 @@ function parseKmlText(text) {
 <div class="locwarn-backdrop" id="locWarnBackdrop">
   <div class="locwarn-box">
     <div class="locwarn-icon">&#128205;</div>
-    <div class="locwarn-title">Report From the Actual Location</div>
-    <div class="locwarn-text">Please make sure you are physically at the leak/burst site before reporting. The report records your current GPS coordinates, which the field team relies on to locate the problem.</div>
+    <div class="locwarn-title">প্রকৃত অবস্থান থেকে রিপোর্ট করুন</div>
+    <div class="locwarn-text">রিপোর্ট করার আগে অনুগ্রহ করে নিশ্চিত করুন যে আপনি সরাসরি লিক/ফাটলের জায়গায় উপস্থিত আছেন। রিপোর্টে আপনার বর্তমান GPS অবস্থান রেকর্ড হয়, যা মাঠকর্মী দল সমস্যাটি খুঁজে বের করতে ব্যবহার করে।</div>
     <div class="locwarn-btn-row">
-      <button class="locwarn-btn locwarn-btn-back" onclick="closeLocWarn()">← Go back</button>
-      <button class="locwarn-btn locwarn-btn-confirm" onclick="confirmLocWarn()">I understand</button>
+      <button class="locwarn-btn locwarn-btn-back" onclick="closeLocWarn()">← ফিরে যান</button>
+      <button class="locwarn-btn locwarn-btn-confirm" onclick="confirmLocWarn()">বুঝেছি</button>
     </div>
   </div>
 </div>
@@ -772,11 +772,11 @@ function parseKmlText(text) {
 <div class="locwarn-backdrop" id="accWarnBackdrop">
   <div class="locwarn-box">
     <div class="locwarn-icon">📡</div>
-    <div class="locwarn-title">Low GPS Accuracy</div>
-    <div class="locwarn-text" id="accWarnText">Your device location cannot be confirmed precisely. Only proceed if you are physically standing at this asset.</div>
+    <div class="locwarn-title">কম GPS নির্ভুলতা</div>
+    <div class="locwarn-text" id="accWarnText">আপনার ডিভাইসের অবস্থান সঠিকভাবে নিশ্চিত করা যাচ্ছে না। আপনি যদি সরাসরি এই সম্পদের কাছে উপস্থিত থাকেন, তবেই এগিয়ে যান।</div>
     <div class="locwarn-btn-row">
-      <button class="locwarn-btn locwarn-btn-back" onclick="closeAccWarn()">← Cancel</button>
-      <button class="locwarn-btn locwarn-btn-confirm" onclick="confirmAccWarn()">I am at the asset</button>
+      <button class="locwarn-btn locwarn-btn-back" onclick="closeAccWarn()">← বাতিল করুন</button>
+      <button class="locwarn-btn locwarn-btn-confirm" onclick="confirmAccWarn()">আমি সম্পদের কাছে আছি</button>
     </div>
   </div>
 </div>
@@ -785,8 +785,8 @@ function parseKmlText(text) {
 <div class="modal-backdrop" id="zonePickModal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">🗺️ Which zone?</div>
-    <div class="modal-sub" id="zonePickSub">This asset exists in more than one zone.</div>
+    <div class="modal-title">🗺️ কোন জোন?</div>
+    <div class="modal-sub" id="zonePickSub">এই সম্পদটি একাধিক জোনে রয়েছে।</div>
     <div class="modal-actions" id="zonePickBtns" style="flex-direction:column"></div>
   </div>
 </div>
@@ -1199,11 +1199,11 @@ function renderLocStatus() {
   if (!currentPos) return;
   const sinceFresh = Date.now() - _lastFreshTs;
   if (sinceFresh > GPS_STALE_MS) {
-    setLoc('failed', '🛰️', 'GPS signal frozen — not updating',
-      `Last movement ${fmtAge(sinceFresh)} ago · ±${currentPos.acc}m. Move to open sky, then tap Re-acquire.`);
+    setLoc('failed', '🛰️', 'GPS সিগন্যাল আটকে গেছে — আপডেট হচ্ছে না',
+      `শেষ অবস্থান পরিবর্তন ${fmtAge(sinceFresh)} আগে · ±${currentPos.acc} মি। খোলা আকাশের নিচে গিয়ে "পুনরায় সংগ্রহ" চাপুন।`);
   } else {
-    setLoc('verified', '✅', 'Location acquired',
-      `Accuracy ±${currentPos.acc}m · updated ${fmtAge(sinceFresh)} ago`);
+    setLoc('verified', '✅', 'অবস্থান পাওয়া গেছে',
+      `নির্ভুলতা ±${currentPos.acc} মি · ${fmtAge(sinceFresh)} আগে আপডেট হয়েছে`);
   }
 }
 
@@ -1302,7 +1302,7 @@ function askZone(assetId, zoneIds) {
   return new Promise(resolve => {
     _zonePickResolve = resolve;
     $('zonePickSub').textContent =
-      `Asset "${assetId}" exists in more than one zone. Which zone are you tagging?`;
+      `সম্পদ "${assetId}" একাধিক জোনে রয়েছে। আপনি কোন জোনের জন্য চিহ্নিত করছেন?`;
     const btns = $('zonePickBtns');
     btns.innerHTML = '';
     zoneIds.forEach(zid => {
@@ -1527,7 +1527,7 @@ function fmtTime(iso) { try { return new Date(iso).toLocaleTimeString([], {hour:
 // ── RECORDS RENDER ─────────────────────────────────────────────────────────────
 function renderRecords() {
   const el = $('recordsList');
-  if (!todayRecs.length) { el.innerHTML = '<div class="empty-state"><div class="e-icon">🗒️</div>No records yet today</div>'; return; }
+  if (!todayRecs.length) { el.innerHTML = '<div class="empty-state"><div class="e-icon">🗒️</div>আজ এখনও কোনো রেকর্ড নেই</div>'; return; }
   el.innerHTML = [...todayRecs].sort((a,b) => b.timestamp.localeCompare(a.timestamp)).map(r => {
     const action    = r.action;
     const isOn      = action === 'ON';
@@ -1836,8 +1836,8 @@ function updateLeakBurstLock() {
   const btn = card.querySelector('.section-toggle-btn');
   const sub = card.querySelector('.stb-sub');
   if (sub) sub.textContent = hasOp
-    ? 'Select a pipe and report or clear a leak/burst'
-    : '🔒 Select your name above to begin';
+    ? 'একটি পাইপ নির্বাচন করে লিক/ফাটল রিপোর্ট করুন বা সমাধান নিশ্চিত করুন'
+    : '🔒 শুরু করতে উপরে আপনার নাম নির্বাচন করুন';
   if (btn) btn.disabled = !hasOp;
   if (!hasOp) {                                  // force-collapse if it was open
     $('leakBurstBody').classList.remove('expanded');
@@ -1884,7 +1884,7 @@ function selectLeakBurstEdge(edgeId) {
     $('leakBurstSelectedLabel').textContent = 'No pipe selected';
     $('leakBurstSelectedLabel').className   = 'leakburst-selected-label';
     $('btnLeakBurstReport').disabled  = true;
-    $('btnLeakBurstReport').textContent = '⚠ Report';
+    $('btnLeakBurstReport').textContent = '⚠ রিপোর্ট করুন';
     $('btnLeakBurstReport').title     = '';
     $('btnLeakBurstClear').style.display = 'none';
     $('leakBurstSubmitStatus').textContent = '';
@@ -1907,14 +1907,14 @@ function selectLeakBurstEdge(edgeId) {
   const btnReport = $('btnLeakBurstReport');
   if (isLeakBursted) {
     btnReport.disabled    = true;
-    btnReport.textContent = '⚠ Reported';
-    btnReport.title       = 'Already reported — clear the existing report before reporting again';
+    btnReport.textContent = '⚠ রিপোর্ট হয়েছে';
+    btnReport.title       = 'ইতিমধ্যে রিপোর্ট করা হয়েছে — আবার রিপোর্ট করার আগে বিদ্যমান রিপোর্টটি সমাধান করুন';
     $('btnLeakBurstClear').style.display = '';
     $('btnLeakBurstClear').disabled = !hasEst;
     $('btnLeakBurstClear').title    = hasEst ? '' : 'Upload an estimate for this leak/burst first';
   } else {
     btnReport.disabled    = false;
-    btnReport.textContent = '⚠ Report';
+    btnReport.textContent = '⚠ রিপোর্ট করুন';
     btnReport.title       = '';
     $('btnLeakBurstClear').style.display = 'none';
   }
@@ -1988,7 +1988,7 @@ function renderEstimatePanel(edgeId, edge, isLeakBursted, hasEst) {
       </div>
       <a href="estimate.html?asset=${encId}&name=${encName}&docket=${encDocket}"
          style="display:inline-flex;align-items:center;gap:8px;padding:11px 20px;background:#F5821F;color:#fff;border-radius:10px;font-size:14px;font-weight:800;text-decoration:none;font-family:'Nunito',sans-serif;">
-        📋 Upload Estimate for This Leak/Burst
+        📋 এই লিক/ফাটলের জন্য হিসাব আপলোড করুন
       </a>`;
   }
 }
