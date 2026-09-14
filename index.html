@@ -470,7 +470,7 @@ function parseKmlText(text) {
   <p id="headerDate">লোড হচ্ছে…</p>
   <h1>SCADA Asset Control</h1>
   <div class="header-right">
-    <a href="scada-visualizer.html" class="scada-link" title="পাইপ নেটওয়ার্কের ভিজ্যুয়াল দেখুন">🌊 SCADA View</a>
+    <a href="scada-visualizer.html" class="scada-link" title="পাইপ নেটওয়ার্কের ভিজ্যুয়াল দেখুন">🌊 SCADA ভিউ</a>
   </div>
 </div>
 
@@ -827,17 +827,17 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
-  setProgress(10); setLoadText('Loading configuration…');
+  setProgress(10); setLoadText('কনফিগারেশন লোড হচ্ছে…');
   deviceId = await getDeviceId();
   if (!await fetchConfig()) { hideLoading(); return; }
 
-  setProgress(40); setLoadText('Reading zone assets…');
+  setProgress(40); setLoadText('জোনের সম্পদ পড়া হচ্ছে…');
   await loadAssetsFromGist();
 
-  setProgress(70); setLoadText('Loading records…');
+  setProgress(70); setLoadText('রেকর্ড লোড হচ্ছে…');
   await fetchRecords();
 
-  setProgress(90); setLoadText('Loading pipe network…');
+  setProgress(90); setLoadText('পাইপ নেটওয়ার্ক লোড হচ্ছে…');
   await checkEstimate();   // load estimates BEFORE edges so the first pending render is correct
   await loadAllEdges();
   updateLeakBurstLock();   // start locked until an operator is picked
@@ -845,7 +845,7 @@ async function initApp() {
   linkDateDisplay('dlFrom', 'dlFromDisplay');
   linkDateDisplay('dlTo',   'dlToDisplay');
   setDefaultDateRange();
-  setProgress(100); setLoadText('Ready!');
+  setProgress(100); setLoadText('প্রস্তুত!');
   setTimeout(hideLoading, 500);
 }
 
@@ -1067,7 +1067,7 @@ function renderDropdown(query) {
   const list = q ? persons.filter(p => p.name.toLowerCase().includes(q) || (p.designation||'').toLowerCase().includes(q)) : persons;
   $('comboDropdown').innerHTML = list.length
     ? list.map(p => `<div class="combo-item" data-id="${esc(p.id)}">${hi(p.name, q)}${p.designation ? `<div class="combo-desig">${hi(p.designation, q)}</div>` : ''}</div>`).join('')
-    : '<div class="combo-empty">No persons found</div>';
+    : '<div class="combo-empty">কোনো ব্যক্তি পাওয়া যায়নি</div>';
 }
 
 function filterPersons() {
@@ -1125,8 +1125,8 @@ function getPersonId() { return $('personSelect').value; }
 // ── LOCATION ───────────────────────────────────────────────────────────────────
 function ensureWatch() {
   if (watchId !== null) return;
-  if (!navigator.geolocation) { setLoc('failed', '❌', 'GPS not supported', 'Use Chrome or Safari'); return; }
-  setLoc('checking', '📡', 'Getting your location…', 'Please hold still');
+  if (!navigator.geolocation) { setLoc('failed', '❌', 'GPS সমর্থিত নয়', 'Chrome অথবা Safari ব্যবহার করুন'); return; }
+  setLoc('checking', '📡', 'আপনার অবস্থান খোঁজা হচ্ছে…', 'অনুগ্রহ করে স্থির থাকুন');
   startLocTick();
   watchId = navigator.geolocation.watchPosition(
     pos => {
@@ -1163,7 +1163,7 @@ function ensureWatch() {
       currentPos = gpsFixes.reduce((best, f) => f.acc < best.acc ? f : best, fix);
       onGpsUpdate();
     },
-    err  => { const m = {1:'Permission denied', 2:'Location unavailable', 3:'Timed out'}; setLoc('failed', '❌', m[err.code] || 'Location error', 'Enable GPS and try again'); },
+    err  => { const m = {1:'অনুমতি প্রত্যাখ্যাত হয়েছে', 2:'অবস্থান পাওয়া যাচ্ছে না', 3:'সময় শেষ হয়ে গেছে'}; setLoc('failed', '❌', m[err.code] || 'অবস্থান নির্ণয়ে ত্রুটি', 'GPS চালু করে আবার চেষ্টা করুন'); },
     { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
   );
 }
@@ -1180,7 +1180,7 @@ function reacquireGps() {
   _lastRawFix  = null;
   _lastFreshTs = 0;
   currentPos   = null;
-  setLoc('checking', '📡', 'Re-acquiring GPS…', 'Hold still in an open area');
+  setLoc('checking', '📡', 'GPS পুনরায় সংগ্রহ করা হচ্ছে…', 'খোলা জায়গায় স্থির থাকুন');
   ensureWatch();
 }
 function onGpsUpdate() {
@@ -1209,7 +1209,7 @@ function renderLocStatus() {
 
 function fmtAge(ms) {
   const s = Math.round(ms / 1000);
-  if (s < 2)  return 'just now';
+  if (s < 2)  return 'এইমাত্র';
   if (s < 60) return s + 's';
   const m = Math.floor(s / 60);
   return m + 'm ' + (s % 60) + 's';
@@ -1255,7 +1255,7 @@ function setLoc(cls, icon, title, sub) {
   $('locTitle').textContent = title;
   $('locSub').textContent   = sub;
 }
-function resetLoc() { setLoc('idle', '📍', 'Location not checked', 'Select your name to begin'); }
+function resetLoc() { setLoc('idle', '📍', 'অবস্থান পরীক্ষা করা হয়নি', 'শুরু করতে আপনার নাম নির্বাচন করুন'); }
 
 // ── TOLERANCE / DISTANCE GATE ───────────────────────────────────────────────────
 // Single source of truth for "is the operator close enough to toggle?". Tolerance
@@ -1336,7 +1336,7 @@ function renderAssets(person) {
   const el = $('assetsList');
   el.innerHTML = list.length
     ? list.map(a => buildAssetCard(a, person.id)).join('')
-    : '<div class="empty-state"><div class="e-icon">🏭</div>No assets assigned to you</div>';
+    : '<div class="empty-state"><div class="e-icon">🏭</div>আপনাকে কোনো সম্পদ বরাদ্দ করা হয়নি</div>';
   $('assetsCard').style.display = 'block';
 }
 
@@ -1348,23 +1348,23 @@ function buildAssetCard(asset, personId) {
   const cdLeft = getCooldownRemaining(personId, asset.id);
 
   const locBadge = hasGps
-    ? `<span class="loc-badge ${near ? 'loc-near':'loc-far'}">${near?'✅':'📵'} ${dist ?? '—'}m / ${tol}m</span>`
-    : `<span class="loc-badge loc-unk">📍 No location</span>`;
+    ? `<span class="loc-badge ${near ? 'loc-near':'loc-far'}" title="বর্তমান দূরত্ব / অনুমোদিত পরিসীমা">${near?'✅':'📵'} ${dist ?? '—'} মি / ${tol} মি</span>`
+    : `<span class="loc-badge loc-unk" title="এই সম্পদের কোনো অবস্থান তথ্য সংরক্ষিত নেই">📍 অবস্থান নেই</span>`;
 
   // Accuracy badge — shown whenever we have a position reading
   const accBadge = currentPos
     ? (() => {
         const cls = acc <= ACC_POOR_THRESH ? 'acc-good' : acc <= 150 ? 'acc-poor' : 'acc-bad';
         const lbl = acc <= ACC_POOR_THRESH ? `±${acc}m` : `⚠ ±${acc}m`;
-        return `<span class="acc-badge ${cls}" title="GPS accuracy">${lbl}</span>`;
+        return `<span class="acc-badge ${cls}" title="GPS নির্ভুলতা">${lbl}</span>`;
       })()
     : '';
 
   const typeStr  = asset.type ? (TYPE_ICON[asset.type] || '🏭') + ' ' + asset.type.charAt(0).toUpperCase() + asset.type.slice(1) : '';
-  const lastText = st.lastPersonName ? `By ${esc(st.lastPersonName)} · ${fmtTime(st.lastChangedAt)}` : 'No recent activity';
+  const lastText = st.lastPersonName ? `${esc(st.lastPersonName)} দ্বারা · ${fmtTime(st.lastChangedAt)}` : 'সাম্প্রতিক কোনো কার্যক্রম নেই';
   const cdBadge  = cdLeft > 0 ? `<span class="cooldown-badge" id="cd-badge-${esc(asset.id)}">⏳ ${formatCooldown(cdLeft)}</span>` : `<span id="cd-badge-${esc(asset.id)}"></span>`;
   const disabled = (!near || cdLeft > 0) ? 'disabled' : '';
-  const title    = !hasGps ? 'No saved location for this asset' : !near ? `Move within ${tol}m to toggle` : cdLeft > 0 ? `Cooldown: ${formatCooldown(cdLeft)}` : '';
+  const title    = !hasGps ? 'এই সম্পদের কোনো সংরক্ষিত অবস্থান নেই' : !near ? `টগল করতে ${tol} মিটারের মধ্যে আসুন` : cdLeft > 0 ? `অপেক্ষার সময়: ${formatCooldown(cdLeft)}` : 'চালু/বন্ধ করতে চাপুন';
 
   return `
 <div class="asset-card ${isOn?'status-on':'status-off'}" id="asset-card-${esc(asset.id)}">
@@ -1372,14 +1372,14 @@ function buildAssetCard(asset, personId) {
     <div>
       <div class="asset-name">${esc(asset.name)}</div>
       ${typeStr ? `<div class="asset-type">${esc(typeStr)}</div>` : ''}
-      <div class="asset-dist">${!hasGps ? 'No saved location — toggle disabled' : dist !== null ? `${dist}m away · must be within ${tol}m` : 'Distance unknown'}</div>
+      <div class="asset-dist">${!hasGps ? 'কোনো সংরক্ষিত অবস্থান নেই — টগল নিষ্ক্রিয়' : dist !== null ? `${dist} মি দূরে · ${tol} মিটারের মধ্যে থাকতে হবে` : 'দূরত্ব অজানা'}</div>
     </div>
     <div class="toggle-wrap">
       <button class="toggle-switch ${isOn?'on':'off'}" id="toggle-btn-${esc(asset.id)}"
               onclick="doToggle('${esc(asset.id)}')" ${disabled} title="${title}">
         <div class="toggle-knob"></div>
       </button>
-      <span class="toggle-lbl" id="toggle-lbl-${esc(asset.id)}">${isOn?'ON':'OFF'}</span>
+      <span class="toggle-lbl" id="toggle-lbl-${esc(asset.id)}">${isOn?'চালু':'বন্ধ'}</span>
     </div>
   </div>
   <div class="asset-footer">
