@@ -11,7 +11,8 @@ Usage:
   python3 seed/seed_d1.py push zone_a_status.json records.csv   # by individual file
   python3 seed/seed_d1.py verify               # show D1 row / blob sizes
   python3 seed/seed_d1.py deploy               # wrangler deploy (upserts scada-worker-d1.js)
-  python3 seed/seed_d1.py build                # interactive zone builder (xlsx → KML + status)
+  python3 seed/seed_d1.py build                # interactive zone builder (xlsx → KML, KML → status, validate)
+  python3 seed/seed_d1.py validate [file ...]  # validate zone_*_status.json against the worker schema
 
 The interactive menu's Push option lists every file so you can pick specific ones.
 
@@ -34,8 +35,10 @@ append-only; only this admin tool deletes, via wrangler.)
 
 The zone builder (menu item 5 / `build`) is built in: it turns a WaterGEMS .xlsx
 export into zones/{zone_id}.kml + zones/{zone_id}_status.json, with an optional
-KML base file preserving real pipe routes. Every path prompt accepts pasted
-paths wrapped in single or double quotation marks.
+KML base file preserving real pipe routes. It also regenerates a zone's status
+JSON straight from an existing zones/{zone_id}.kml (no xlsx needed) and can
+validate any zone_*_status.json against the schema the worker expects. Every
+path prompt accepts pasted paths wrapped in single or double quotation marks.
 """
 
 import csv
@@ -959,7 +962,10 @@ def _resolve_cols(ws, spec: list) -> dict:
     A synonym found in row 1 wins; otherwise the legacy fallback letter is used
     (for headerless exports or unfamiliar header names).
     """
-    header = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
+    try:
+        header = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
+    except StopIteration:
+        header = ()   # empty sheet → every field falls back to its legacy letter
     lookup = {}
     for i, h in enumerate(header, 1):
         key = str(h).strip().lower() if h is not None else ""
@@ -989,8 +995,13 @@ def _read_sheet_nodes(ws, col_spec: list, label: str) -> dict:
             continue
         x_raw, y_raw = d.get(cols["east"]), d.get(cols["north"])
         if x_raw is not None and y_raw is not None:
-            nodes[str(elem)] = {"x": float(x_raw), "y": float(y_raw),
-                                "elevation": d.get(cols["elev"])}
+            try:
+                x, y = float(x_raw), float(y_raw)
+            except (TypeError, ValueError):
+                warn(f"Skipping node {elem!r}: bad coordinate "
+                     f"({x_raw!r}, {y_raw!r}) — expected numbers")
+                continue
+            nodes[str(elem)] = {"x": x, "y": y, "elevation": d.get(cols["elev"])}
     ok(f"{label} with coordinates: {len(nodes)}")
     return nodes
 
@@ -1049,25 +1060,34 @@ def _write_kml(kml_path: Path, zone_name: str, nodes_latlng: dict,
     ok(f"Wrote {kml_path}  ({len(nodes_latlng)} points, {len(edges)} linestrings)")
 
 
+def _basic_status_entry(nid: str, kind: str) -> dict:
+    """Seeded node entry shared by both builders (xlsx and KML):
+    reservoirs → type \"zone\"/ON, pumps → type \"pump\"/ON, valves →
+    type \"valve\"/OFF, everything else junction-style OFF. This is what the
+    worker seeds its flow graph from (running pumps + active zones, closed
+    valves stop traversal)."""
+    if kind == "reservoir":
+        return {"id": nid, "label": nid, "type": "zone", "state": "ON", "comment": ""}
+    if kind == "pump":
+        return {"id": nid, "label": nid, "type": "pump", "state": "ON", "comment": ""}
+    if kind == "valve":
+        return {"id": nid, "label": nid, "type": "valve", "state": "OFF", "comment": ""}
+    return {"id": nid, "label": nid, "type": "", "state": "OFF", "comment": ""}
+
+
+def _blank_status_entry(nid: str) -> dict:
+    return {"id": nid, "label": "", "type": "", "state": "", "comment": ""}
+
+
 def _write_zone_status(status_path: Path, zone_id: str, status_mode: str,
                        nodes_latlng: dict, node_kind: dict, edges: list) -> None:
     """Write the zone status JSON file (gist-backed status seed)."""
     entries = []
     for nid in nodes_latlng:
         if status_mode == "basic":
-            is_reservoir = node_kind.get(nid) == "reservoir"
-            entries.append({
-                "id": nid,
-                "label": nid,
-                "type": "zone" if is_reservoir else "",
-                "state": "ON" if is_reservoir else "OFF",
-                "comment": "",
-            })
+            entries.append(_basic_status_entry(nid, node_kind.get(nid)))
         else:
-            entries.append({
-                "id": nid, "label": "", "type": "",
-                "state": "", "comment": "",
-            })
+            entries.append(_blank_status_entry(nid))
     for e in edges:
         entries.append({"id": e["id"], "flow": ""})
     status_path.write_text(
@@ -1075,6 +1095,273 @@ def _write_zone_status(status_path: Path, zone_id: str, status_mode: str,
         encoding="utf-8",
     )
     ok(f"Wrote {status_path}  ({len(entries)} entries, mode={status_mode})")
+
+
+# ── Builder KML → status (no xlsx needed) ────────────────────────────────────
+# WaterGEMS element-name prefixes (this project's naming config) → status kind.
+# Pipes are P-/L-/CU-, junctions J-/Tap-/H-/SE-. Longest prefix is checked
+# first so overlapping ids disambiguate (PSV- is a valve, PS- a pump; TCV-/
+# TBN-/Tap- vs the tank T-).
+_PREFIX_KINDS = [
+    ("SPOT-", "valve"),
+    ("VSPB-", "pump"),
+    ("D2A-",  "valve"),
+    ("ISO-",  "valve"),
+    ("PMP-",  "pump"),
+    ("PRV-",  "valve"),
+    ("PSV-",  "valve"),
+    ("PBV-",  "valve"),
+    ("FCV-",  "valve"),
+    ("TCV-",  "valve"),
+    ("GPV-",  "valve"),
+    ("VLA-",  "valve"),
+    ("TAP-",  "junction"),
+    ("TBN-",  "pump"),
+    ("ST-",   "reservoir"),
+    ("SE-",   "junction"),
+    ("T-",    "reservoir"),
+    ("CV-",   "valve"),
+    ("OR-",   "valve"),
+    ("HT-",   "valve"),
+    ("AV-",   "valve"),
+    ("SV-",   "valve"),
+    ("RD-",   "valve"),
+    ("PER-",  "valve"),
+    ("PS-",   "pump"),
+    ("R-",    "reservoir"),
+    ("J-",    "junction"),
+    ("H-",    "junction"),
+    ("CU-",   "junction"),
+]
+
+
+def _prefix_kind(eid: str, id_only: bool = False) -> Optional[str]:
+    """WaterGEMS prefix → 'reservoir' | 'pump' | 'valve' | 'junction' | None.
+    With id_only=True the remainder after the prefix must be digits (or blank),
+    so composite pipe ids like 'R-1-J-1' never match the R- reservoir prefix —
+    only genuine element ids such as PMP-1 or PRV-1 match."""
+    up = eid.upper()
+    for prefix, kind in _PREFIX_KINDS:
+        if up.startswith(prefix):
+            rest = up[len(prefix):]
+            if id_only and not (rest and not rest.strip("-0123456789")):
+                continue
+            return kind
+    return None
+
+
+def _kml_extended_data(pm) -> dict:
+    """Collect <ExtendedData><Data name=".."><value>..</value></Data> pairs."""
+    def local(t):
+        return t.rsplit("}", 1)[-1]
+    out = {}
+    for ed in pm.iter():
+        if local(ed.tag) != "ExtendedData":
+            continue
+        for data in ed:
+            if local(data.tag) != "Data":
+                continue
+            name = data.get("name", "")
+            val = ""
+            for v in data:
+                if local(v.tag) == "value":
+                    val = (v.text or "").strip()
+                    break
+            if name:
+                out[name] = val
+    return out
+
+
+def _kml_node_kind(node_id: str, ext_type: str = "") -> str:
+    """Classify a node for status seeding. Explicit ExtendedData type wins,
+    then WaterGEMS id prefixes (R-/T-/ST- → reservoir, PMP-/VSPB-/TBN-/PS- →
+    pump, PRV-/PSV-/… → valve, J-/Tap-/H-/SE- → junction). Unknown ids are
+    treated as junctions."""
+    t = (ext_type or "").strip().lower()
+    if t in ("reservoir", "tank", "zone"):
+        return "reservoir"
+    if t in ("pump", "ibp", "wtp"):
+        return "pump"
+    if t == "valve":
+        return "valve"
+    return _prefix_kind(node_id) or "junction"
+
+
+def build_status_from_kml(
+    kml_path: str,
+    zone_id: str,
+    output_dir: str = DEFAULT_OUTPUT_DIR,
+    status_mode: str = "basic",
+) -> Path:
+    """Generate {zone_id}_status.json straight from a KML file, with no xlsx.
+
+    Point placemarks become node entries; LineString placemarks become pipe
+    (flow) entries — except lines whose id/type marks them as a pump or valve,
+    which become NODES seeded ON/OFF (a pump node is what the worker starts
+    flow from). The <name> or ExtendedData id is used as the entry id; node
+    kind comes from an ExtendedData \"type\"/\"kind\" value first and then from
+    the WaterGEMS id prefixes (R-/T-/ST- → reservoir, PMP-/VSPB-/TBN-/PS- →
+    pump, PRV-/PSV-/… → valve, J-/Tap-/H-/SE- → junction). Returns the status
+    file path.
+    """
+    if status_mode not in STATUS_MODES:
+        raise ZoneBuildError(
+            f"status mode must be one of {', '.join(STATUS_MODES)} (got {status_mode!r})")
+
+    def local(t):
+        return t.rsplit("}", 1)[-1]
+
+    def _line_kind(eid: str, ext_type: str) -> Optional[str]:
+        # Pumps and valves live in the status model as NODES (the worker seeds
+        # flow from pump/zone nodes and stops it at closed valves). So a
+        # LineString that is typed, or whose id carries a pump/valve prefix,
+        # becomes that kind of node instead of a plain pipe flow edge. Pipes
+        # (P-/L-/CU-) and junctions stay as edges.
+        if eid in nodes:
+            return None
+        t = (ext_type or "").strip().lower()
+        if t in ("reservoir", "tank", "zone"):
+            return "reservoir"
+        if t in ("pump", "ibp", "wtp"):
+            return "pump"
+        if t == "valve":
+            return "valve"
+        return _prefix_kind(eid, id_only=True)
+
+    try:
+        root = ET.parse(kml_path).getroot()
+    except ET.ParseError as e:
+        raise ZoneBuildError(f"could not parse KML {kml_path}: {e}")
+
+    nodes = {}        # nid -> kind
+    edges = []
+    seen_edge = set()
+    for pm in root.iter():
+        if local(pm.tag) != "Placemark":
+            continue
+        ext = _kml_extended_data(pm)
+        pm_name = ""
+        for c in pm:
+            if local(c.tag) == "name":
+                pm_name = (c.text or "").strip()
+                break
+        children_tags = [local(e.tag) for e in pm.iter()]
+        has_point = "Point" in children_tags
+        has_line = "LineString" in children_tags
+
+        if has_point and not has_line:
+            nid = ext.get("id") or pm_name
+            if not nid:
+                continue
+            kind = _kml_node_kind(nid, ext.get("type") or ext.get("kind"))
+            nodes[nid] = kind
+        elif has_line:
+            eid = (ext.get("id")
+                   or (f"{ext.get('source')}-{ext.get('target')}"
+                       if ext.get("source") and ext.get("target") else None)
+                   or pm_name)
+            if not eid:
+                continue
+            line_kind = _line_kind(eid, ext.get("type") or ext.get("kind"))
+            if line_kind in ("reservoir", "pump", "valve"):
+                # Pump/valve/reservoir elements are NODES in the status model;
+                # seed them as such (basic: pump/reservoir ON, valve OFF).
+                if eid not in nodes:
+                    nodes[eid] = line_kind
+            elif eid not in seen_edge and eid not in nodes:
+                # A LineString whose id repeats a node (or an already-promoted
+                # element) must not be emitted as a parallel flow edge — that
+                # would create a duplicate id the validator rejects.
+                seen_edge.add(eid)
+                edges.append({"id": eid})
+
+    if not nodes and not edges:
+        warn("KML yielded no Point/LineString placemarks — the status file "
+             "will be an empty array.")
+
+    entries = [_basic_status_entry(nid, kind) if status_mode == "basic"
+               else _blank_status_entry(nid)
+               for nid, kind in nodes.items()]
+    entries += [{"id": e["id"], "flow": ""} for e in edges]
+
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    status_path = out_dir / f"{zone_id}_status.json"
+    status_path.write_text(
+        "[\n" + ",\n".join(f"  {json.dumps(s)}" for s in entries) + "\n]",
+        encoding="utf-8",
+    )
+    ok(f"Wrote {status_path}  ({len(nodes)} nodes, {len(edges)} pipes, "
+       f"mode={status_mode})")
+    return status_path
+
+
+# ── Builder JSON validator ────────────────────────────────────────────────────
+_STATUS_TYPES  = ("", "zone", "pump", "valve", "junction")
+_STATUS_STATES = ("", "ON", "OFF", "on", "off")
+
+
+def validate_status_data(data) -> list:
+    """Return a list of schema issues for a parsed zone status JSON ([] = valid)."""
+    issues = []
+    if not isinstance(data, list):
+        return ["top level must be an array of node/pipe entries"]
+    seen = {}
+    for i, entry in enumerate(data):
+        if not isinstance(entry, dict):
+            issues.append(f"entry {i}: not an object")
+            continue
+        eid = entry.get("id")
+        if not isinstance(eid, str) or not eid.strip():
+            issues.append(f"entry {i}: missing/invalid 'id'")
+            continue
+        if eid in seen:
+            issues.append(f"duplicate id '{eid}' (entries {seen[eid]} and {i})")
+        seen[eid] = i
+        if "flow" in entry:
+            if not isinstance(entry["flow"], (str, type(None))):
+                issues.append(f"'{eid}': 'flow' must be a string")
+            continue   # pipe entry
+        for k in ("label", "type", "state", "comment"):
+            if k not in entry:
+                issues.append(f"'{eid}': missing '{k}'")
+        if entry.get("state") not in _STATUS_STATES:
+            issues.append(f"'{eid}': state must be ON/OFF/empty "
+                          f"(got {entry.get('state')!r})")
+        if str(entry.get("type", "")).lower() not in _STATUS_TYPES:
+            issues.append(f"'{eid}': type must be zone/pump/valve/empty "
+                          f"(got {entry.get('type')!r})")
+    return issues
+
+
+def validate_status_file(path: str) -> tuple:
+    """Validate one zone status JSON. Returns (ok, issues, summary)."""
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return False, [f"not found: {path}"], None
+    except json.JSONDecodeError as e:
+        return False, [f"invalid JSON (line {e.lineno}, col {e.colno}): {e.msg}"], None
+    if not isinstance(data, list):
+        return False, validate_status_data(data), "not an array"
+    issues = validate_status_data(data)
+    n_nodes = sum(1 for e in data if isinstance(e, dict) and "flow" not in e)
+    n_pipes = sum(1 for e in data if isinstance(e, dict) and "flow" in e)
+    summary = f"{n_nodes} node(s), {n_pipes} pipe(s)"
+    return len(issues) == 0, issues, summary
+
+
+def _validate_and_report(path: str) -> bool:
+    """Print the outcome of validating one file. Returns True when valid."""
+    valid, issues, summary = validate_status_file(path)
+    if valid:
+        ok(f"{rel(path)}  —  valid ({summary})")
+        return True
+    badge("ERR", f"{rel(path)}  —  {summary or f'{len(issues)} issue(s)'}")
+    for issue in issues:
+        print("  " + paint("· " + issue, _fg(RED)))
+    return False
 
 
 def _load_pipe_geometry(geometry_path: str, edges: list,
@@ -1086,6 +1373,8 @@ def _load_pipe_geometry(geometry_path: str, edges: list,
     """
     paths, names, load_failed = [], [], False
 
+    if not geometry_path:
+        return {}, False
     if Path(geometry_path).suffix.lower() != ".kml":
         warn("Pipe geometry must be a .kml file — ignoring the path.")
         return {}, True
@@ -1160,8 +1449,26 @@ def build_zone_files(
         ("elev",  ["elevation"],        "J"),
     ], "Reservoirs")
 
+    # ── Read pumps (optional; WaterGEMS exports a Pump sheet) ───────────
+    def _find_sheet(ws_name: str):
+        target = ws_name.strip().lower()
+        return next((wb[s] for s in wb.sheetnames
+                     if s.strip().lower() == target), None)
+
+    pump_ws = _find_sheet("Pump")
+    if pump_ws is not None:
+        pumps = _read_sheet_nodes(pump_ws, [
+            ("elem",  ["element", "label"], "A"),
+            ("east",  ["x", "easting"],     "N"),
+            ("north", ["y", "northing"],    "O"),
+            ("elev",  ["elevation"],        "J"),
+        ], "Pumps")
+    else:
+        pumps = {}
+        say("No 'Pump' sheet found — no pump nodes (basic seed turns pumps ON when present).")
+
     # ── Merge all nodes, remembering provenance ─────────────────────────
-    node_kind = {}   # nid -> 'junction' | 'reservoir'
+    node_kind = {}   # nid -> 'junction' | 'reservoir' | 'pump'
     all_nodes_raw = {}
     for nid, coords in junctions.items():
         all_nodes_raw[nid] = coords
@@ -1169,6 +1476,9 @@ def build_zone_files(
     for nid, coords in reservoirs.items():
         all_nodes_raw[nid] = coords
         node_kind[nid] = "reservoir"
+    for nid, coords in pumps.items():
+        all_nodes_raw[nid] = coords
+        node_kind[nid] = "pump"
 
     if not all_nodes_raw:
         raise ZoneBuildError("No nodes with coordinates found in the workbook.")
@@ -1202,10 +1512,14 @@ def build_zone_files(
         if not start or not stop:
             continue
         start, stop = str(start), str(stop)
-        # Edge ID: use pipe element name if available, else source-target
-        edge_id = str(elem) if elem else f"{start}-{stop}"
-        if edge_id in edge_ids_seen:
-            edge_id = f"{start}-{stop}"   # deduplicate
+        # Edge ID: pipe element name when available, else source-target. Rewrite
+        # with a numeric suffix while the id is taken (parallel pipes can share
+        # both endpoints, and two same-named pipes may collide on the fallback).
+        base = str(elem) if elem else f"{start}-{stop}"
+        edge_id, n = base, 2
+        while edge_id in edge_ids_seen:
+            edge_id = f"{base}__{n}"
+            n += 1
         edge_ids_seen.add(edge_id)
         edges.append({
             "id": edge_id,
@@ -1314,7 +1628,7 @@ def wizard_convert() -> None:
     step(5, total, "Status mode")
     mode_idx = pick_option("How should the zone status file be seeded?", [
         "blank  — empty attributes; labels/states filled in later",
-        "basic  — seeded from the xlsx (reservoirs \u2192 zone/ON, else OFF)",
+        "basic  — seeded from the xlsx (reservoirs \u2192 zone/ON and pumps \u2192 pump/ON; valves & joints OFF)",
     ], default=1)
     status_mode = STATUS_MODES[mode_idx - 1]
 
@@ -1363,6 +1677,89 @@ def wizard_convert() -> None:
           + "  press Enter to return to the main menu.")
 
 
+def _validate_kml(path: str) -> Optional[str]:
+    p = Path(path)
+    if not p.exists():
+        return f"Not found: {path}"
+    if p.suffix.lower() != ".kml":
+        return "That does not look like a KML file (.kml expected)."
+    return None
+
+
+def wizard_status_from_kml() -> None:
+    header("Generate status from KML")
+    total = 4
+
+    step(1, total, "Source KML file")
+    kml_path = ask("Path to the zone .kml file", required=True,
+                   validate=_validate_kml)
+
+    step(2, total, "Zone identity")
+    zone_id = ask("Zone ID", Path(kml_path).stem)
+
+    step(3, total, "Output location")
+    output_dir = ask("Output directory", DEFAULT_OUTPUT_DIR)
+
+    step(4, total, "Status mode")
+    mode_idx = pick_option("How should the zone status file be seeded?", [
+        "basic  — reservoirs (zone/ON) and pumps (pump/ON) turned ON; valves & joints OFF",
+        "blank  — empty attributes; labels/states filled in later",
+    ], default=1)
+    status_mode = "basic" if mode_idx == 1 else "blank"
+
+    rule("Summary")
+    box([
+        f"kml         : {kml_path}",
+        f"zone id     : {zone_id}",
+        f"output dir  : {output_dir}",
+        f"status mode : {status_mode}",
+    ])
+    if not ask_yesno("Generate the status file now?", default="y"):
+        say("Cancelled — back to the zone builder menu.")
+        return
+
+    try:
+        status_path = build_status_from_kml(
+            kml_path=kml_path,
+            zone_id=zone_id,
+            output_dir=output_dir,
+            status_mode=status_mode,
+        )
+    except ZoneBuildError as e:
+        warn(str(e))
+        return
+
+    rule("Done")
+    box([f"Status : {status_path}"])
+    if ask_yesno("Validate the generated file now?", default="y"):
+        _validate_and_report(str(status_path))
+    input("  " + paint("→", _fg(GOLD), _BOLD)
+          + "  press Enter to return to the zone builder menu.")
+
+
+def wizard_validate() -> None:
+    header("Validate zone status JSON")
+    path = ask("Path to zone_*_status.json (Enter = scan all known files)", "").strip()
+    if path:
+        paths = [path]
+    else:
+        paths = [p for name in status_files()
+                 for p in [status_source_path(name)] if os.path.exists(p)]
+        if not paths:
+            say("No zone status files found under seed/status/ or zones/.")
+            return
+        say(f"Scanning {len(paths)} discovered zone status file(s)…")
+
+    good = sum(1 for p in paths if _validate_and_report(p))
+    print()
+    if good == len(paths):
+        ok(f"All {len(paths)} file(s) valid.")
+    else:
+        warn(f"{good}/{len(paths)} file(s) valid — see issues above.")
+    input("  " + paint("→", _fg(GOLD), _BOLD)
+          + "  press Enter to return to the zone builder menu.")
+
+
 def wizard_help() -> None:
     header("Help — how this tool works")
     help_sections = [
@@ -1376,15 +1773,28 @@ def wizard_help() -> None:
           "zones/{zone_id}_status.json  initial status (gist seed)",
           "Coordinates are UTM Zone 45N (Easting/Northing) by default and",
           "are reprojected to WGS84 lat/lng for KML."]),
-        ("3 · Status modes",
+        ("3 · Generate status from KML",
+         ["Given zones/{zone_id}.kml (built earlier), regenerate the matching",
+          "{zone_id}_status.json directly — no WaterGEMS xlsx required.",
+          "Point placemarks become node entries; LineString placemarks become",
+          "pipe (flow) entries. Node kind: ExtendedData type wins, else the",
+          "WaterGEMS id prefix — R-/T-/ST- → reservoir/zone (ON), PMP-/VSPB-/",
+          "TBN-/PS- → pump (ON), PRV-/PSV-/FCV-/… → valve (OFF), J-/Tap-/H-/",
+          "SE- → junction. Pump/valve lines are seeded as NODES, not flow edges."]),
+        ("4 · Status modes",
          ["blank — every label/type/state starts empty; you fill in later.",
-          "basic — seeded from the workbook: reservoirs become type \"zone\"",
-          "        with state ON; junctions/pipe lines start blank/OFF."]),
-        ("4 · Pipe geometry",
+          "basic — reservoirs become type \"zone\" with state ON and pumps",
+          "        become type \"pump\" with state ON; junctions start OFF.",
+          "        (ON pumps + ON zones seed the flow graph in scada-core.)"]),
+        ("5 · Pipe geometry",
          ["WaterGEMS only knows the straight start→end line per pipe. Give a",
           "base .kml file with the real routes. Each line is matched to a pipe",
           "— by placemark <name> first, then by endpoint distance — and",
           "matched pipes are drawn with their full bent path."]),
+        ("6 · Validate zone status JSON",
+         ["Checks a zone_*_status.json against the schema the worker expects:",
+          "node entries need id/label/type/state/comment with ON/OFF states,",
+          "pipe entries need id/flow; duplicate ids and bad values are flagged."]),
     ]
     for head, body in help_sections:
         print()
@@ -1406,6 +1816,8 @@ def zone_builder_main() -> None:
         choice = pick_option("What would you like to do?", [
             "Setup dependencies",
             "Convert xlsx \u2192 KML + status files",
+            "Generate status from KML",
+            "Validate zone status JSON",
             "Help",
             "Exit",
         ], default=1)
@@ -1414,6 +1826,10 @@ def zone_builder_main() -> None:
         elif choice == 2:
             wizard_convert()
         elif choice == 3:
+            wizard_status_from_kml()
+        elif choice == 4:
+            wizard_validate()
+        elif choice == 5:
             wizard_help()
         else:
             print()
@@ -1471,7 +1887,7 @@ _MENU_ITEMS = [
     ("Push",   "upload seed/ files → D1 (pick individual files)"),
     ("Verify", "show D1 row / blob sizes"),
     ("Deploy", "wrangler deploy (upsert worker)"),
-    ("Build",  "WaterGEMS xlsx → zones (KML + status)"),
+    ("Build",  "zone builder (xlsx → KML · KML → status · validate)"),
 ]
 
 
@@ -1494,9 +1910,28 @@ def menu() -> str:
     except EOFError:
         raise SystemExit()
 
+def cli_validate(tokens: list) -> int:
+    """Non-interactive validation: paths on the CLI, else every discovered
+    zone status file. Returns 0 when all valid, 1 otherwise."""
+    if not tokens:
+        tokens = [p for name in status_files()
+                  for p in [status_source_path(name)] if os.path.exists(p)]
+    if not tokens:
+        print("No zone status files found under seed/status/ or zones/.")
+        return 1
+    bad = [t for t in tokens if not _validate_and_report(t)]
+    if bad:
+        print()
+        badge("WARN", f"{len(bad)} file(s) invalid — see issues above.")
+        return 1
+    print()
+    badge("OK", "all files valid.")
+    return 0
+
+
 def main() -> None:
     # Non-interactive:
-    #   seed_d1.py pull|verify|deploy|build
+    #   seed_d1.py pull|verify|deploy|build|validate
     #   seed_d1.py push [config|status|output]   (no target → all)
     if len(sys.argv) > 1:
         action = sys.argv[1].lower()
@@ -1509,10 +1944,12 @@ def main() -> None:
             push(names)
         elif action == "build":
             zone_builder_main()
+        elif action == "validate":
+            sys.exit(cli_validate(sys.argv[2:]))
         elif action in ACTIONS:
             ACTIONS[action]()
         else:
-            print(f"Unknown action '{action}'. Use: push, build, {', '.join(ACTIONS)}")
+            print(f"Unknown action '{action}'. Use: push, build, validate, {', '.join(ACTIONS)}")
             sys.exit(1)
         return
 
